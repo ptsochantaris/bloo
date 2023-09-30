@@ -23,6 +23,7 @@
 		16B43D262AC7B05D00EB4815 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D242AC7B05D00EB4815 /* LICENSE */; };
 		16B43D2A2AC8439200EB4815 /* Semalot in Frameworks */ = {isa = PBXBuildFile; productRef = 16B43D292AC8439200EB4815 /* Semalot */; };
 		16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */; };
+		16B43D2E2AC8D8ED00EB4815 /* DomainState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */; };
 		16E8A0E82AC1F96500CCB10D /* GiggleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */; };
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
 		16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */; };
@@ -50,6 +51,7 @@
 		16B43D232AC7B05D00EB4815 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		16B43D242AC7B05D00EB4815 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Extensions.swift"; sourceTree = "<group>"; };
+		16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainState.swift; sourceTree = "<group>"; };
 		16E8A0E42AC1F96500CCB10D /* Bloo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bloo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiggleApp.swift; sourceTree = "<group>"; };
 		16E8A0E92AC1F96500CCB10D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -128,6 +130,7 @@
 				165F10C32AC8803C00442892 /* SearchResult.swift */,
 				165F10C52AC880DC00442892 /* DomainSection.swift */,
 				165F10C72AC8810D00442892 /* SearchState.swift */,
+				16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */,
 			);
 			path = Bloo;
 			sourceTree = "<group>";
@@ -219,6 +222,7 @@
 			files = (
 				16FD233E2AC5CD3600751A85 /* URL+Extensions.swift in Sources */,
 				16FD233C2AC5CD1600751A85 /* String+Extensions.swift in Sources */,
+				16B43D2E2AC8D8ED00EB4815 /* DomainState.swift in Sources */,
 				165F10C42AC8803C00442892 /* SearchResult.swift in Sources */,
 				165F10C82AC8810D00442892 /* SearchState.swift in Sources */,
 				165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */,
@@ -309,6 +313,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_OPTIMIZATION = time;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -344,18 +349,22 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				LLVM_LTO = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MERGED_BINARY_TYPE = automatic;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DISABLE_SAFETY_CHECKS = YES;
 			};
 			name = Release;
 		};
@@ -364,6 +373,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -375,6 +385,7 @@
 				INFOPLIST_FILE = Bloo/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -395,6 +406,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -406,6 +418,7 @@
 				INFOPLIST_FILE = Bloo/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

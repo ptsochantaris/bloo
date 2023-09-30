@@ -1,6 +1,6 @@
 import Foundation
 
-struct SearchResult: Identifiable, Hashable {
+struct SearchResult: ModelItem {
     let id: String
     let title: String
     let url: URL
@@ -37,9 +37,5 @@ struct SearchResult: Identifiable, Hashable {
             }
         }
         return res.isEmpty ? nil : res.joined(separator: ", ")
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(url)
     }
 }

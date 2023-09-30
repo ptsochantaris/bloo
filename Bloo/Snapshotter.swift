@@ -4,7 +4,7 @@ import Foundation
 final class Snapshotter {
     struct Item {
         let id: String
-        let state: Domain.State
+        let state: DomainState
         let items: [CSSearchableItem]
         let pending: PersistedSet
         let indexed: PersistedSet
@@ -27,7 +27,7 @@ final class Snapshotter {
                     }
                     return
                 }
-                
+
                 await withThrowingTaskGroup(of: Void.self) { group in
                     group.addTask {
                         await item.indexed.write()
@@ -37,25 +37,25 @@ final class Snapshotter {
                     }
                     group.addTask {
                         try await CSSearchableIndex.default().indexSearchableItems(item.items)
-                        
-                        let resolved: Domain.State
+
+                        let resolved: DomainState
                         switch item.state {
                         case .done, .paused:
                             resolved = item.state
                         case .deleting, .indexing, .loading:
                             resolved = .paused(0, 0, false)
                         }
-                        
+
                         let path = documentsPath.appendingPathComponent(item.id, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
                         try! JSONEncoder().encode(resolved).write(to: path, options: .atomic)
                     }
                 }
-                
+
                 log("Saved checkpoint for \(item.id)")
             }
         }
     }
-    
+
     func shutdown() async {
         if let l = loopTask {
             loopTask = nil

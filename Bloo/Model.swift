@@ -14,7 +14,7 @@ final class Model: ObservableObject {
     }
 
     static let shared = Model()
-    
+
     private let snapshotter = Snapshotter()
     private var currentQuery: CSUserQuery?
     private var lastSearchKey = ""
@@ -22,17 +22,17 @@ final class Model: ObservableObject {
     private lazy var queryTimer = PopTimer(timeInterval: 0.3) { [weak self] in
         self?.resetQuery(full: false)
     }
-    
+
     @Published var searchQuery = "" {
         didSet {
             queryTimer.push()
         }
     }
-    
+
     func queueSnapshot(item: Snapshotter.Item) {
         snapshotter.queue(item)
     }
-    
+
     func clearDomainSpotlight(for domainId: String) {
         Task {
             do {
@@ -42,7 +42,7 @@ final class Model: ObservableObject {
             }
         }
     }
-    
+
     func resurrect() {
         isRunning = true
     }
@@ -170,7 +170,7 @@ final class Model: ObservableObject {
         await Task.yield()
         log("All domains are shut down")
         await snapshotter.shutdown()
-        log("Snapshots are now shut down")
+        log("Snapshots and model are now shut down")
         await Task.yield()
         try? await Task.sleep(for: .seconds(0.3))
     }
@@ -206,9 +206,12 @@ final class Model: ObservableObject {
         if let newDomain {
             domainList.append(newDomain)
         }
-        domainSections = Domain.State.allCases.map { state in
+        let newSections = DomainState.allCases.map { state in
             let domainsForState = domainList.filter { $0.state == state }.sorted { $0.id < $1.id }
             return DomainSection(state: state, domains: domainsForState)
+        }
+        withAnimation {
+            domainSections = newSections
         }
     }
 

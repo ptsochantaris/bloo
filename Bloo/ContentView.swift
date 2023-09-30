@@ -3,32 +3,39 @@ import SwiftUI
 
 private let wideCorner: CGFloat = 15
 private let narrowCorner: CGFloat = 10
+private let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 640))]
 
 #if canImport(AppKit)
 
-extension Font {
-    static let blooTitle = Font.title2
-    static let blooFootnote = Font.footnote
-    static let blooCaption = Font.caption
-    static let blooCaption2 = Font.caption2
-    static let blooBody = Font.body
-}
-private let backgroundOpacity = 0.4
-private let cellOpacity = 0.5
-private let resultOpacity = 0.6
+    extension Font {
+        static let blooTitle = Font.title2
+        static let blooFootnote = Font.footnote
+        static let blooCaption = Font.caption
+        static let blooCaption2 = Font.caption2
+        static let blooBody = Font.body
+    }
+
+    private let backgroundOpacity = 0.4
+    private let cellOpacity = 0.5
+    private let resultOpacity = 0.6
+    private let hspacing: CGFloat = 17
+    private let titleInset: CGFloat = 4
 
 #elseif canImport(UIKit)
 
-extension Font {
-    static let blooTitle = Font.title3
-    static let blooFootnote = Font.footnote
-    static let blooCaption = Font.caption
-    static let blooCaption2 = Font.caption2
-    static let blooBody = Font.body
-}
-private let backgroundOpacity = 0.5
-private let cellOpacity = 0.6
-private let resultOpacity = 0.7
+    extension Font {
+        static let blooTitle = Font.title3
+        static let blooFootnote = Font.footnote
+        static let blooCaption = Font.footnote
+        static let blooCaption2 = Font.footnote
+        static let blooBody = Font.body
+    }
+
+    private let backgroundOpacity = 0.5
+    private let cellOpacity = 0.6
+    private let resultOpacity = 0.7
+    private let hspacing: CGFloat = 12
+    private let titleInset: CGFloat = 0
 
 #endif
 
@@ -56,7 +63,9 @@ private struct DomainTitle: View {
     }
 }
 
-private struct DomainRow: View {
+private struct DomainRow: View, Identifiable {
+    var id: String { domain.id }
+
     @ObservedObject var domain: Domain
 
     var body: some View {
@@ -95,10 +104,7 @@ private struct DomainRow: View {
                     Spacer(minLength: 0)
                     if transitioning {
                         Text("Pausing")
-                            .foregroundStyle(.accent)
-                        ProgressView()
-                            .scaleEffect(x: 0.4, y: 0.4)
-                            .tint(.accentColor)
+                            .font(.blooBody)
                     } else {
                         if indexed > 0 || pending > 0 {
                             Text(indexed, format: .number)
@@ -120,10 +126,9 @@ private struct DomainRow: View {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
                     Text("Deleting")
-                        .foregroundStyle(.accent)
+                        .font(.blooBody)
                     ProgressView()
                         .scaleEffect(x: 0.4, y: 0.4)
-                        .tint(.accentColor)
                 }
 
             case let .done(indexed):
@@ -191,7 +196,7 @@ private struct DomainRow: View {
 }
 
 private struct ResultRow: View, Identifiable {
-    let id: String
+    var id: String { result.id }
     let result: SearchResult
 
     @State var titleText: AttributedString?
@@ -200,7 +205,6 @@ private struct ResultRow: View, Identifiable {
     @Environment(\.openURL) private var openURL
 
     init(result: SearchResult) {
-        id = result.id
         self.result = result
     }
 
@@ -291,44 +295,47 @@ private struct AdditionRow: View {
     }
 }
 
-private let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 640))]
-
 private struct DomainGrid: View, Identifiable {
-    var id: String { section.id }
+    var id: String { section.state.id }
     let section: DomainSection
+    @State private var actioning = false
 
     var body: some View {
         if section.domains.isPopulated {
             VStack(alignment: .leading) {
                 HStack(alignment: .top) {
-                    Text(" " + section.state.title)
+                    Text(section.state.title)
                         .font(.blooTitle)
                         .foregroundStyle(.secondary)
 
-                    if section.actionable {
+                    if !actioning {
                         Spacer(minLength: 0)
 
                         if section.state.canStart {
-                            Button { [weak section] in
-                                section?.startAll()
+                            Button {
+                                actioning = true
+                                section.startAll()
                             } label: {
                                 Text("Start All")
                             }
                         } else if section.state.canStop {
-                            Button { [weak section] in
-                                section?.pauseAll()
+                            Button {
+                                actioning = true
+                                section.pauseAll()
                             } label: {
                                 Text("Pause All")
                             }
                         } else if section.state.canRestart {
-                            Button { [weak section] in
-                                section?.restartAll()
+                            Button {
+                                actioning = true
+                                section.restartAll()
                             } label: {
                                 Text("Re-Scan All")
                             }
                         }
                     }
                 }
+                .padding(.horizontal, titleInset)
                 LazyVGrid(columns: gridColumns) {
                     ForEach(section.domains) { domain in
                         DomainRow(domain: domain)
@@ -343,7 +350,9 @@ private struct DomainGrid: View, Identifiable {
     }
 }
 
-private struct ResultsSection: View {
+private struct ResultsSection: View, Identifiable {
+    let id = "Results"
+
     @ObservedObject var model: Model
 
     var body: some View {
@@ -416,8 +425,13 @@ struct StatusIcon: View {
 
     var body: some View {
         ZStack {
-            Color.black
-            color.opacity(colorScheme == .dark ? 0.5 : 0.7)
+            #if os(iOS)
+                Color.black
+                color.opacity(0.8)
+            #else
+                Color.black
+                color.opacity(colorScheme == .dark ? 0.6 : 0.7)
+            #endif
 
             Image(systemName: name)
                 .font(.blooCaption)
@@ -429,7 +443,9 @@ struct StatusIcon: View {
     }
 }
 
-private struct AdditionSection: View {
+private struct AdditionSection: View, Identifiable {
+    let id = "Addition"
+
     @ObservedObject var model: Model
 
     @State private var input = ""
@@ -437,8 +453,8 @@ private struct AdditionSection: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            HStack(spacing: 17) {
-                Text(" Add")
+            HStack(spacing: hspacing) {
+                Text("Add")
                     .font(.blooTitle)
                     .foregroundStyle(.secondary)
 
@@ -447,8 +463,12 @@ private struct AdditionSection: View {
                     .keyboardType(.URL)
                     .textContentType(.URL)
                     .autocapitalization(.none)
-                #endif
+                    .padding(8)
+                    .background(.fill.opacity(backgroundOpacity))
+                    .cornerRadius(8)
+                #else
                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                #endif
 
                 Button {
                     let copy = results
@@ -466,6 +486,8 @@ private struct AdditionSection: View {
                     Text("Create")
                 }
             }
+            .padding(.horizontal, titleInset)
+
             if results.isPopulated {
                 LazyVGrid(columns: gridColumns) {
                     ForEach(results, id: \.self) {
@@ -520,25 +542,32 @@ struct ContentView: View {
                 .allowsHitTesting(model.isRunning)
             }
             .searchable(text: $model.searchQuery, isPresented: $isSearching)
-            .navigationTitle("Bloo")
+            #if os(iOS)
+                .background(Color.background)
+            #endif
+                .navigationTitle("Bloo")
         }
         .opacity(model.isRunning ? 1 : 0.6)
-        .onAppear {
-            Task { @MainActor in
-                if model.hasDomains {
-                    isSearching = true
+        #if os(macOS)
+            .onAppear {
+                Task { @MainActor in
+                    if model.hasDomains {
+                        isSearching = true
+                    }
                 }
             }
-        }
-        .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
-            if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
-                openURL(url)
+        #elseif os(iOS)
+            .preferredColorScheme(.dark)
+        #endif
+            .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+                if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
+                    openURL(url)
+                }
             }
-        }
-        .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
-            if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
-                model.searchQuery = searchString
+            .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
+                if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
+                    model.searchQuery = searchString
+                }
             }
-        }
     }
 }

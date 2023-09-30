@@ -5,97 +5,11 @@ import Semalot
 import SwiftSoup
 import SwiftUI
 
-final actor Domain: ObservableObject, Identifiable {
+final actor Domain: ObservableObject, ModelItem {
     let id: String
 
-    enum State: Hashable, CaseIterable, Codable {
-        case loading(Int), paused(Int, Int, Bool), indexing(Int, Int, URL), done(Int), deleting
-
-        static func == (lhs: Self, rhs: Self) -> Bool {
-            lhs.title == rhs.title
-        }
-
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(title)
-        }
-
-        static var allCases: [Domain.State] {
-            [.paused(0, 0, false), .loading(0), .indexing(0, 0, URL(filePath: "")), .done(0)]
-        }
-
-        @ViewBuilder
-        var symbol: some View {
-            switch self {
-            case .loading:
-                StatusIcon(name: "gear", color: .yellow)
-            case .deleting:
-                StatusIcon(name: "trash", color: .red)
-            case .paused:
-                StatusIcon(name: "pause", color: .red)
-            case .done:
-                StatusIcon(name: "checkmark", color: .green)
-            case .indexing:
-                StatusIcon(name: "magnifyingglass", color: .yellow)
-            }
-        }
-
-        var canStart: Bool {
-            switch self {
-            case .paused:
-                true
-            case .deleting, .done, .indexing, .loading:
-                false
-            }
-        }
-
-        var canRestart: Bool {
-            switch self {
-            case .done, .paused:
-                true
-            case .deleting, .indexing, .loading:
-                false
-            }
-        }
-
-        var canStop: Bool {
-            switch self {
-            case .deleting, .done, .loading, .paused:
-                false
-            case .indexing:
-                true
-            }
-        }
-
-        var isActive: Bool {
-            switch self {
-            case .deleting, .done, .paused:
-                false
-            case .indexing, .loading:
-                true
-            }
-        }
-
-        var title: String {
-            switch self {
-            case .done: "Done"
-            case .indexing: "Indexing"
-            case .loading: "Starting"
-            case .paused: "Paused"
-            case .deleting: "Deleting"
-            }
-        }
-
-        var logText: String {
-            switch self {
-            case let .done(count): "Completed, \(count) indexed items"
-            case let .indexing(pending, indexed, url): "Indexing (\(pending)/\(indexed): \(url.absoluteString)"
-            case .deleting, .loading, .paused: title
-            }
-        }
-    }
-
     @MainActor
-    @Published var state = State.paused(0, 0, false) {
+    @Published var state = DomainState.paused(0, 0, false) {
         didSet {
             if oldValue != state { // only handle base enum changes
                 log("Domain \(id) state is now \(state.logText)")
@@ -104,10 +18,12 @@ final actor Domain: ObservableObject, Identifiable {
         }
     }
 
+    private let domainPath: URL
     private var pending: PersistedSet
     private var indexed: PersistedSet
     private var spotlightQueue = [CSSearchableItem]()
     private let bootupEntry: IndexEntry
+    private var goTask: Task<Void, Never>?
 
     @MainActor
     private var stateChangedHandler: ((String) -> Void)?
@@ -115,8 +31,6 @@ final actor Domain: ObservableObject, Identifiable {
     func setStateChangedHandler(_ handler: ((String) -> Void)?) {
         stateChangedHandler = handler
     }
-
-    private let domainPath: URL
 
     init(startingAt: String) async throws {
         let url = try URL.create(from: startingAt, relativeTo: nil, checkExtension: true)
@@ -141,14 +55,12 @@ final actor Domain: ObservableObject, Identifiable {
         indexed = try PersistedSet(path: indexingPath)
 
         let path = domainPath.appendingPathComponent("state.json", isDirectory: false)
-        if let newState = try? JSONDecoder().decode(State.self, from: Data(contentsOf: path)) {
+        if let newState = try? JSONDecoder().decode(DomainState.self, from: Data(contentsOf: path)) {
             await MainActor.run {
                 state = newState
             }
         }
     }
-
-    private var goTask: Task<Void, Never>?
 
     func start() {
         let count = pending.count
@@ -161,7 +73,7 @@ final actor Domain: ObservableObject, Identifiable {
     }
 
     func pause() async {
-        let newState = State.paused(indexed.count, pending.count, true)
+        let newState = DomainState.paused(indexed.count, pending.count, true)
         Task { @MainActor in
             state = newState
         }
@@ -198,7 +110,7 @@ final actor Domain: ObservableObject, Identifiable {
             await clearSpotlight()
         }
     }
-    
+
     private func clearSpotlight() async {
         Model.shared.clearDomainSpotlight(for: id)
         await snapshot()
@@ -325,7 +237,7 @@ final actor Domain: ObservableObject, Identifiable {
             }
         }
 
-        let newState = State.done(indexed.count)
+        let newState = DomainState.done(indexed.count)
         await MainActor.run {
             state = newState
         }
@@ -361,7 +273,7 @@ final actor Domain: ObservableObject, Identifiable {
     }()
 
     private func updateIndexedState(url: URL) {
-        let newState = State.indexing(indexed.count, pending.count, url)
+        let newState = DomainState.indexing(indexed.count, pending.count, url)
         Task { @MainActor in
             if state.isActive {
                 state = newState

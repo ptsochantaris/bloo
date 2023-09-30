@@ -1,10 +1,3 @@
-//
-//  SearchState.swift
-//  Bloo
-//
-//  Created by Paul Tsochantaris on 30/09/2023.
-//
-
 import Foundation
 
 enum SearchState {

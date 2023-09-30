@@ -1,29 +1,29 @@
-//
-//  DomainSection.swift
-//  Bloo
-//
-//  Created by Paul Tsochantaris on 30/09/2023.
-//
-
 import Foundation
 
-final class DomainSection: Identifiable, ObservableObject {
-    var id: String {
-        state.title + domains.map(\.id).joined(separator: "-") + "-" + String(actionable)
+protocol ModelItem: Hashable, Identifiable {}
+
+extension ModelItem {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
     }
 
-    let state: Domain.State
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
+
+struct DomainSection: ModelItem {
+    let id: String
+    let state: DomainState
     let domains: [Domain]
 
-    @Published var actionable = true
-
-    init(state: Domain.State, domains: [Domain]) {
+    init(state: DomainState, domains: [Domain]) {
+        id = state.id + domains.map(\.id).joined()
         self.state = state
         self.domains = domains
     }
 
     private func allDomains(_ block: @escaping (Domain) async -> Void) {
-        actionable = false
         Task {
             await withTaskGroup(of: Void.self) { group in
                 for domain in domains {
@@ -32,7 +32,6 @@ final class DomainSection: Identifiable, ObservableObject {
                     }
                 }
             }
-            actionable = true
         }
     }
 
