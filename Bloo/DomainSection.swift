@@ -10,32 +10,30 @@ struct DomainSection: Identifiable {
         self.domains = domains
     }
 
-    private func allDomains(_ block: @escaping (Domain) async -> Void) {
-        Task {
-            await withTaskGroup(of: Void.self) { group in
-                for domain in domains {
-                    group.addTask { @MainActor in
-                        await block(domain)
-                    }
+    private func allDomains(_ block: @escaping (Domain) async -> Void) async {
+        await withTaskGroup(of: Void.self) { group in
+            for domain in domains {
+                group.addTask { @MainActor in
+                    await block(domain)
                 }
             }
         }
     }
 
-    func startAll() {
-        allDomains {
+    func startAll() async {
+        await allDomains {
             await $0.start()
         }
     }
 
-    func pauseAll() {
-        allDomains {
+    func pauseAll() async {
+        await allDomains {
             await $0.pause()
         }
     }
 
-    func restartAll() {
-        allDomains {
+    func restartAll() async {
+        await allDomains {
             await $0.restart()
         }
     }

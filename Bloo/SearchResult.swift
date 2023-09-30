@@ -11,7 +11,7 @@ struct SearchResult: Identifiable {
     let keywords: [String]
 
     init(title: String, url: URL, descriptionText: String, updatedAt: Date?, thumbnailUrl: URL?, keywords: [String], terms: [String]) {
-        self.id = url.absoluteString
+        id = url.absoluteString
         self.title = title
         self.url = url
         self.descriptionText = descriptionText

@@ -310,21 +310,30 @@ private struct DomainGrid: View {
                         if section.state.canStart {
                             Button {
                                 actioning = true
-                                section.startAll()
+                                Task {
+                                    await section.startAll()
+                                    actioning = false
+                                }
                             } label: {
                                 Text("Start All")
                             }
                         } else if section.state.canStop {
                             Button {
                                 actioning = true
-                                section.pauseAll()
+                                Task {
+                                    await section.pauseAll()
+                                    actioning = false
+                                }
                             } label: {
                                 Text("Pause All")
                             }
                         } else if section.state.canRestart {
                             Button {
                                 actioning = true
-                                section.restartAll()
+                                Task {
+                                    await section.restartAll()
+                                    actioning = false
+                                }
                             } label: {
                                 Text("Re-Scan All")
                             }

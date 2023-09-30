@@ -140,7 +140,7 @@ final class Model: ObservableObject {
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections where !section.state.isActive {
                 group.addTask {
-                    section.restartAll()
+                    await section.restartAll()
                 }
             }
         }

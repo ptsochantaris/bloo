@@ -38,12 +38,11 @@ final class Snapshotter {
                     group.addTask {
                         try await CSSearchableIndex.default().indexSearchableItems(item.items)
 
-                        let resolved: DomainState
-                        switch item.state {
+                        let resolved: DomainState = switch item.state {
                         case .done, .paused:
-                            resolved = item.state
+                            item.state
                         case .deleting, .indexing, .loading:
-                            resolved = .paused(0, 0, false)
+                            .paused(0, 0, false)
                         }
 
                         let path = documentsPath.appendingPathComponent(item.domainName, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
