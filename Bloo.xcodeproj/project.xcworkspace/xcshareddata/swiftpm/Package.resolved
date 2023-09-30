@@ -1,0 +1,41 @@
+{
+  "pins" : [
+    {
+      "identity" : "lista",
+      "kind" : "remoteSourceControl",
+      "location" : "http://github.com/ptsochantaris/Lista",
+      "state" : {
+        "revision" : "9bc46ae5885554c11b2bd3fc11395e1517826900",
+        "version" : "1.0.2"
+      }
+    },
+    {
+      "identity" : "maintini",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ptsochantaris/maintini",
+      "state" : {
+        "revision" : "e7a06b9e122a9fe9cec2d7da08f4fb56d5ddb5fd",
+        "version" : "1.0.4"
+      }
+    },
+    {
+      "identity" : "pop-timer",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ptsochantaris/pop-timer",
+      "state" : {
+        "revision" : "866789ba524adc477ad3eb0ad41c929f7092dac7",
+        "version" : "1.0.1"
+      }
+    },
+    {
+      "identity" : "swiftsoup",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/scinfu/SwiftSoup",
+      "state" : {
+        "revision" : "8b6cf29eead8841a1fa7822481cb3af4ddaadba6",
+        "version" : "2.6.1"
+      }
+    }
+  ],
+  "version" : 2
+}

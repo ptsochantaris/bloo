@@ -1,0 +1,409 @@
+import CoreSpotlight
+import Foundation
+import SwiftSoup
+import SwiftUI
+
+final actor Domain: ObservableObject, Identifiable {
+    let id: String
+
+    enum State: Hashable, CaseIterable, Codable {
+        case loading, paused(Int, Int, Bool), indexing(Int, Int, URL), done(Int), deleting
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.title == rhs.title
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(title)
+        }
+
+        static var allCases: [Domain.State] {
+            [.paused(0, 0, false), .loading, .indexing(0, 0, URL(filePath: "")), .done(0)]
+        }
+
+        struct StatusIcon: View {
+            let name: String
+            let color: Color
+
+            @Environment(\.colorScheme) var colorScheme
+
+            var body: some View {
+                ZStack {
+                    Color.black
+                    color.opacity(colorScheme == .dark ? 0.5 : 0.7)
+
+                    Image(systemName: name)
+                        .font(.caption)
+                        .fontWeight(.black)
+                        .foregroundStyle(.white)
+                }
+                .cornerRadius(5)
+                .frame(width: 22, height: 22)
+            }
+        }
+
+        @ViewBuilder
+        var symbol: some View {
+            switch self {
+            case .loading:
+                StatusIcon(name: "gear", color: .yellow)
+            case .deleting:
+                StatusIcon(name: "trash", color: .red)
+            case .paused:
+                StatusIcon(name: "pause", color: .red)
+            case .done:
+                StatusIcon(name: "checkmark", color: .green)
+            case .indexing:
+                StatusIcon(name: "magnifyingglass", color: .yellow)
+            }
+        }
+
+        var canStart: Bool {
+            switch self {
+            case .paused:
+                true
+            case .deleting, .done, .indexing, .loading:
+                false
+            }
+        }
+
+        var canRestart: Bool {
+            switch self {
+            case .done, .paused:
+                true
+            case .deleting, .indexing, .loading:
+                false
+            }
+        }
+
+        var canStop: Bool {
+            switch self {
+            case .deleting, .done, .loading, .paused:
+                false
+            case .indexing:
+                true
+            }
+        }
+
+        var isActive: Bool {
+            switch self {
+            case .deleting, .done, .paused:
+                false
+            case .indexing, .loading:
+                true
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .done: "Done"
+            case .indexing: "Indexing"
+            case .loading: "Starting"
+            case .paused: "Paused"
+            case .deleting: "Deleting"
+            }
+        }
+
+        var logText: String {
+            switch self {
+            case let .done(count): "Completed, \(count) indexed items"
+            case let .indexing(pending, indexed, url): "Indexing (\(pending)/\(indexed): \(url.absoluteString)"
+            case .deleting, .loading, .paused: title
+            }
+        }
+    }
+
+    @MainActor
+    @Published var state = State.paused(0, 0, false) {
+        didSet {
+            if oldValue != state { // only handle base enum changes
+                log("Domain \(id) state is now \(state.logText)")
+                stateChangedHandler?(id)
+            }
+        }
+    }
+
+    private var pending: PersistedSet
+    private var indexed: PersistedSet
+    private var spotlightQueue = [CSSearchableItem]()
+    private let bootupEntry: IndexEntry
+
+    @MainActor
+    private var stateChangedHandler: ((String) -> Void)?
+    @MainActor
+    func setStateChangedHandler(_ handler: ((String) -> Void)?) {
+        stateChangedHandler = handler
+    }
+
+    private let domainPath: URL
+
+    init(startingAt: String) async throws {
+        let url = try URL.create(from: startingAt, relativeTo: nil, checkExtension: true)
+
+        guard let host = url.host() else {
+            throw Blooper.malformedUrl
+        }
+
+        id = host
+        bootupEntry = IndexEntry(url: url)
+
+        domainPath = documentsPath.appendingPathComponent(id, isDirectory: true)
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: domainPath.path) {
+            try! fm.createDirectory(at: domainPath, withIntermediateDirectories: true)
+        }
+
+        let pendingPath = domainPath.appendingPathComponent("pending.json", isDirectory: false)
+        pending = try PersistedSet(path: pendingPath)
+
+        let indexingPath = domainPath.appendingPathComponent("indexing.json", isDirectory: false)
+        indexed = try PersistedSet(path: indexingPath)
+
+        let path = domainPath.appendingPathComponent("state.json", isDirectory: false)
+        if let newState = try? JSONDecoder().decode(State.self, from: Data(contentsOf: path)) {
+            await MainActor.run {
+                state = newState
+            }
+        }
+
+        // always visit this to check for changes
+        pending.subtract(indexed)
+        pending.insert(bootupEntry)
+    }
+
+    private var goTask: Task<Void, Never>?
+
+    func start() {
+        Task { @MainActor in
+            state = .loading
+        }
+        goTask = Task {
+            await go()
+        }
+    }
+
+    func pause() async {
+        let newState = State.paused(indexed.count, pending.count, true)
+        Task { @MainActor in
+            state = newState
+        }
+        if let g = goTask {
+            goTask = nil
+            await g.value
+        }
+    }
+
+    func restart() async {
+        if await state.isActive {
+            return
+        }
+        log("Resetting domain \(id)")
+        pending.removeAll()
+        pending.insert(bootupEntry)
+        indexed.removeAll()
+        Task { @MainActor in
+            state = .loading
+            try! await Model.shared.snapshotter.indexer.deleteSearchableItems(withDomainIdentifiers: [id])
+
+            let fm = FileManager.default
+            if fm.fileExists(atPath: domainPath.path) {
+                try! fm.removeItem(at: domainPath)
+            }
+            try! fm.createDirectory(at: domainPath, withIntermediateDirectories: true)
+            await snapshot()
+            await start()
+        }
+    }
+
+    func remove() async {
+        pending.removeAll()
+        indexed.removeAll()
+        Task { @MainActor in
+            state = .deleting
+            try! await Model.shared.snapshotter.indexer.deleteSearchableItems(withDomainIdentifiers: [id])
+            await snapshot()
+        }
+    }
+
+    deinit {
+        log("Domain deleted: \(id)")
+    }
+
+    private func go() async {
+        while let next = pending.removeFirst() {
+            let start = Date()
+            if let newItem = await index(page: next) {
+                spotlightQueue.append(newItem)
+
+                if spotlightQueue.count > 59 {
+                    await snapshot()
+                }
+            }
+
+            let currentState = await state
+            guard currentState.isActive else {
+                if case let .paused(x, y, busy) = currentState, busy {
+                    await MainActor.run {
+                        state = .paused(x, y, false)
+                    }
+                }
+                await snapshot()
+                return
+            }
+
+            let duration = max(0, 1 + start.timeIntervalSinceNow)
+            if duration > 0 {
+                let msec = UInt64(duration * 1000)
+                try? await Task.sleep(nanoseconds: msec * NSEC_PER_MSEC)
+            }
+        }
+
+        let newState = State.done(indexed.count)
+        await MainActor.run {
+            state = newState
+        }
+        await snapshot()
+    }
+
+    private func snapshot() async {
+        let item = await Snapshotter.Item(id: id, state: state, items: spotlightQueue, pending: pending, indexed: indexed, domainRoot: domainPath)
+        spotlightQueue.removeAll(keepingCapacity: true)
+        await Model.shared.snapshotter.queue(item)
+    }
+
+    private static let isoFormatter = ISO8601DateFormatter()
+
+    private static let isoFormatter2: DateFormatter = {
+        // 2023-03-05T17:34:36Z"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "YYYY-MM-DDTHH:mm:SSZ"
+        return formatter
+    }()
+
+    private static let isoFormatter3: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "YYYY-MM-DD"
+        return formatter
+    }()
+
+    private static let httpHeaderDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEE',' dd' 'MMM' 'yyyy HH':'mm':'ss zzz"
+        return formatter
+    }()
+
+    private func index(page entry: IndexEntry) async -> CSSearchableItem? {
+        // TODO: robots
+        // TODO: Run update scans using last-modified
+
+        let url = entry.url
+
+        defer {
+            let newState = State.indexing(indexed.count, pending.count, url)
+            Task { @MainActor in
+                if state.isActive {
+                    state = newState
+                }
+            }
+        }
+
+        var headRequest = URLRequest(url: url)
+        headRequest.httpMethod = "head"
+
+        let headResult = try? await urlSession.data(for: headRequest)
+        guard let response = headResult?.1 else {
+            log("No HEAD response")
+            return nil
+        }
+
+        guard let mimeType = response.mimeType, mimeType.hasPrefix("text/html") else {
+            log("Content for \(url.absoluteString) isn't HTML, never mind")
+            return nil
+        }
+
+        let contentRequest = URLRequest(url: url)
+        let contentResult = try? await urlSession.data(for: contentRequest)
+        guard let contentResult else {
+            log("No content response")
+            return nil
+        }
+
+        guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
+            log("Cannot decode text")
+            return nil
+        }
+
+        guard let htmlDoc = try? SwiftSoup.parse(documentText, url.absoluteString) else {
+            log("Cannot parse HTML")
+            return nil
+        }
+
+        let lastModified: Date?
+        if let httpResponse = (contentResult.1 as? HTTPURLResponse)?.allHeaderFields, let lastModifiedHeader = (httpResponse["Last-Modified"] ?? httpResponse["last-modified"]) as? String {
+            lastModified = Domain.httpHeaderDateFormatter.date(from: lastModifiedHeader)
+        } else {
+            lastModified = nil
+        }
+
+        let headerTask = Task.detached { [id] in
+            guard let header = htmlDoc.head() else {
+                log("Cannot parse header")
+                return (String, String?, URL?, [URL], Date?, [String]?)?.none
+            }
+
+            let title: String
+            if let v = try? htmlDoc.title().trimmingCharacters(in: .whitespacesAndNewlines), v.isPopulated {
+                title = v
+            } else if let foundTitle = header.metaPropertyContent(for: "og:title") {
+                title = foundTitle
+            } else {
+                log("No title located at \(url.absoluteString)")
+                return nil
+            }
+
+            let contentDescription = header.metaPropertyContent(for: "og:description")
+
+            var thumbnailUrl: URL?
+            if let ogImage = header.metaPropertyContent(for: "og:image") {
+                thumbnailUrl = try? URL.create(from: ogImage, relativeTo: url, checkExtension: false)
+            }
+
+            let links = (try? htmlDoc.select("a[href]").compactMap { try? $0.attr("href") }) ?? []
+            var newUrls = [URL]()
+            for link in links {
+                if let newUrl = try? URL.create(from: link, relativeTo: url, checkExtension: true),
+                   newUrl.host()?.hasSuffix(id) == true,
+                   url != newUrl,
+                   await !self.indexed.contains(newUrl) {
+                    newUrls.append(newUrl)
+                }
+            }
+
+            let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
+            let creationDate = Domain.isoFormatter.date(from: createdDateString) ?? Domain.isoFormatter2.date(from: createdDateString) ?? Domain.isoFormatter3.date(from: createdDateString)
+            let keywords = header.metaNameContent(for: "keywords")?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+            return (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords)
+        }
+
+        guard let textContent = try? htmlDoc.body()?.text(trimAndNormaliseWhitespace: true) else {
+            log("Cannot parse text")
+            return nil
+        }
+
+        guard let (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords) = await headerTask.value else {
+            log("Could not parse metadata")
+            return nil
+        }
+
+        pending.formUnion(newUrls)
+
+        let newEntry = IndexEntry(url: url, lastModified: lastModified)
+        indexed.insert(newEntry)
+
+        let thumbnailPath = domainPath.appendingPathComponent("thumbnails", isDirectory: true)
+
+        return await CSSearchableItem(title: title, text: textContent, indexEntry: newEntry, thumbnailUrl: thumbnailUrl, contentDescription: contentDescription, domain: id, creationDate: creationDate, keywords: keywords, thumbnailPath: thumbnailPath)
+    }
+}
