@@ -1,8 +1,14 @@
 import Foundation
 import SwiftUI
 
-enum DomainState: ModelItem, CaseIterable, Codable {
-    var id: String { title }
+enum DomainState: CaseIterable, Codable, Hashable {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.title == rhs.title
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(title)
+    }
 
     case loading(Int), paused(Int, Int, Bool), indexing(Int, Int, URL), done(Int), deleting
 

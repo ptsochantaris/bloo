@@ -1,6 +1,6 @@
 import Foundation
 
-struct SearchResult: ModelItem {
+struct SearchResult: Identifiable {
     let id: String
     let title: String
     let url: URL
@@ -10,8 +10,8 @@ struct SearchResult: ModelItem {
     let terms: [String]
     let keywords: [String]
 
-    init(id: String, title: String, url: URL, descriptionText: String, updatedAt: Date?, thumbnailUrl: URL?, keywords: [String], terms: [String]) {
-        self.id = id
+    init(title: String, url: URL, descriptionText: String, updatedAt: Date?, thumbnailUrl: URL?, keywords: [String], terms: [String]) {
+        self.id = url.absoluteString
         self.title = title
         self.url = url
         self.descriptionText = descriptionText

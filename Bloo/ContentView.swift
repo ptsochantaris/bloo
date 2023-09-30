@@ -507,7 +507,9 @@ private struct AdditionSection: View {
                     let h = $0.host ?? ""
                     return h.isEmpty ? false : !model.contains(domain: h)
                 }.map(\.absoluteString)
-                results = Set(list).sorted()
+                withAnimation {
+                    results = Set(list).sorted()
+                }
             }
         }
     }

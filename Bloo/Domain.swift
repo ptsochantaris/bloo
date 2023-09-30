@@ -5,9 +5,7 @@ import Semalot
 import SwiftSoup
 import SwiftUI
 
-final actor Domain: ObservableObject, ModelItem {
-    let id: String
-
+final actor Domain: ObservableObject, Identifiable {
     @MainActor
     @Published var state = DomainState.paused(0, 0, false) {
         didSet {
@@ -18,6 +16,7 @@ final actor Domain: ObservableObject, ModelItem {
         }
     }
 
+    let id: String
     private let domainPath: URL
     private var pending: PersistedSet
     private var indexed: PersistedSet
@@ -146,7 +145,7 @@ final actor Domain: ObservableObject, ModelItem {
                         }
                         let url = next.url
                         guard let xmlData = try? await urlSession.data(from: url).0 else {
-                            log("Failed to fetch sitemap data from \(next.id)")
+                            log("Failed to fetch sitemap data from \(next.url.absoluteString)")
                             return (nil, nil)
                         }
                         log("Fetched sitemap from \(url.absoluteString)")
@@ -245,7 +244,7 @@ final actor Domain: ObservableObject, ModelItem {
     }
 
     private func snapshot() async {
-        let item = await Snapshotter.Item(id: id, state: state, items: spotlightQueue, pending: pending, indexed: indexed, domainRoot: domainPath)
+        let item = await Snapshotter.Item(domainName: id, state: state, items: spotlightQueue, pending: pending, indexed: indexed, domainRoot: domainPath)
         spotlightQueue.removeAll(keepingCapacity: true)
         Model.shared.queueSnapshot(item: item)
     }

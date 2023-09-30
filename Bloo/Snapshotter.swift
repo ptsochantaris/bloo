@@ -3,7 +3,7 @@ import Foundation
 
 final class Snapshotter {
     struct Item {
-        let id: String
+        let domainName: String
         let state: DomainState
         let items: [CSSearchableItem]
         let pending: PersistedSet
@@ -20,7 +20,7 @@ final class Snapshotter {
         loopTask = Task.detached {
             for await item in q.stream {
                 if item.state == .deleting {
-                    log("Removing domain \(item.id)")
+                    log("Removing domain \(item.domainName)")
                     let fm = FileManager.default
                     if fm.fileExists(atPath: item.domainRoot.path) {
                         try! fm.removeItem(at: item.domainRoot)
@@ -46,12 +46,12 @@ final class Snapshotter {
                             resolved = .paused(0, 0, false)
                         }
 
-                        let path = documentsPath.appendingPathComponent(item.id, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
+                        let path = documentsPath.appendingPathComponent(item.domainName, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
                         try! JSONEncoder().encode(resolved).write(to: path, options: .atomic)
                     }
                 }
 
-                log("Saved checkpoint for \(item.id)")
+                log("Saved checkpoint for \(item.domainName)")
             }
         }
     }

@@ -1,12 +1,10 @@
 import Foundation
 
-struct IndexEntry: ModelItem, Codable {
-    let id: String
+struct IndexEntry: Codable, Hashable {
     let url: URL
     let lastModified: Date?
 
     init(url: URL, lastModified: Date? = nil) {
-        id = url.absoluteString
         self.url = url
         self.lastModified = lastModified
     }

@@ -49,7 +49,9 @@ final class Model: ObservableObject {
 
     func updateSearchRunning(_ newState: SearchState) {
         Task { @MainActor in
-            searchState = newState
+            withAnimation {
+                searchState = newState
+            }
         }
     }
 
@@ -109,8 +111,7 @@ final class Model: ObservableObject {
                     continue
                 }
 
-                let res = SearchResult(id: id,
-                                       title: title,
+                let res = SearchResult(title: title,
                                        url: url,
                                        descriptionText: contentDescription,
                                        updatedAt: attributes.contentModificationDate,
