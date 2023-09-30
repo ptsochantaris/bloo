@@ -345,12 +345,15 @@ private struct ResultsSection: View {
                             Text("See More")
                         }
                     }
-
-                    LazyVGrid(columns: gridColumns) {
-                        ForEach(results) {
-                            ResultRow(result: $0)
+                    ScrollView(.horizontal) {
+                        HStack {
+                            ForEach(results) {
+                                ResultRow(result: $0)
+                                    .frame(width: 320)
+                            }
                         }
                     }
+                    .scrollClipDisabled()
                     .frame(maxWidth: .infinity)
 
                 case let .moreResults(results):
