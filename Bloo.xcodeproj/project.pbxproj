@@ -14,6 +14,8 @@
 		1634CF992AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */; };
 		1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9A2AC366D90022A8F6 /* Globals.swift */; };
 		1634CF9D2AC367760022A8F6 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9C2AC367760022A8F6 /* Model.swift */; };
+		16B43D252AC7B05D00EB4815 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D232AC7B05D00EB4815 /* README.md */; };
+		16B43D262AC7B05D00EB4815 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D242AC7B05D00EB4815 /* LICENSE */; };
 		16E8A0E82AC1F96500CCB10D /* GiggleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */; };
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
 		16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */; };
@@ -33,6 +35,8 @@
 		1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CSSearchableItem+Extensions.swift"; sourceTree = "<group>"; };
 		1634CF9A2AC366D90022A8F6 /* Globals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Globals.swift; sourceTree = "<group>"; };
 		1634CF9C2AC367760022A8F6 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
+		16B43D232AC7B05D00EB4815 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		16B43D242AC7B05D00EB4815 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		16E8A0E42AC1F96500CCB10D /* Bloo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bloo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiggleApp.swift; sourceTree = "<group>"; };
 		16E8A0E92AC1F96500CCB10D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -63,6 +67,8 @@
 		16E8A0DB2AC1F96500CCB10D = {
 			isa = PBXGroup;
 			children = (
+				16B43D242AC7B05D00EB4815 /* LICENSE */,
+				16B43D232AC7B05D00EB4815 /* README.md */,
 				16E8A0E62AC1F96500CCB10D /* Bloo */,
 				16E8A0E52AC1F96500CCB10D /* Products */,
 			);
@@ -79,21 +85,21 @@
 		16E8A0E62AC1F96500CCB10D /* Bloo */ = {
 			isa = PBXGroup;
 			children = (
-				16E8A0F92AC2161000CCB10D /* Info.plist */,
-				16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */,
-				16E8A0E92AC1F96500CCB10D /* ContentView.swift */,
-				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
 				16E8A0F02AC1F96600CCB10D /* Bloo.entitlements */,
-				1634CF922AC365040022A8F6 /* PersistedSet.swift */,
-				1634CF942AC365800022A8F6 /* Snapshotter.swift */,
-				1634CF962AC365D90022A8F6 /* Domain.swift */,
+				16E8A0F92AC2161000CCB10D /* Info.plist */,
+				16E8A0E92AC1F96500CCB10D /* ContentView.swift */,
 				1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */,
+				1634CF962AC365D90022A8F6 /* Domain.swift */,
+				16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */,
 				1634CF9A2AC366D90022A8F6 /* Globals.swift */,
 				1634CF9C2AC367760022A8F6 /* Model.swift */,
 				16FD23392AC4867D00751A85 /* NSImage+Extensions.swift */,
+				1634CF922AC365040022A8F6 /* PersistedSet.swift */,
+				1634CF942AC365800022A8F6 /* Snapshotter.swift */,
 				16FD233B2AC5CD1600751A85 /* String+Extensions.swift */,
-				16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */,
 				16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */,
+				16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */,
+				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
 			);
 			path = Bloo;
 			sourceTree = "<group>";
@@ -168,6 +174,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				16B43D262AC7B05D00EB4815 /* LICENSE in Resources */,
+				16B43D252AC7B05D00EB4815 /* README.md in Resources */,
 				16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
