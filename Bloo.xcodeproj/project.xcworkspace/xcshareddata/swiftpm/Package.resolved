@@ -3,10 +3,10 @@
     {
       "identity" : "lista",
       "kind" : "remoteSourceControl",
-      "location" : "http://github.com/ptsochantaris/Lista",
+      "location" : "https://github.com/ptsochantaris/lista",
       "state" : {
-        "revision" : "9bc46ae5885554c11b2bd3fc11395e1517826900",
-        "version" : "1.0.2"
+        "branch" : "main",
+        "revision" : "7d6cf8bd6aea70c08a077083474ef94bfd1e1d57"
       }
     },
     {
@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ptsochantaris/maintini",
       "state" : {
-        "revision" : "e7a06b9e122a9fe9cec2d7da08f4fb56d5ddb5fd",
-        "version" : "1.0.4"
+        "branch" : "main",
+        "revision" : "e7a06b9e122a9fe9cec2d7da08f4fb56d5ddb5fd"
       }
     },
     {
@@ -23,8 +23,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ptsochantaris/pop-timer",
       "state" : {
-        "revision" : "866789ba524adc477ad3eb0ad41c929f7092dac7",
-        "version" : "1.0.1"
+        "branch" : "main",
+        "revision" : "09a2b89dcef86151fc30cfc6000154b3645170b1"
+      }
+    },
+    {
+      "identity" : "semalot",
+      "kind" : "remoteSourceControl",
+      "location" : "http://github.com/ptsochantaris/semalot",
+      "state" : {
+        "branch" : "main",
+        "revision" : "afd667b48a54772d59fa6ddd4038d887bb452b48"
       }
     },
     {

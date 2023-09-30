@@ -1,7 +1,6 @@
 import CoreSpotlight
 import Foundation
 import Lista
-import Maintini
 
 final actor Snapshotter {
     struct Item {
@@ -17,15 +16,8 @@ final actor Snapshotter {
     private var loopTask: Task<Void, Never>?
     let indexer = CSSearchableIndex.default()
 
-    init() {
-        Task {
-            await Maintini.startMaintaining()
-        }
-    }
-
     func shutdown() async {
         await loopTask?.value
-        await Maintini.endMaintaining()
     }
 
     func queue(_ item: Item) async {

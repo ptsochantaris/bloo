@@ -28,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return .terminateNow
     }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // TODO: Focus search field if model is populated
+    }
 }
 
 @main

@@ -2,12 +2,67 @@ import CoreSpotlight
 import Foundation
 import SwiftSoup
 import SwiftUI
+import Maintini
+import Semalot
+
+private class LocationExtractor: NSObject, XMLParserDelegate {
+    private let parser: XMLParser
+    private let (locationHose, continuation) = AsyncStream<URL>.makeStream()
+
+    private var inLoc = false
+    private var running = false
+
+    init(data: Data) {
+        parser = XMLParser(data: data)
+        super.init()
+        parser.delegate = self
+    }
+
+    func extract() async -> (siteLocations: Set<IndexEntry>, xmlLocations: Set<IndexEntry>) {
+        running = true
+        parser.parse()
+        var siteLocations = Set<IndexEntry>()
+        var xmlUrls = Set<IndexEntry>()
+        for await url in locationHose {
+            if url.pathExtension.caseInsensitiveCompare("xml") == .orderedSame {
+                xmlUrls.insert(IndexEntry(url: url))
+            } else{
+                siteLocations.insert(IndexEntry(url: url))
+            }
+        }
+        return (siteLocations, xmlUrls)
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
+        inLoc = elementName == "loc"
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        guard inLoc else {
+            return
+        }
+        if let url = try? URL.create(from: string, relativeTo: nil, checkExtension: false) {
+            continuation.yield(url)
+        }
+    }
+
+    func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {
+        log("XML parser error: \(parseError.localizedDescription)")
+        running = false
+        continuation.finish()
+    }
+
+    func parserDidEndDocument(_ parser: XMLParser) {
+        running = false
+        continuation.finish()
+    }
+}
 
 final actor Domain: ObservableObject, Identifiable {
     let id: String
 
     enum State: Hashable, CaseIterable, Codable {
-        case loading, paused(Int, Int, Bool), indexing(Int, Int, URL), done(Int), deleting
+        case loading(Int), paused(Int, Int, Bool), indexing(Int, Int, URL), done(Int), deleting
 
         static func == (lhs: Self, rhs: Self) -> Bool {
             lhs.title == rhs.title
@@ -18,7 +73,7 @@ final actor Domain: ObservableObject, Identifiable {
         }
 
         static var allCases: [Domain.State] {
-            [.paused(0, 0, false), .loading, .indexing(0, 0, URL(filePath: "")), .done(0)]
+            [.paused(0, 0, false), .loading(0), .indexing(0, 0, URL(filePath: "")), .done(0)]
         }
 
         struct StatusIcon: View {
@@ -165,17 +220,14 @@ final actor Domain: ObservableObject, Identifiable {
                 state = newState
             }
         }
-
-        // always visit this to check for changes
-        pending.subtract(indexed)
-        pending.insert(bootupEntry)
     }
 
     private var goTask: Task<Void, Never>?
 
     func start() {
+        let count = pending.count
         Task { @MainActor in
-            state = .loading
+            state = .loading(count)
         }
         goTask = Task {
             await go()
@@ -199,10 +251,9 @@ final actor Domain: ObservableObject, Identifiable {
         }
         log("Resetting domain \(id)")
         pending.removeAll()
-        pending.insert(bootupEntry)
         indexed.removeAll()
         Task { @MainActor in
-            state = .loading
+            state = .loading(0)
             try! await Model.shared.snapshotter.indexer.deleteSearchableItems(withDomainIdentifiers: [id])
 
             let fm = FileManager.default
@@ -229,9 +280,97 @@ final actor Domain: ObservableObject, Identifiable {
         log("Domain deleted: \(id)")
     }
 
+    private func parseSitemap() async {
+        guard let url = URL(string: "https://\(id)/sitemap.xml") else {
+            return
+        }
+
+        log("\(id): Inspecting sitemap")
+
+        let start = Date.now
+        var map = Set<IndexEntry>([IndexEntry(url: url)])
+        var extraPending = Set<IndexEntry>()
+        var visited = Set<IndexEntry>()
+
+        let siteMapLock = Semalot(tickets: 8)
+
+        while map.isPopulated {
+            let pendingChunk: Set<IndexEntry>
+            (map, pendingChunk) = await withTaskGroup(of: (Set<IndexEntry>?, Set<IndexEntry>?).self, returning: (Set<IndexEntry>, Set<IndexEntry>).self) { group in
+                for next in map where !visited.contains(next) {
+                    visited.insert(next)
+                    group.addTask { () -> (Set<IndexEntry>?, Set<IndexEntry>?) in
+                        await siteMapLock.takeTicket()
+                        defer {
+                            siteMapLock.returnTicket()
+                        }
+                        let url = next.url
+                        guard let xmlData = try? await urlSession.data(from: url).0 else {
+                            log("Failed to fetch sitemap data from \(next.id)")
+                            return (nil, nil)
+                        }
+                        log("Fetched sitemap from \(url.absoluteString)")
+                        return await LocationExtractor(data: xmlData).extract()
+                    }
+                }
+
+                var allPending = Set<IndexEntry>()
+                var allXml = Set<IndexEntry>()
+                var passCount = 0
+                for await (pending, xml) in group {
+                    if let xml, xml.isPopulated {
+                        allXml.formUnion(xml)
+                        log("\(id) Further sitemaps from pass #\(passCount): \(xml.count)")
+                    }
+                    if let pending, pending.isPopulated {
+                        allPending.formUnion(pending)
+                        log("\(id) Further URLs from sitemap #\(passCount): \(pending.count)")
+                    }
+                    passCount += 1
+                }
+                return (allXml, allPending)
+            }
+            extraPending.formUnion(pendingChunk)
+        }
+
+        log("\(id): Considering \(extraPending.count) potential URLs from sitemap")
+        indexed.remove(from: &extraPending)
+        if extraPending.isPopulated {
+            log("\(id): Adding \(extraPending.count) unindexed URLs from sitemap")
+            pending.formUnion(extraPending)
+        }
+        log("\(id): Sitemap processing complete - \(-start.timeIntervalSinceNow) sec")
+    }
+
+    private func updateLoadingState() {
+        let count = pending.count
+        Task { @MainActor in
+            state = .loading(count)
+        }
+    }
+
     private func go() async {
+        await Maintini.startMaintaining()
+        defer {
+            Task {
+                await Maintini.endMaintaining()
+            }
+        }
+
+        updateLoadingState()
+        if indexed.isEmpty {
+            await parseSitemap()
+            pending.insert(bootupEntry)
+        }
+        pending.subtract(indexed)
+        if pending.isEmpty {
+            pending.insert(bootupEntry)
+        }
+        updateLoadingState()
+
         while let next = pending.removeFirst() {
             let start = Date()
+            
             if let newItem = await index(page: next) {
                 spotlightQueue.append(newItem)
 
@@ -293,20 +432,22 @@ final actor Domain: ObservableObject, Identifiable {
         return formatter
     }()
 
+    private func updateIndexedState(url: URL) {
+        let newState = State.indexing(indexed.count, pending.count, url)
+        Task { @MainActor in
+            if state.isActive {
+                state = newState
+            }
+        }
+    }
+
     private func index(page entry: IndexEntry) async -> CSSearchableItem? {
         // TODO: robots
         // TODO: Run update scans using last-modified
 
         let url = entry.url
 
-        defer {
-            let newState = State.indexing(indexed.count, pending.count, url)
-            Task { @MainActor in
-                if state.isActive {
-                    state = newState
-                }
-            }
-        }
+        updateIndexedState(url: url)
 
         var headRequest = URLRequest(url: url)
         headRequest.httpMethod = "head"

@@ -16,6 +16,7 @@
 		1634CF9D2AC367760022A8F6 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9C2AC367760022A8F6 /* Model.swift */; };
 		16B43D252AC7B05D00EB4815 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D232AC7B05D00EB4815 /* README.md */; };
 		16B43D262AC7B05D00EB4815 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D242AC7B05D00EB4815 /* LICENSE */; };
+		16B43D2A2AC8439200EB4815 /* Semalot in Frameworks */ = {isa = PBXBuildFile; productRef = 16B43D292AC8439200EB4815 /* Semalot */; };
 		16E8A0E82AC1F96500CCB10D /* GiggleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */; };
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
 		16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */; };
@@ -55,6 +56,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */,
+				16B43D2A2AC8439200EB4815 /* Semalot in Frameworks */,
 				16FD23352AC3A5A600751A85 /* Maintini in Frameworks */,
 				1634CF912AC34D780022A8F6 /* Lista in Frameworks */,
 				16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */,
@@ -64,6 +66,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		16B43D282AC8439200EB4815 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		16E8A0DB2AC1F96500CCB10D = {
 			isa = PBXGroup;
 			children = (
@@ -71,6 +80,7 @@
 				16B43D232AC7B05D00EB4815 /* README.md */,
 				16E8A0E62AC1F96500CCB10D /* Bloo */,
 				16E8A0E52AC1F96500CCB10D /* Products */,
+				16B43D282AC8439200EB4815 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -125,6 +135,7 @@
 				1634CF902AC34D780022A8F6 /* Lista */,
 				16FD23342AC3A5A600751A85 /* Maintini */,
 				16FD23372AC43D0F00751A85 /* PopTimer */,
+				16B43D292AC8439200EB4815 /* Semalot */,
 			);
 			productName = Nibbel;
 			productReference = 16E8A0E42AC1F96500CCB10D /* Bloo.app */;
@@ -159,6 +170,7 @@
 				1634CF8F2AC34D780022A8F6 /* XCRemoteSwiftPackageReference "Lista" */,
 				16FD23332AC3A5A600751A85 /* XCRemoteSwiftPackageReference "maintini" */,
 				16FD23362AC43D0F00751A85 /* XCRemoteSwiftPackageReference "pop-timer" */,
+				16B43D272AC8430F00EB4815 /* XCRemoteSwiftPackageReference "semalot" */,
 			);
 			productRefGroup = 16E8A0E52AC1F96500CCB10D /* Products */;
 			projectDirPath = "";
@@ -407,8 +419,16 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "http://github.com/ptsochantaris/Lista";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.2;
+				branch = main;
+				kind = branch;
+			};
+		};
+		16B43D272AC8430F00EB4815 /* XCRemoteSwiftPackageReference "semalot" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "http://github.com/ptsochantaris/semalot";
+			requirement = {
+				branch = main;
+				kind = branch;
 			};
 		};
 		16E8A0F62AC1F9B500CCB10D /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
@@ -423,16 +443,16 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ptsochantaris/maintini";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.4;
+				branch = main;
+				kind = branch;
 			};
 		};
 		16FD23362AC43D0F00751A85 /* XCRemoteSwiftPackageReference "pop-timer" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ptsochantaris/pop-timer";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.1;
+				branch = main;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -442,6 +462,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1634CF8F2AC34D780022A8F6 /* XCRemoteSwiftPackageReference "Lista" */;
 			productName = Lista;
+		};
+		16B43D292AC8439200EB4815 /* Semalot */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 16B43D272AC8430F00EB4815 /* XCRemoteSwiftPackageReference "semalot" */;
+			productName = Semalot;
 		};
 		16E8A0F72AC1F9B500CCB10D /* SwiftSoup */ = {
 			isa = XCSwiftPackageProductDependency;

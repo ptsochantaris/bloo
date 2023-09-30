@@ -36,12 +36,17 @@ private struct DomainRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             switch domain.state {
-            case .loading:
+            case let .loading(pending):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
+                    Text(pending, format: .number)
+                        .bold()
                 }
                 .frame(maxHeight: .infinity)
+                if pending == 0 {
+                    FooterText(text: "Scanning sitemap(s)")
+                }
 
             case let .indexing(indexed, pending, url):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {

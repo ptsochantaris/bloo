@@ -8,6 +8,14 @@ struct PersistedSet {
         items.removeAll()
     }
 
+    var isEmpty: Bool {
+        items.isEmpty
+    }
+
+    func remove(from original: inout Set<IndexEntry>) {
+        original.subtract(items)
+    }
+
     func contains(_ url: URL) -> Bool {
         let tempEntry = IndexEntry(url: url)
         return items.contains(tempEntry)
@@ -35,9 +43,13 @@ struct PersistedSet {
         items.insert(url).inserted
     }
 
-    mutating func formUnion(_ newItems: [URL]) {
+    mutating func formUnion(_ newItems: any Sequence<URL>) {
         let entries = newItems.map { IndexEntry(url: $0) }
         items.formUnion(entries)
+    }
+
+    mutating func formUnion(_ newItems: any Sequence<IndexEntry>) {
+        items.formUnion(newItems)
     }
 
     mutating func removeFirst() -> IndexEntry? {
