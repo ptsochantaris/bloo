@@ -1,6 +1,3 @@
-#if canImport(AppKit)
-    import AppKit
-#endif
 import CoreSpotlight
 import Foundation
 import NaturalLanguage

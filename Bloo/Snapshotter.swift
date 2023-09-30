@@ -1,8 +1,7 @@
 import CoreSpotlight
 import Foundation
-import Lista
 
-final actor Snapshotter {
+final class Snapshotter {
     struct Item {
         let id: String
         let state: Domain.State
@@ -12,60 +11,64 @@ final actor Snapshotter {
         let domainRoot: URL
     }
 
-    private let queue = Lista<Item>()
+    private var queueContinuation: AsyncStream<Item>.Continuation
     private var loopTask: Task<Void, Never>?
-    let indexer = CSSearchableIndex.default()
 
-    func shutdown() async {
-        await loopTask?.value
-    }
-
-    func queue(_ item: Item) async {
-        queue.append(item)
-        if loopTask == nil {
-            loopTask = Task {
-                try? await loop()
-                loopTask = nil
-            }
-        }
-    }
-
-    private func loop() async throws {
-        while let item = queue.pop() {
-            if item.state == .deleting {
-                log("Removing domain \(item.id)")
-                let fm = FileManager.default
-                if fm.fileExists(atPath: item.domainRoot.path) {
-                    try! fm.removeItem(at: item.domainRoot)
-                }
-                return
-            }
-
-            await withThrowingTaskGroup(of: Void.self) { group in
-                group.addTask { [indexer] in
-                    try await indexer.indexSearchableItems(item.items)
-                }
-                group.addTask {
-                    await item.indexed.write()
-                }
-                group.addTask {
-                    await item.pending.write()
-                }
-                group.addTask {
-                    let resolved: Domain.State
-                    switch item.state {
-                    case .done, .paused:
-                        resolved = item.state
-                    case .deleting, .indexing, .loading:
-                        resolved = .paused(0, 0, false)
+    init() {
+        let q = AsyncStream<Item>.makeStream()
+        queueContinuation = q.continuation
+        loopTask = Task.detached {
+            for await item in q.stream {
+                if item.state == .deleting {
+                    log("Removing domain \(item.id)")
+                    let fm = FileManager.default
+                    if fm.fileExists(atPath: item.domainRoot.path) {
+                        try! fm.removeItem(at: item.domainRoot)
                     }
-
-                    let path = documentsPath.appendingPathComponent(item.id, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
-                    try! JSONEncoder().encode(resolved).write(to: path, options: .atomic)
+                    return
                 }
+                
+                await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask {
+                        await item.indexed.write()
+                    }
+                    group.addTask {
+                        await item.pending.write()
+                    }
+                    group.addTask {
+                        try await CSSearchableIndex.default().indexSearchableItems(item.items)
+                        
+                        let resolved: Domain.State
+                        switch item.state {
+                        case .done, .paused:
+                            resolved = item.state
+                        case .deleting, .indexing, .loading:
+                            resolved = .paused(0, 0, false)
+                        }
+                        
+                        let path = documentsPath.appendingPathComponent(item.id, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
+                        try! JSONEncoder().encode(resolved).write(to: path, options: .atomic)
+                    }
+                }
+                
+                log("Saved checkpoint for \(item.id)")
             }
-
-            log("Saved checkpoint for \(item.id)")
         }
+    }
+    
+    func shutdown() async {
+        if let l = loopTask {
+            loopTask = nil
+            queueContinuation.finish()
+            await l.value
+        }
+    }
+
+    func clearDomainSpotlight(for domainId: String) async throws {
+        try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [domainId])
+    }
+
+    func queue(_ item: Item) {
+        queueContinuation.yield(item)
     }
 }

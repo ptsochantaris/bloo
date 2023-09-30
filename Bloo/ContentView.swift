@@ -1,5 +1,23 @@
-import SwiftUI
 import CoreSpotlight
+import SwiftUI
+
+extension Font {
+    #if canImport(AppKit)
+    static let blooTitle = Font.title
+    static let blooHeadline = Font.headline
+    static let blooFootnote = Font.footnote
+    static let blooCaption = Font.caption
+    static let blooCaption2 = Font.caption2
+    static let blooBody = Font.body
+    #elseif canImport(UIKit)
+    static let blooTitle = Font.title
+    static let blooHeadline = Font.headline
+    static let blooFootnote = Font.footnote
+    static let blooCaption = Font.caption
+    static let blooCaption2 = Font.caption2
+    static let blooBody = Font.body
+    #endif
+}
 
 private let wideCorner: CGFloat = 15
 private let narrowCorner: CGFloat = 10
@@ -14,7 +32,7 @@ private struct FooterText: View {
     var body: some View {
         Text(text)
             .lineLimit(2, reservesSpace: true)
-            .font(.caption2)
+            .font(.blooCaption2)
             .foregroundStyle(.secondary)
     }
 }
@@ -26,7 +44,7 @@ private struct DomainTitle: View {
         HStack {
             domain.state.symbol
             Text(domain.id)
-                .font(.headline)
+                .font(.blooHeadline)
         }
     }
 }
@@ -105,7 +123,7 @@ private struct DomainRow: View {
                         Text(indexed, format: .number)
                             .bold()
                         Text("indexed")
-                            .font(.footnote)
+                            .font(.blooFootnote)
                     }
                     .foregroundColor(.secondary)
                 }
@@ -180,13 +198,13 @@ private struct ResultRow: View, Identifiable {
                 VStack(alignment: .leading, spacing: 2) {
                     if let update = result.updatedAt {
                         Text(update, style: .date)
-                            .font(.caption2)
+                            .font(.blooCaption2)
                             .lineLimit(1)
                             .foregroundColor(.secondary)
                     }
 
                     Text(titleText ?? AttributedString(result.title))
-                        .font(.headline)
+                        .font(.blooHeadline)
                         .lineLimit(2, reservesSpace: true)
                         .task {
                             titleText = await Task.detached { result.attributedTitle }.value
@@ -214,7 +232,7 @@ private struct ResultRow: View, Identifiable {
 
             Text(descriptionText ?? AttributedString(result.descriptionText))
                 .lineLimit(14)
-                .font(.body)
+                .font(.blooBody)
                 .foregroundStyle(.secondary)
                 .task {
                     descriptionText = await Task.detached { result.attributedDescription }.value
@@ -225,12 +243,12 @@ private struct ResultRow: View, Identifiable {
             VStack(alignment: .leading) {
                 if let matched = result.matchedKeywords {
                     Text(matched)
-                        .font(.caption2)
+                        .font(.blooCaption2)
                 }
 
                 Text(result.url.absoluteString)
                     .lineLimit(2)
-                    .font(.caption2)
+                    .font(.blooCaption2)
                     .foregroundStyle(.accent)
             }
         }
@@ -250,7 +268,7 @@ private struct AdditionRow: View {
     var body: some View {
         HStack(spacing: 0) {
             Text(id)
-                .font(.headline)
+                .font(.blooHeadline)
             Spacer(minLength: 0)
         }
         .padding()
@@ -263,14 +281,14 @@ private let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 640))]
 
 private struct DomainGrid: View, Identifiable {
     var id: String { section.id }
-    let section: Model.DomainSection
+    let section: DomainSection
 
     var body: some View {
         if section.domains.isPopulated {
             VStack(alignment: .leading) {
                 HStack(alignment: .top) {
                     Text(" " + section.state.title)
-                        .font(.title)
+                        .font(.blooTitle)
                         .foregroundStyle(.secondary)
 
                     if section.actionable {
@@ -312,7 +330,7 @@ private struct DomainGrid: View, Identifiable {
 }
 
 private struct ResultsSection: View {
-    @ObservedObject private var model = Model.shared
+    @ObservedObject var model: Model
 
     var body: some View {
         if model.searchState.resultMode {
@@ -320,7 +338,7 @@ private struct ResultsSection: View {
                 switch model.searchState {
                 case .noResults:
                     Text("No results found")
-                        .font(.title)
+                        .font(.blooTitle)
 
                 case .noSearch:
                     Color.clear
@@ -331,7 +349,7 @@ private struct ResultsSection: View {
                             .scaleEffect(CGSize(width: 0.7, height: 0.7))
 
                         Text(" Searching")
-                            .font(.title)
+                            .font(.blooTitle)
                             .foregroundStyle(.secondary)
                     }
                     .padding()
@@ -339,7 +357,7 @@ private struct ResultsSection: View {
                 case let .topResults(results):
                     HStack {
                         Text("Top Results")
-                            .font(.title)
+                            .font(.blooTitle)
                             .foregroundStyle(.secondary)
                         Spacer(minLength: 0)
                         Button {
@@ -361,7 +379,7 @@ private struct ResultsSection: View {
 
                 case let .moreResults(results):
                     Text(results.count > 1 ? " \(results.count, format: .number) Results" : "1 Result")
-                        .font(.title)
+                        .font(.blooTitle)
                         .foregroundStyle(.secondary)
 
                     LazyVGrid(columns: gridColumns) {
@@ -376,8 +394,30 @@ private struct ResultsSection: View {
     }
 }
 
+struct StatusIcon: View {
+    let name: String
+    let color: Color
+
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        ZStack {
+            Color.black
+            color.opacity(colorScheme == .dark ? 0.5 : 0.7)
+
+            Image(systemName: name)
+                .font(.blooCaption)
+                .fontWeight(.black)
+                .foregroundStyle(.white)
+        }
+        .cornerRadius(5)
+        .frame(width: 22, height: 22)
+    }
+}
+
 private struct AdditionSection: View {
-    @ObservedObject private var model = Model.shared
+    @ObservedObject var model: Model
+
     @State private var input = ""
     @State private var results = [String]()
 
@@ -385,19 +425,23 @@ private struct AdditionSection: View {
         VStack(alignment: .leading) {
             HStack(spacing: 17) {
                 Text(" Add")
-                    .font(.title)
+                    .font(.blooTitle)
                     .foregroundStyle(.secondary)
 
                 TextField("Domain name or link", text: $input)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
 
                 Button {
+                    let copy = results
                     Task {
-                        let copy = results
-                        for result in copy {
-                            await model.addDomain(result)
-                        }
                         input = ""
+                        if copy.count == 1, let first = copy.first {
+                            await model.addDomain(first, startAfterAdding: true)
+                        } else {
+                            for result in copy {
+                                await model.addDomain(result, startAfterAdding: false)
+                            }
+                        }
                     }
                 } label: {
                     Text("Create")
@@ -437,17 +481,17 @@ private struct AdditionSection: View {
 }
 
 struct ContentView: View {
-    @ObservedObject private var model = Model.shared
+    @ObservedObject var model: Model
     @State private var isSearching = false
-    @Environment(\.openURL) var openURL
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    ResultsSection()
+                    ResultsSection(model: model)
 
-                    AdditionSection()
+                    AdditionSection(model: model)
 
                     ForEach(model.domainSections) {
                         DomainGrid(section: $0)

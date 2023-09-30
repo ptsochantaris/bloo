@@ -5,59 +5,6 @@ import Semalot
 import SwiftSoup
 import SwiftUI
 
-private class LocationExtractor: NSObject, XMLParserDelegate {
-    private let parser: XMLParser
-    private let (locationHose, continuation) = AsyncStream<URL>.makeStream()
-
-    private var inLoc = false
-    private var running = false
-
-    init(data: Data) {
-        parser = XMLParser(data: data)
-        super.init()
-        parser.delegate = self
-    }
-
-    func extract() async -> (siteLocations: Set<IndexEntry>, xmlLocations: Set<IndexEntry>) {
-        running = true
-        parser.parse()
-        var siteLocations = Set<IndexEntry>()
-        var xmlUrls = Set<IndexEntry>()
-        for await url in locationHose {
-            if url.pathExtension.caseInsensitiveCompare("xml") == .orderedSame {
-                xmlUrls.insert(IndexEntry(url: url))
-            } else {
-                siteLocations.insert(IndexEntry(url: url))
-            }
-        }
-        return (siteLocations, xmlUrls)
-    }
-
-    func parser(_: XMLParser, didStartElement elementName: String, namespaceURI _: String?, qualifiedName _: String?, attributes _: [String: String] = [:]) {
-        inLoc = elementName == "loc"
-    }
-
-    func parser(_: XMLParser, foundCharacters string: String) {
-        guard inLoc else {
-            return
-        }
-        if let url = try? URL.create(from: string, relativeTo: nil, checkExtension: false) {
-            continuation.yield(url)
-        }
-    }
-
-    func parser(_: XMLParser, parseErrorOccurred parseError: Error) {
-        log("XML parser error: \(parseError.localizedDescription)")
-        running = false
-        continuation.finish()
-    }
-
-    func parserDidEndDocument(_: XMLParser) {
-        running = false
-        continuation.finish()
-    }
-}
-
 final actor Domain: ObservableObject, Identifiable {
     let id: String
 
@@ -74,27 +21,6 @@ final actor Domain: ObservableObject, Identifiable {
 
         static var allCases: [Domain.State] {
             [.paused(0, 0, false), .loading(0), .indexing(0, 0, URL(filePath: "")), .done(0)]
-        }
-
-        struct StatusIcon: View {
-            let name: String
-            let color: Color
-
-            @Environment(\.colorScheme) var colorScheme
-
-            var body: some View {
-                ZStack {
-                    Color.black
-                    color.opacity(colorScheme == .dark ? 0.5 : 0.7)
-
-                    Image(systemName: name)
-                        .font(.caption)
-                        .fontWeight(.black)
-                        .foregroundStyle(.white)
-                }
-                .cornerRadius(5)
-                .frame(width: 22, height: 22)
-            }
         }
 
         @ViewBuilder
@@ -254,14 +180,12 @@ final actor Domain: ObservableObject, Identifiable {
         indexed.removeAll()
         Task { @MainActor in
             state = .loading(0)
-            try! await Model.shared.snapshotter.indexer.deleteSearchableItems(withDomainIdentifiers: [id])
-
             let fm = FileManager.default
             if fm.fileExists(atPath: domainPath.path) {
                 try! fm.removeItem(at: domainPath)
             }
             try! fm.createDirectory(at: domainPath, withIntermediateDirectories: true)
-            await snapshot()
+            await clearSpotlight()
             await start()
         }
     }
@@ -271,9 +195,13 @@ final actor Domain: ObservableObject, Identifiable {
         indexed.removeAll()
         Task { @MainActor in
             state = .deleting
-            try! await Model.shared.snapshotter.indexer.deleteSearchableItems(withDomainIdentifiers: [id])
-            await snapshot()
+            await clearSpotlight()
         }
+    }
+    
+    private func clearSpotlight() async {
+        Model.shared.clearDomainSpotlight(for: id)
+        await snapshot()
     }
 
     deinit {
@@ -310,7 +238,7 @@ final actor Domain: ObservableObject, Identifiable {
                             return (nil, nil)
                         }
                         log("Fetched sitemap from \(url.absoluteString)")
-                        return await LocationExtractor(data: xmlData).extract()
+                        return await SitemapParser(data: xmlData).extract()
                     }
                 }
 
@@ -407,7 +335,7 @@ final actor Domain: ObservableObject, Identifiable {
     private func snapshot() async {
         let item = await Snapshotter.Item(id: id, state: state, items: spotlightQueue, pending: pending, indexed: indexed, domainRoot: domainPath)
         spotlightQueue.removeAll(keepingCapacity: true)
-        await Model.shared.snapshotter.queue(item)
+        Model.shared.queueSnapshot(item: item)
     }
 
     private static let isoFormatter = ISO8601DateFormatter()
@@ -452,8 +380,7 @@ final actor Domain: ObservableObject, Identifiable {
         var headRequest = URLRequest(url: url)
         headRequest.httpMethod = "head"
 
-        let headResult = try? await urlSession.data(for: headRequest)
-        guard let response = headResult?.1 else {
+        guard let response = try? await urlSession.data(for: headRequest).1 else {
             log("No HEAD response from \(url.absoluteString)")
             return nil
         }
@@ -463,9 +390,7 @@ final actor Domain: ObservableObject, Identifiable {
             return nil
         }
 
-        let contentRequest = URLRequest(url: url)
-        let contentResult = try? await urlSession.data(for: contentRequest)
-        guard let contentResult else {
+        guard let contentResult = try? await urlSession.data(from: url) else {
             log("No content response from \(url.absoluteString)")
             return nil
         }

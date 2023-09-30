@@ -7,6 +7,7 @@ Bloo
 Bloo uses the following packages made by me:
 - [Lista](https://github.com/ptsochantaris/lista)
 - [Maintini](https://github.com/ptsochantaris/maintini)
+- [Semalot](https://github.com/ptsochantaris/semalot)
 - [PopTimer](https://github.com/ptsochantaris/pop-timer)
 
 And the brilliant SwiftSoup HTML parser:

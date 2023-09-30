@@ -3,84 +3,8 @@ import Foundation
 import PopTimer
 import SwiftUI
 
-struct IndexEntry: Equatable, Hashable, Identifiable, Codable {
-    let id: String
-    let url: URL
-    let lastModified: Date?
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.url == rhs.url
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(url)
-    }
-
-    init(url: URL, lastModified: Date? = nil) {
-        id = url.absoluteString
-        self.url = url
-        self.lastModified = lastModified
-    }
-}
-
-struct SearchResult: Identifiable, Hashable {
-    let id: String
-    let title: String
-    let url: URL
-    let descriptionText: String
-    let updatedAt: Date?
-    let thumbnailUrl: URL?
-    let terms: [String]
-    let keywords: [String]
-
-    init(id: String, title: String, url: URL, descriptionText: String, updatedAt: Date?, thumbnailUrl: URL?, keywords: [String], terms: [String]) {
-        self.id = id
-        self.title = title
-        self.url = url
-        self.descriptionText = descriptionText
-        self.updatedAt = updatedAt
-        self.thumbnailUrl = thumbnailUrl
-        self.terms = terms
-        self.keywords = keywords
-    }
-
-    var attributedTitle: AttributedString {
-        title.highlightedAttributedStirng(terms)
-    }
-
-    var attributedDescription: AttributedString {
-        descriptionText.highlightedAttributedStirng(terms)
-    }
-
-    var matchedKeywords: String? {
-        var res = [String]()
-        for term in terms {
-            if let found = keywords.first(where: { $0.localizedCaseInsensitiveCompare(term) == .orderedSame }) {
-                res.append("#\(found)")
-            }
-        }
-        return res.isEmpty ? nil : res.joined(separator: ", ")
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(url)
-    }
-}
-
 final class Model: ObservableObject {
-    enum SearchState {
-        case noSearch, searching, topResults([SearchResult]), moreResults([SearchResult]), noResults
-
-        var resultMode: Bool {
-            switch self {
-            case .noSearch, .searching:
-                false
-            case .moreResults, .noResults, .topResults:
-                true
-            }
-        }
-    }
-
+    @Published var hasDomains: Bool
     @Published var isRunning = true
     @Published var searchState: SearchState = .noSearch
     @Published var domainSections = [DomainSection]() {
@@ -89,60 +13,38 @@ final class Model: ObservableObject {
         }
     }
 
-    var hasDomains: Bool
+    static let shared = Model()
+    
+    private let snapshotter = Snapshotter()
+    private var currentQuery: CSUserQuery?
+    private var lastSearchKey = ""
 
     private lazy var queryTimer = PopTimer(timeInterval: 0.3) { [weak self] in
         self?.resetQuery(full: false)
     }
-
-    private var currentQuery: CSUserQuery?
-
-    final class DomainSection: Identifiable, ObservableObject {
-        var id: String {
-            state.title + domains.map(\.id).joined(separator: "-") + "-" + String(actionable)
+    
+    @Published var searchQuery = "" {
+        didSet {
+            queryTimer.push()
         }
-
-        let state: Domain.State
-        let domains: [Domain]
-
-        @Published var actionable = true
-
-        init(state: Domain.State, domains: [Domain]) {
-            self.state = state
-            self.domains = domains
-        }
-
-        private func allDomains(_ block: @escaping (Domain) async -> Void) {
-            actionable = false
-            Task {
-                await withTaskGroup(of: Void.self) { group in
-                    for domain in domains {
-                        group.addTask { @MainActor in
-                            await block(domain)
-                        }
-                    }
-                }
-                actionable = true
+    }
+    
+    func queueSnapshot(item: Snapshotter.Item) {
+        snapshotter.queue(item)
+    }
+    
+    func clearDomainSpotlight(for domainId: String) {
+        Task {
+            do {
+                try await snapshotter.clearDomainSpotlight(for: domainId)
+            } catch {
+                log("Error clearing domain \(domainId): \(error.localizedDescription)")
             }
         }
-
-        func startAll() {
-            allDomains {
-                await $0.start()
-            }
-        }
-
-        func pauseAll() {
-            allDomains {
-                await $0.pause()
-            }
-        }
-
-        func restartAll() {
-            allDomains {
-                await $0.restart()
-            }
-        }
+    }
+    
+    func resurrect() {
+        isRunning = true
     }
 
     func updateSearchRunning(_ newState: SearchState) {
@@ -151,7 +53,6 @@ final class Model: ObservableObject {
         }
     }
 
-    private var lastSearchKey = ""
     func resetQuery(full: Bool) {
         queryTimer.abort()
 
@@ -231,16 +132,6 @@ final class Model: ObservableObject {
         }
     }
 
-    @Published var searchQuery = "" {
-        didSet {
-            queryTimer.push()
-        }
-    }
-
-    let snapshotter = Snapshotter()
-
-    static let shared = Model()
-
     @MainActor
     func resetAll() async {
         searchQuery = ""
@@ -252,10 +143,6 @@ final class Model: ObservableObject {
                 }
             }
         }
-    }
-
-    func resurrect() {
-        isRunning = true
     }
 
     @MainActor
@@ -297,12 +184,15 @@ final class Model: ObservableObject {
     }
 
     @MainActor
-    func addDomain(_ domain: String) async {
+    func addDomain(_ domain: String, startAfterAdding: Bool) async {
         do {
             let newDomain = try await Task.detached { try await Domain(startingAt: domain) }.value
             sortDomains(adding: newDomain)
             newDomain.setStateChangedHandler { [weak self] _ in
                 self?.sortDomains()
+            }
+            if startAfterAdding {
+                await newDomain.start()
             }
         } catch {
             log("Error: \(error.localizedDescription)")
@@ -340,7 +230,7 @@ final class Model: ObservableObject {
             await withTaskGroup(of: Void.self) { group in
                 for domain in entryPoints {
                     group.addTask {
-                        await self.addDomain(domain)
+                        await self.addDomain(domain, startAfterAdding: false)
                     }
                 }
             }

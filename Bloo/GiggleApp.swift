@@ -1,44 +1,41 @@
-#if canImport(AppKit)
-    import AppKit
-#endif
 import CoreSpotlight
-import SwiftUI
 import Maintini
-
-#if canImport(AppKit)
-    final class AppDelegate: NSObject, NSApplicationDelegate {
-        func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
-            if Model.shared.isRunning {
-                Task {
-                    await Model.shared.shutdown()
-                    try? await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
-                    NSApp.terminate(nil)
-                }
-                return .terminateCancel
-            }
-            return .terminateNow
-        }
-    }
-#endif
+import SwiftUI
 
 @main
 struct BlooApp: App {
     #if canImport(AppKit)
+        final class AppDelegate: NSObject, NSApplicationDelegate {
+            func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+                if Model.shared.isRunning {
+                    Task {
+                        await Model.shared.shutdown()
+                        try? await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
+                        NSApp.terminate(nil)
+                    }
+                    return .terminateCancel
+                }
+                return .terminateNow
+            }
+        }
+
         @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     #elseif canImport(UIKit)
         @Environment(\.scenePhase) private var scenePhase
     #endif
 
+    @ObservedObject private var model = Model.shared
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(model: model)
         }
         .commands {
             CommandGroup(after: .appInfo) {
                 Menu("Re-index all domains") {
                     Button("Confirm") {
                         Task {
-                            await Model.shared.resetAll()
+                            await model.resetAll()
                         }
                     }
                 }
@@ -48,14 +45,14 @@ struct BlooApp: App {
         .onChange(of: scenePhase) { _, new in
             switch new {
             case .active:
-                Model.shared.resurrect()
+                model.resurrect()
 
             case .background:
-                if Model.shared.isRunning {
+                if model.isRunning {
                     Maintini.startMaintaining()
                     // TODO: schedule background processing
                     Task {
-                        await Model.shared.shutdown()
+                        await model.shutdown()
                         Maintini.endMaintaining()
                     }
                 }
