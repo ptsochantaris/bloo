@@ -76,7 +76,6 @@ struct PersistedSet {
     func write() async {
         Task.detached { [items] in
             try! JSONEncoder().encode(items).write(to: path, options: .atomic)
-            log("!! Written \(path)")
         }
     }
 }

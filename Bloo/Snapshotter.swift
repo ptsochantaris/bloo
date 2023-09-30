@@ -62,9 +62,10 @@ final actor Snapshotter {
 
                     let path = documentsPath.appendingPathComponent(item.id, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
                     try! JSONEncoder().encode(resolved).write(to: path, options: .atomic)
-                    log("!! Written \(path)")
                 }
             }
+
+            log("Saved checkpoint for \(item.id)")
         }
     }
 }

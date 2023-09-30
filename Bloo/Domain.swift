@@ -454,29 +454,29 @@ final actor Domain: ObservableObject, Identifiable {
 
         let headResult = try? await urlSession.data(for: headRequest)
         guard let response = headResult?.1 else {
-            log("No HEAD response")
+            log("No HEAD response from \(url.absoluteString)")
             return nil
         }
 
         guard let mimeType = response.mimeType, mimeType.hasPrefix("text/html") else {
-            log("Content for \(url.absoluteString) isn't HTML, never mind")
+            log("Not HTML in \(url.absoluteString)")
             return nil
         }
 
         let contentRequest = URLRequest(url: url)
         let contentResult = try? await urlSession.data(for: contentRequest)
         guard let contentResult else {
-            log("No content response")
+            log("No content response from \(url.absoluteString)")
             return nil
         }
 
         guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
-            log("Cannot decode text")
+            log("Cannot decode text from \(url.absoluteString)")
             return nil
         }
 
         guard let htmlDoc = try? SwiftSoup.parse(documentText, url.absoluteString) else {
-            log("Cannot parse HTML")
+            log("Cannot parse HTML from \(url.absoluteString)")
             return nil
         }
 
@@ -489,7 +489,7 @@ final actor Domain: ObservableObject, Identifiable {
 
         let headerTask = Task.detached { [id] in
             guard let header = htmlDoc.head() else {
-                log("Cannot parse header")
+                log("Cannot parse header from \(url.absoluteString)")
                 return (String, String?, URL?, [URL], Date?, [String]?)?.none
             }
 
@@ -529,12 +529,12 @@ final actor Domain: ObservableObject, Identifiable {
         }
 
         guard let textContent = try? htmlDoc.body()?.text(trimAndNormaliseWhitespace: true) else {
-            log("Cannot parse text")
+            log("Cannot parse text in \(url.absoluteString)")
             return nil
         }
 
         guard let (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords) = await headerTask.value else {
-            log("Could not parse metadata")
+            log("Could not parse metadata from \(url.absoluteString)")
             return nil
         }
 
