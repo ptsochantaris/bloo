@@ -17,6 +17,7 @@
 		16B43D252AC7B05D00EB4815 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D232AC7B05D00EB4815 /* README.md */; };
 		16B43D262AC7B05D00EB4815 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D242AC7B05D00EB4815 /* LICENSE */; };
 		16B43D2A2AC8439200EB4815 /* Semalot in Frameworks */ = {isa = PBXBuildFile; productRef = 16B43D292AC8439200EB4815 /* Semalot */; };
+		16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */; };
 		16E8A0E82AC1F96500CCB10D /* GiggleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */; };
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
 		16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */; };
@@ -38,6 +39,7 @@
 		1634CF9C2AC367760022A8F6 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		16B43D232AC7B05D00EB4815 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		16B43D242AC7B05D00EB4815 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Extensions.swift"; sourceTree = "<group>"; };
 		16E8A0E42AC1F96500CCB10D /* Bloo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bloo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16E8A0E72AC1F96500CCB10D /* GiggleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiggleApp.swift; sourceTree = "<group>"; };
 		16E8A0E92AC1F96500CCB10D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				1634CF942AC365800022A8F6 /* Snapshotter.swift */,
 				16FD233B2AC5CD1600751A85 /* String+Extensions.swift */,
 				16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */,
+				16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */,
 				16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */,
 				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
 			);
@@ -209,6 +212,7 @@
 				1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */,
 				16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */,
 				16E8A0E82AC1F96500CCB10D /* GiggleApp.swift in Sources */,
+				16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */,
 				1634CF952AC365800022A8F6 /* Snapshotter.swift in Sources */,
 				1634CF9D2AC367760022A8F6 /* Model.swift in Sources */,
 			);
@@ -358,8 +362,11 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = build.bru.Bloo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -386,8 +393,11 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = build.bru.Bloo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};

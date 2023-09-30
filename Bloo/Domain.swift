@@ -1,9 +1,9 @@
 import CoreSpotlight
 import Foundation
-import SwiftSoup
-import SwiftUI
 import Maintini
 import Semalot
+import SwiftSoup
+import SwiftUI
 
 private class LocationExtractor: NSObject, XMLParserDelegate {
     private let parser: XMLParser
@@ -26,18 +26,18 @@ private class LocationExtractor: NSObject, XMLParserDelegate {
         for await url in locationHose {
             if url.pathExtension.caseInsensitiveCompare("xml") == .orderedSame {
                 xmlUrls.insert(IndexEntry(url: url))
-            } else{
+            } else {
                 siteLocations.insert(IndexEntry(url: url))
             }
         }
         return (siteLocations, xmlUrls)
     }
 
-    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
+    func parser(_: XMLParser, didStartElement elementName: String, namespaceURI _: String?, qualifiedName _: String?, attributes _: [String: String] = [:]) {
         inLoc = elementName == "loc"
     }
 
-    func parser(_ parser: XMLParser, foundCharacters string: String) {
+    func parser(_: XMLParser, foundCharacters string: String) {
         guard inLoc else {
             return
         }
@@ -46,13 +46,13 @@ private class LocationExtractor: NSObject, XMLParserDelegate {
         }
     }
 
-    func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {
+    func parser(_: XMLParser, parseErrorOccurred parseError: Error) {
         log("XML parser error: \(parseError.localizedDescription)")
         running = false
         continuation.finish()
     }
 
-    func parserDidEndDocument(_ parser: XMLParser) {
+    func parserDidEndDocument(_: XMLParser) {
         running = false
         continuation.finish()
     }
@@ -370,7 +370,7 @@ final actor Domain: ObservableObject, Identifiable {
 
         while let next = pending.removeFirst() {
             let start = Date()
-            
+
             if let newItem = await index(page: next) {
                 spotlightQueue.append(newItem)
 

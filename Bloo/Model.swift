@@ -82,8 +82,14 @@ final class Model: ObservableObject {
     }
 
     @Published var isRunning = true
-    @Published var domainSections = [DomainSection]()
     @Published var searchState: SearchState = .noSearch
+    @Published var domainSections = [DomainSection]() {
+        didSet {
+            hasDomains = domainSections.isPopulated
+        }
+    }
+
+    var hasDomains: Bool
 
     private lazy var queryTimer = PopTimer(timeInterval: 0.3) { [weak self] in
         self?.resetQuery(full: false)
@@ -248,6 +254,10 @@ final class Model: ObservableObject {
         }
     }
 
+    func resurrect() {
+        isRunning = true
+    }
+
     @MainActor
     func shutdown() async {
         guard isRunning else {
@@ -315,6 +325,7 @@ final class Model: ObservableObject {
     init() {
         guard CSSearchableIndex.isIndexingAvailable() else {
             log("Spotlight not available")
+            hasDomains = false
             return
         }
 
@@ -322,6 +333,8 @@ final class Model: ObservableObject {
         let entryPoints = directoryList
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
             .map { "https://\($0.lastPathComponent)" }
+
+        hasDomains = entryPoints.isPopulated
 
         Task {
             await withTaskGroup(of: Void.self) { group in

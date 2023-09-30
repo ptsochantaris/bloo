@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 
 private let wideCorner: CGFloat = 15
 private let narrowCorner: CGFloat = 10
@@ -236,7 +237,11 @@ private struct ResultRow: View, Identifiable {
         .background(.fill.opacity(resultOpacity))
         .cornerRadius(narrowCorner)
         .onTapGesture {
-            NSWorkspace.shared.open(result.url)
+            #if canImport(AppKit)
+                NSWorkspace.shared.open(result.url)
+            #else
+                UIApplication.shared.open(result.url)
+            #endif
         }
     }
 }
@@ -435,22 +440,44 @@ private struct AdditionSection: View {
 
 struct ContentView: View {
     @ObservedObject private var model = Model.shared
+    @State private var isSearching = false
+    @Environment(\.openURL) var openURL
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                ResultsSection()
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    ResultsSection()
 
-                AdditionSection()
+                    AdditionSection()
 
-                ForEach(model.domainSections) {
-                    DomainGrid(section: $0)
+                    ForEach(model.domainSections) {
+                        DomainGrid(section: $0)
+                    }
+                }
+                .padding()
+                .allowsHitTesting(model.isRunning)
+            }
+            .searchable(text: $model.searchQuery, isPresented: $isSearching)
+            .navigationTitle("Bloo")
+        }
+        .opacity(model.isRunning ? 1 : 0.6)
+        .onAppear {
+            Task { @MainActor in
+                if model.hasDomains {
+                    isSearching = true
                 }
             }
-            .padding()
         }
-        .allowsHitTesting(model.isRunning)
-        .opacity(model.isRunning ? 1 : 0.6)
-        .searchable(text: $model.searchQuery)
+        .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+            if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
+                openURL(url)
+            }
+        }
+        .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
+            if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
+                model.searchQuery = searchString
+            }
+        }
     }
 }

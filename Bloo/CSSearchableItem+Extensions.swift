@@ -1,4 +1,6 @@
-import AppKit
+#if canImport(AppKit)
+    import AppKit
+#endif
 import CoreSpotlight
 import Foundation
 import NaturalLanguage
@@ -8,7 +10,7 @@ extension CSSearchableItem {
         let imageData = Task<URL?, Never>.detached {
             if let thumbnailUrl,
                let data = try? await urlSession.data(from: thumbnailUrl).0,
-               let image = NSImage(data: data)?.limited(to: CGSize(width: 512, height: 512)),
+               let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
                let dataToSave = image.jpegData {
                 let uuid = UUID().uuidString
                 let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 1)])

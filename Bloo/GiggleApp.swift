@@ -1,42 +1,33 @@
-import AppKit
+#if canImport(AppKit)
+    import AppKit
+#endif
 import CoreSpotlight
 import SwiftUI
+import Maintini
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    func application(_: NSApplication, continue userActivity: NSUserActivity, restorationHandler _: @escaping ([NSUserActivityRestoring]) -> Void) -> Bool {
-        if let info = userActivity.userInfo {
-            if userActivity.activityType == CSSearchableItemActionType, let uid = info[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
-                NSWorkspace.shared.open(url)
-                return true
-
-            } else if userActivity.activityType == CSQueryContinuationActionType, let searchString = info[CSSearchQueryString] as? String {
-                Model.shared.searchQuery = searchString
-                return true
+#if canImport(AppKit)
+    final class AppDelegate: NSObject, NSApplicationDelegate {
+        func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+            if Model.shared.isRunning {
+                Task {
+                    await Model.shared.shutdown()
+                    try? await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
+                    NSApp.terminate(nil)
+                }
+                return .terminateCancel
             }
+            return .terminateNow
         }
-        return false
     }
-
-    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
-        if Model.shared.isRunning {
-            Task {
-                await Model.shared.shutdown()
-                try? await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
-                NSApp.terminate(nil)
-            }
-            return .terminateCancel
-        }
-        return .terminateNow
-    }
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        // TODO: Focus search field if model is populated
-    }
-}
+#endif
 
 @main
 struct BlooApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #if canImport(AppKit)
+        @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #elseif canImport(UIKit)
+        @Environment(\.scenePhase) private var scenePhase
+    #endif
 
     var body: some Scene {
         WindowGroup {
@@ -53,5 +44,29 @@ struct BlooApp: App {
                 }
             }
         }
+        #if canImport(UIKit)
+        .onChange(of: scenePhase) { _, new in
+            switch new {
+            case .active:
+                Model.shared.resurrect()
+
+            case .background:
+                if Model.shared.isRunning {
+                    Maintini.startMaintaining()
+                    // TODO: schedule background processing
+                    Task {
+                        await Model.shared.shutdown()
+                        Maintini.endMaintaining()
+                    }
+                }
+
+            case .inactive:
+                fallthrough
+
+            @unknown default:
+                break
+            }
+        }
+        #endif
     }
 }
