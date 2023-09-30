@@ -1,30 +1,36 @@
 import CoreSpotlight
 import SwiftUI
 
-extension Font {
-    #if canImport(AppKit)
-    static let blooTitle = Font.title
-    static let blooHeadline = Font.headline
-    static let blooFootnote = Font.footnote
-    static let blooCaption = Font.caption
-    static let blooCaption2 = Font.caption2
-    static let blooBody = Font.body
-    #elseif canImport(UIKit)
-    static let blooTitle = Font.title
-    static let blooHeadline = Font.headline
-    static let blooFootnote = Font.footnote
-    static let blooCaption = Font.caption
-    static let blooCaption2 = Font.caption2
-    static let blooBody = Font.body
-    #endif
-}
-
 private let wideCorner: CGFloat = 15
 private let narrowCorner: CGFloat = 10
 
+#if canImport(AppKit)
+
+extension Font {
+    static let blooTitle = Font.title2
+    static let blooFootnote = Font.footnote
+    static let blooCaption = Font.caption
+    static let blooCaption2 = Font.caption2
+    static let blooBody = Font.body
+}
 private let backgroundOpacity = 0.4
 private let cellOpacity = 0.5
 private let resultOpacity = 0.6
+
+#elseif canImport(UIKit)
+
+extension Font {
+    static let blooTitle = Font.title3
+    static let blooFootnote = Font.footnote
+    static let blooCaption = Font.caption
+    static let blooCaption2 = Font.caption2
+    static let blooBody = Font.body
+}
+private let backgroundOpacity = 0.5
+private let cellOpacity = 0.6
+private let resultOpacity = 0.7
+
+#endif
 
 private struct FooterText: View {
     let text: String
@@ -44,7 +50,8 @@ private struct DomainTitle: View {
         HStack {
             domain.state.symbol
             Text(domain.id)
-                .font(.blooHeadline)
+                .font(.blooBody)
+                .bold()
         }
     }
 }
@@ -59,8 +66,6 @@ private struct DomainRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
-                    Text(pending, format: .number)
-                        .bold()
                 }
                 .frame(maxHeight: .infinity)
                 if pending == 0 {
@@ -72,11 +77,14 @@ private struct DomainRow: View {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
                     Text(indexed, format: .number)
+                        .font(.blooBody)
                         .bold()
                         .foregroundColor(.secondary)
                     Text("|")
+                        .font(.blooBody)
                         .foregroundColor(.secondary)
                     Text(pending, format: .number)
+                        .font(.blooBody)
                         .bold()
                 }
                 FooterText(text: url.absoluteString)
@@ -94,11 +102,14 @@ private struct DomainRow: View {
                     } else {
                         if indexed > 0 || pending > 0 {
                             Text(indexed, format: .number)
+                                .font(.blooBody)
                                 .bold()
                                 .foregroundColor(.secondary)
                             Text("|")
+                                .font(.blooBody)
                                 .foregroundColor(.secondary)
                             Text(pending, format: .number)
+                                .font(.blooBody)
                                 .bold()
                         }
                     }
@@ -121,6 +132,7 @@ private struct DomainRow: View {
                     Spacer(minLength: 0)
                     VStack(alignment: .trailing) {
                         Text(indexed, format: .number)
+                            .font(.blooBody)
                             .bold()
                         Text("indexed")
                             .font(.blooFootnote)
@@ -204,7 +216,8 @@ private struct ResultRow: View, Identifiable {
                     }
 
                     Text(titleText ?? AttributedString(result.title))
-                        .font(.blooHeadline)
+                        .font(.blooBody)
+                        .bold()
                         .lineLimit(2, reservesSpace: true)
                         .task {
                             titleText = await Task.detached { result.attributedTitle }.value
@@ -268,7 +281,8 @@ private struct AdditionRow: View {
     var body: some View {
         HStack(spacing: 0) {
             Text(id)
-                .font(.blooHeadline)
+                .font(.blooBody)
+                .bold()
             Spacer(minLength: 0)
         }
         .padding()
@@ -429,6 +443,11 @@ private struct AdditionSection: View {
                     .foregroundStyle(.secondary)
 
                 TextField("Domain name or link", text: $input)
+                #if canImport(UIKit)
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
+                    .autocapitalization(.none)
+                #endif
                     .textFieldStyle(RoundedBorderTextFieldStyle())
 
                 Button {
