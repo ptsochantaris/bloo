@@ -1,3 +1,5 @@
+<img src="https://ptsochantaris.github.io/trailer/BlooLogo.webp" alt="Logo" width=256 align="right">
+
 Bloo
 ====
 
