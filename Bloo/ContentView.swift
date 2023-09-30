@@ -167,6 +167,8 @@ private struct ResultRow: View, Identifiable {
     @State var titleText: AttributedString?
     @State var descriptionText: AttributedString?
 
+    @Environment(\.openURL) private var openURL
+
     init(result: SearchResult) {
         id = result.id
         self.result = result
@@ -232,17 +234,13 @@ private struct ResultRow: View, Identifiable {
                     .foregroundStyle(.accent)
             }
         }
+        .onTapGesture {
+            openURL(result.url)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
         .background(.fill.opacity(resultOpacity))
         .cornerRadius(narrowCorner)
-        .onTapGesture {
-            #if canImport(AppKit)
-                NSWorkspace.shared.open(result.url)
-            #else
-                UIApplication.shared.open(result.url)
-            #endif
-        }
     }
 }
 
