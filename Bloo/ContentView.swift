@@ -63,9 +63,7 @@ private struct DomainTitle: View {
     }
 }
 
-private struct DomainRow: View, Identifiable {
-    var id: String { domain.id }
-
+private struct DomainRow: View {
     @ObservedObject var domain: Domain
 
     var body: some View {
@@ -195,8 +193,7 @@ private struct DomainRow: View, Identifiable {
     }
 }
 
-private struct ResultRow: View, Identifiable {
-    var id: String { result.id }
+private struct ResultRow: View {
     let result: SearchResult
 
     @State var titleText: AttributedString?
@@ -280,11 +277,11 @@ private struct ResultRow: View, Identifiable {
 }
 
 private struct AdditionRow: View {
-    let id: String
+    let text: String
 
     var body: some View {
         HStack(spacing: 0) {
-            Text(id)
+            Text(text)
                 .font(.blooBody)
                 .bold()
             Spacer(minLength: 0)
@@ -295,8 +292,7 @@ private struct AdditionRow: View {
     }
 }
 
-private struct DomainGrid: View, Identifiable {
-    var id: String { section.state.id }
+private struct DomainGrid: View {
     let section: DomainSection
     @State private var actioning = false
 
@@ -350,9 +346,7 @@ private struct DomainGrid: View, Identifiable {
     }
 }
 
-private struct ResultsSection: View, Identifiable {
-    let id = "Results"
-
+private struct ResultsSection: View {
     @ObservedObject var model: Model
 
     var body: some View {
@@ -443,9 +437,7 @@ struct StatusIcon: View {
     }
 }
 
-private struct AdditionSection: View, Identifiable {
-    let id = "Addition"
-
+private struct AdditionSection: View {
     @ObservedObject var model: Model
 
     @State private var input = ""
@@ -491,7 +483,7 @@ private struct AdditionSection: View, Identifiable {
             if results.isPopulated {
                 LazyVGrid(columns: gridColumns) {
                     ForEach(results, id: \.self) {
-                        AdditionRow(id: $0)
+                        AdditionRow(text: $0)
                     }
                 }
             }

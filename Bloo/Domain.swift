@@ -64,20 +64,20 @@ final actor Domain: ObservableObject, ModelItem {
 
     func start() {
         let count = pending.count
-        Task { @MainActor in
-            state = .loading(count)
-        }
         goTask = Task {
+            await MainActor.run {
+                state = .loading(count)
+            }
             await go()
         }
     }
 
     func pause() async {
         let newState = DomainState.paused(indexed.count, pending.count, true)
-        Task { @MainActor in
-            state = newState
-        }
         if let g = goTask {
+            await MainActor.run {
+                state = newState
+            }
             goTask = nil
             await g.value
         }
