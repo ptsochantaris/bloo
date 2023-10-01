@@ -63,6 +63,17 @@ private struct DomainTitle: View {
     }
 }
 
+private struct Triangle: View {
+    var body: some View {
+        Image(systemName: "arrowtriangle.forward.fill")
+            .imageScale(.small)
+            .font(.blooBody)
+            .foregroundColor(.secondary)
+            .scaleEffect(x: 0.6, y: 0.9)
+            .opacity(0.8)
+    }
+}
+
 private struct DomainRow: View {
     @ObservedObject var domain: Domain
 
@@ -83,15 +94,15 @@ private struct DomainRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
-                    Text(pending, format: .number)
-                        .font(.blooBody).bold()
-                        .foregroundColor(.secondary)
-                    Text("→")
-                        .font(.blooBody).bold()
-                        .foregroundColor(.secondary)
-                    Text(indexed, format: .number)
-                        .font(.blooBody).bold()
-                        .bold()
+                    HStack(spacing: 2) {
+                        Text(pending, format: .number)
+                            .font(.blooBody).bold()
+                            .foregroundColor(.secondary)
+                        Triangle()
+                        Text(indexed, format: .number)
+                            .font(.blooBody).bold()
+                            .bold()
+                    }
                 }
                 FooterText(text: url.absoluteString)
 
@@ -104,15 +115,15 @@ private struct DomainRow: View {
                             .font(.blooBody)
                     } else {
                         if indexed > 0 || pending > 0 {
-                            Text(pending, format: .number)
-                                .font(.blooBody).bold()
-                                .foregroundColor(.secondary)
-                            Text("→")
-                                .font(.blooBody).bold()
-                                .foregroundColor(.secondary)
-                            Text(indexed, format: .number)
-                                .font(.blooBody).bold()
-                                .bold()
+                            HStack(spacing: 2) {
+                                Text(pending, format: .number)
+                                    .font(.blooBody).bold()
+                                    .foregroundColor(.secondary)
+                                Triangle()
+                                Text(indexed, format: .number)
+                                    .font(.blooBody).bold()
+                                    .bold()
+                            }
                         }
                     }
                 }
@@ -537,6 +548,7 @@ private struct OverlayMessage: View {
                     .shadow(radius: 4)
             }
         }
+        .ignoresSafeArea()
     }
 }
 

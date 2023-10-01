@@ -170,7 +170,7 @@ final class Model: ObservableObject {
     }
 
     var isRunningAndBusy: Bool {
-        runState == .running && domainSections.contains(where: { $0.state.isActive })
+        runState == .running && domainSections.contains(where: \.state.isActive)
     }
 
     @MainActor
@@ -188,17 +188,17 @@ final class Model: ObservableObject {
 
         if backgrounded {
             #if os(iOS)
-            if isRunningAndBusy {
-                do {
-                    let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")
-                    request.requiresNetworkConnectivity = true
-                    request.requiresExternalPower = true
-                    try BGTaskScheduler.shared.submit(request)
-                    log("Registered for background wakeup")
-                } catch {
-                    log("Error submitting background processing task: \(error.localizedDescription)")
+                if isRunningAndBusy {
+                    do {
+                        let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")
+                        request.requiresNetworkConnectivity = true
+                        request.requiresExternalPower = true
+                        try BGTaskScheduler.shared.submit(request)
+                        log("Registered for background wakeup")
+                    } catch {
+                        log("Error submitting background processing task: \(error.localizedDescription)")
+                    }
                 }
-            }
             #endif
             runState = .backgrounded
         } else {
@@ -256,7 +256,7 @@ final class Model: ObservableObject {
             if domainsForState.isEmpty { return nil }
             return DomainSection(state: state, domains: domainsForState)
         }
-        log("Sorted sections: \(newSections.map { $0.state.title }.joined(separator: ", "))")
+        log("Sorted sections: \(newSections.map(\.state.title).joined(separator: ", "))")
         withAnimation(.easeInOut(duration: 0.3)) {
             domainSections = newSections
         }
@@ -264,7 +264,7 @@ final class Model: ObservableObject {
 
     init() {
         guard CSSearchableIndex.isIndexingAvailable() else {
-            // TODO
+            // TODO:
             log("Spotlight not available")
             hasDomains = false
             return
