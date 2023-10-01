@@ -72,7 +72,6 @@ final actor Domain: ObservableObject, Identifiable {
     }
 
     func pause(resumable: Bool) async {
-        let currentState = await state
         let newState = DomainState.paused(indexed.count, pending.count, true, resumable)
         if let g = goTask {
             await MainActor.run {
