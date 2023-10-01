@@ -181,7 +181,6 @@ final actor Crawler {
 
         while let next = pending.removeFirst() {
             let start = Date()
-
             switch next.state {
             case let .pending(isSitemap):
                 if isSitemap {

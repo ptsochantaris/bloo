@@ -111,8 +111,9 @@ final class Model: ObservableObject {
             chunk.reserveCapacity(chunkSize)
 
             for try await result in q.results {
+                let id = result.item.uniqueIdentifier
+
                 // dedup
-                let id = result.id
                 guard check.insert(id).inserted else {
                     continue
                 }
