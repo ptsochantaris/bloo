@@ -187,6 +187,7 @@ final class Model: ObservableObject {
         }
 
         if backgrounded {
+            #if os(iOS)
             if isRunningAndBusy {
                 do {
                     let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")
@@ -198,6 +199,7 @@ final class Model: ObservableObject {
                     log("Error submitting background processing task: \(error.localizedDescription)")
                 }
             }
+            #endif
             runState = .backgrounded
         } else {
             searchQuery = ""
