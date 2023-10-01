@@ -215,7 +215,7 @@ final class Model: ObservableObject {
         log("All domains are shut down")
         await snapshotter.shutdown()
         log("Snapshots and model are now shut down")
-        try? await Task.sleep(for: .milliseconds(100))
+        try? await Task.sleep(for: .milliseconds(300))
     }
 
     func contains(domain: String) -> Bool {

@@ -6,6 +6,11 @@ import SwiftSoup
 import SwiftUI
 
 @MainActor
+private protocol CrawlerDelegate: AnyObject {
+    var state: DomainState { get set }
+}
+
+@MainActor
 final class Domain: ObservableObject, Identifiable, CrawlerDelegate {
     let id: String
     let crawler: Crawler
@@ -51,11 +56,6 @@ final class Domain: ObservableObject, Identifiable, CrawlerDelegate {
     func remove() async {
         await crawler.remove()
     }
-}
-
-@MainActor
-private protocol CrawlerDelegate: AnyObject {
-    var state: DomainState { get set }
 }
 
 final actor Crawler {
