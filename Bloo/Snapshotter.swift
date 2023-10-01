@@ -1,5 +1,6 @@
 import CoreSpotlight
 import Foundation
+import Semalot
 
 struct Snapshot: Codable {
     let id: String
@@ -121,10 +122,24 @@ final class Snapshotter {
         let q = AsyncStream<Snapshot>.makeStream()
         queueContinuation = q.continuation
 
-        loopTask = Task.detached { [weak self] in
-            guard let self else { return }
+        loopTask = Task {
+            let max: UInt = 4
+            let loopLimit = Semalot(tickets: max)
             for await item in q.stream {
-                await commitData(for: item)
+                await loopLimit.takeTicket()
+                Task.detached { [weak self] in
+                    guard let self else { return }
+                    await commitData(for: item)
+                    loopLimit.returnTicket()
+                }
+            }
+            // ensure queue is drained before continuing
+            // TODO: put this in Semalot as a method
+            for _ in 0 ..< max {
+                await loopLimit.takeTicket()
+            }
+            for _ in 0 ..< max {
+                loopLimit.returnTicket()
             }
         }
     }

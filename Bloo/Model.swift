@@ -301,7 +301,7 @@ final class Model: ObservableObject {
                 guard let self else { return }
                 await start()
                 await waitForIndexingToEnd()
-                if await UIApplication.shared.applicationState == .background {
+                if UIApplication.shared.applicationState == .background {
                     await shutdown(backgrounded: false)
                 }
                 log("Background task complete")
