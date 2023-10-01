@@ -6,6 +6,7 @@ import SwiftUI
     import BackgroundTasks
 #endif
 
+@MainActor
 final class Model: ObservableObject {
     enum RunState {
         case stopped, backgrounded, running
@@ -22,9 +23,10 @@ final class Model: ObservableObject {
 
     static let shared = Model()
 
-    private let snapshotter = Snapshotter()
+    private var snapshotter = Snapshotter()
     private var currentQuery: CSUserQuery?
     private var lastSearchKey = ""
+    private var initialisedViaLaunch = false
 
     private lazy var queryTimer = PopTimer(timeInterval: 0.3) { [weak self] in
         self?.resetQuery(full: false)
@@ -51,11 +53,13 @@ final class Model: ObservableObject {
     }
 
     func updateSearchRunning(_ newState: SearchState) {
-        Task { @MainActor in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                searchState = newState
-            }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            searchState = newState
         }
+    }
+
+    func data(in domainPath: URL) async throws -> (PersistedSet, PersistedSet, DomainState) {
+        try await snapshotter.data(in: domainPath)
     }
 
     func resetQuery(full: Bool) {
@@ -124,7 +128,7 @@ final class Model: ObservableObject {
                 chunk.append(res)
             }
 
-            Task { @MainActor [chunk] in
+            Task { [chunk] in
                 if chunk.isEmpty {
                     updateSearchRunning(.noResults)
                 } else if full {
@@ -136,7 +140,6 @@ final class Model: ObservableObject {
         }
     }
 
-    @MainActor
     func resetAll() async {
         searchQuery = ""
 
@@ -149,8 +152,6 @@ final class Model: ObservableObject {
         }
     }
 
-    private var initialisedViaLaunch = false
-    @MainActor
     func start(fromInitialiser: Bool = false) async {
         guard fromInitialiser || initialisedViaLaunch, runState != .running else {
             return
@@ -173,14 +174,12 @@ final class Model: ObservableObject {
         runState == .running && domainSections.contains(where: \.state.isActive)
     }
 
-    @MainActor
     func waitForIndexingToEnd() async {
         while isRunningAndBusy {
             try? await Task.sleep(for: .seconds(0.5))
         }
     }
 
-    @MainActor
     func shutdown(backgrounded: Bool) async {
         guard runState == .running else {
             return
@@ -223,19 +222,17 @@ final class Model: ObservableObject {
         let domainList = domainSections.flatMap(\.domains)
         return domainList.contains {
             $0.id == domain
-                || domain.hasSuffix(".\($0.id)")
+            || domain.hasSuffix(".\($0.id)")
         }
     }
 
-    @MainActor
     func addDomain(_ domain: String, startAfterAdding: Bool) async {
         log("Adding domain: \(domain), willStart: \(startAfterAdding)")
         do {
-            let newDomain = try await Task.detached { try await Domain(startingAt: domain) }.value
-            sortDomains(adding: newDomain)
-            newDomain.setStateChangedHandler { [weak self] _ in
+            let newDomain = try await Domain(startingAt: domain) { [weak self] in
                 self?.sortDomains()
             }
+            sortDomains(adding: newDomain)
             log("Added domain: \(domain), willStart: \(startAfterAdding)")
             if startAfterAdding {
                 await newDomain.start()
@@ -245,7 +242,6 @@ final class Model: ObservableObject {
         }
     }
 
-    @MainActor
     func sortDomains(adding newDomain: Domain? = nil) {
         var domainList = domainSections.flatMap(\.domains)
         if let newDomain {
@@ -292,7 +288,7 @@ final class Model: ObservableObject {
     #if os(iOS)
         func backgroundTask(_ task: BGProcessingTask) {
             task.expirationHandler = {
-                Task { @MainActor [weak self] in
+                Task { [weak self] in
                     guard let self else { return }
                     await shutdown(backgrounded: true)
                 }

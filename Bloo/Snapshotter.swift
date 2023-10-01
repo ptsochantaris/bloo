@@ -14,6 +14,27 @@ final class Snapshotter {
     private var queueContinuation: AsyncStream<Item>.Continuation?
     private var loopTask: Task<Void, Never>?
 
+    func data(in domainPath: URL) async throws -> (PersistedSet, PersistedSet, DomainState) {
+        try await Task.detached {
+            let fm = FileManager.default
+            if !fm.fileExists(atPath: domainPath.path) {
+                try! fm.createDirectory(at: domainPath, withIntermediateDirectories: true)
+            }
+
+            let pendingPath = domainPath.appendingPathComponent("pending.json", isDirectory: false)
+            let pending = try PersistedSet(path: pendingPath)
+
+            let indexingPath = domainPath.appendingPathComponent("indexing.json", isDirectory: false)
+            let indexed = try PersistedSet(path: indexingPath)
+
+            let path = domainPath.appendingPathComponent("state.json", isDirectory: false)
+            let newState = try? JSONDecoder().decode(DomainState.self, from: Data(contentsOf: path))
+            let state = newState ?? DomainState.paused(0, 0, false, false)
+
+            return (pending, indexed, state)
+        }.value
+    }
+
     func start() {
         guard loopTask == nil else {
             return

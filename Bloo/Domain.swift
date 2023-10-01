@@ -5,92 +5,120 @@ import Semalot
 import SwiftSoup
 import SwiftUI
 
-final actor Domain: ObservableObject, Identifiable {
-    @MainActor
+@MainActor
+final class Domain: ObservableObject, Identifiable, CrawlerDelegate {
+    let id: String
+    let crawler: Crawler
+    private let stateChangedHandler: (() -> Void)
+
     @Published var state = DomainState.paused(0, 0, false, false) {
         didSet {
             if oldValue != state { // only handle base enum changes
                 log("Domain \(id) state is now \(state.logText)")
-                stateChangedHandler?(id)
+                stateChangedHandler()
             }
         }
     }
 
-    let id: String
-    private let domainPath: URL
-    private var pending: PersistedSet
-    private var indexed: PersistedSet
-    private var spotlightQueue = [CSSearchableItem]()
-    private let bootupEntry: IndexEntry
-    private var goTask: Task<Void, Never>?
-
-    @MainActor
-    private var stateChangedHandler: ((String) -> Void)?
-    @MainActor
-    func setStateChangedHandler(_ handler: ((String) -> Void)?) {
-        stateChangedHandler = handler
-    }
-
-    init(startingAt: String) async throws {
+    init(startingAt: String, handler: @escaping (() -> Void)) async throws {
         let url = try URL.create(from: startingAt, relativeTo: nil, checkExtension: true)
 
-        guard let host = url.host() else {
+        guard let id = url.host() else {
             throw Blooper.malformedUrl
         }
 
-        id = host
-        bootupEntry = IndexEntry(url: url)
+        self.id = id
+        self.stateChangedHandler = handler
+        let domainPath = documentsPath.appendingPathComponent(id, isDirectory: true)
+        let (pending, indexed, state) = try await Model.shared.data(in: domainPath)
+        self.state = state
+        crawler = try await Crawler(id: id, url: url, domainPath: domainPath, pending: pending, indexed: indexed)
+        crawler.crawlerDelegate = self
+    }
 
-        domainPath = documentsPath.appendingPathComponent(id, isDirectory: true)
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: domainPath.path) {
-            try! fm.createDirectory(at: domainPath, withIntermediateDirectories: true)
-        }
+    func restart() async {
+        await crawler.restart()
+    }
 
-        let pendingPath = domainPath.appendingPathComponent("pending.json", isDirectory: false)
-        pending = try PersistedSet(path: pendingPath)
+    func pause(resumable: Bool) async {
+        await crawler.pause(resumable: resumable)
+    }
 
-        let indexingPath = domainPath.appendingPathComponent("indexing.json", isDirectory: false)
-        indexed = try PersistedSet(path: indexingPath)
+    func start() async {
+        await crawler.start()
+    }
 
-        let path = domainPath.appendingPathComponent("state.json", isDirectory: false)
-        if let newState = try? JSONDecoder().decode(DomainState.self, from: Data(contentsOf: path)) {
-            await MainActor.run {
-                state = newState
+    func remove() async {
+        await crawler.remove()
+    }
+}
+
+@MainActor
+private protocol CrawlerDelegate: AnyObject {
+    var state: DomainState { get set }
+}
+
+final actor Crawler {
+    let id: String
+    private let bootupEntry: IndexEntry
+    private let domainPath: URL
+
+    private var pending: PersistedSet
+    private var indexed: PersistedSet
+    private var spotlightQueue = [CSSearchableItem]()
+    private var goTask: Task<Void, Never>?
+
+    @MainActor
+    fileprivate weak var crawlerDelegate: CrawlerDelegate!
+
+    fileprivate init(id: String, url: URL, domainPath: URL, pending: PersistedSet, indexed: PersistedSet) async throws {
+        self.id = id
+        self.bootupEntry = IndexEntry(url: url)
+        self.domainPath = domainPath
+        self.indexed = indexed
+        self.pending = pending
+    }
+
+    private func signalState(_ state: DomainState, onlyIfActive: Bool = false) {
+        Task { @MainActor in
+            if !onlyIfActive || crawlerDelegate.state.isActive {
+                crawlerDelegate.state = state
             }
         }
     }
 
-    func start() {
+    private var currentState: DomainState {
+        get async {
+            await crawlerDelegate.state
+        }
+    }
+
+    fileprivate func start() {
         let count = pending.count
         goTask = Task {
-            await MainActor.run {
-                state = .loading(count)
-            }
+            signalState(.loading(count))
             await go()
         }
     }
 
-    func pause(resumable: Bool) async {
+    fileprivate func pause(resumable: Bool) async {
         let newState = DomainState.paused(indexed.count, pending.count, true, resumable)
         if let g = goTask {
-            await MainActor.run {
-                state = newState
-            }
+            signalState(newState)
             goTask = nil
             await g.value
         }
     }
 
-    func restart() async {
-        if await state.isActive {
+    fileprivate func restart() async {
+        if await currentState.isActive {
             return
         }
         log("Resetting domain \(id)")
         pending.removeAll()
         indexed.removeAll()
+        signalState(.loading(0))
         Task { @MainActor in
-            state = .loading(0)
             let fm = FileManager.default
             if fm.fileExists(atPath: domainPath.path) {
                 try! fm.removeItem(at: domainPath)
@@ -101,17 +129,15 @@ final actor Domain: ObservableObject, Identifiable {
         }
     }
 
-    func remove() async {
+    fileprivate func remove() async {
         pending.removeAll()
         indexed.removeAll()
-        Task { @MainActor in
-            state = .deleting
-            await clearSpotlight()
-        }
+        signalState(.deleting)
+        await clearSpotlight()
     }
 
     private func clearSpotlight() async {
-        Model.shared.clearDomainSpotlight(for: id)
+        await Model.shared.clearDomainSpotlight(for: id)
         await snapshot()
     }
 
@@ -181,13 +207,6 @@ final actor Domain: ObservableObject, Identifiable {
         log("\(id): Sitemap processing complete - \(-start.timeIntervalSinceNow) sec")
     }
 
-    private func updateLoadingState() {
-        let count = pending.count
-        Task { @MainActor in
-            state = .loading(count)
-        }
-    }
-
     private func go() async {
         await Maintini.startMaintaining()
         defer {
@@ -196,7 +215,7 @@ final actor Domain: ObservableObject, Identifiable {
             }
         }
 
-        updateLoadingState()
+        signalState(.loading(pending.count))
         if indexed.isEmpty {
             await parseSitemap()
             pending.insert(bootupEntry)
@@ -205,7 +224,7 @@ final actor Domain: ObservableObject, Identifiable {
         if pending.isEmpty {
             pending.insert(bootupEntry)
         }
-        updateLoadingState()
+        signalState(.loading(pending.count))
 
         while let next = pending.removeFirst() {
             let start = Date()
@@ -218,12 +237,10 @@ final actor Domain: ObservableObject, Identifiable {
                 }
             }
 
-            let currentState = await state
+            let currentState = await currentState
             guard currentState.isActive else {
                 if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
-                    await MainActor.run {
-                        state = .paused(x, y, false, resumeOnLaunch)
-                    }
+                    signalState(.paused(x, y, false, resumeOnLaunch))
                 }
                 await snapshot()
                 return
@@ -235,23 +252,24 @@ final actor Domain: ObservableObject, Identifiable {
             }
         }
 
-        let newState = DomainState.done(indexed.count)
-        await MainActor.run {
-            state = newState
-        }
+        signalState(.done(indexed.count))
         await snapshot()
     }
 
     private func snapshot() async {
-        let item = await Snapshotter.Item(domainName: id, state: state, items: spotlightQueue, pending: pending, indexed: indexed, domainRoot: domainPath)
+        let item = await Snapshotter.Item(domainName: id,
+                                          state: currentState,
+                                          items: spotlightQueue,
+                                          pending: pending,
+                                          indexed: indexed,
+                                          domainRoot: domainPath)
         spotlightQueue.removeAll(keepingCapacity: true)
-        Model.shared.queueSnapshot(item: item)
+        await Model.shared.queueSnapshot(item: item)
     }
 
     private static let isoFormatter = ISO8601DateFormatter()
 
     private static let isoFormatter2: DateFormatter = {
-        // 2023-03-05T17:34:36Z"
         let formatter = DateFormatter()
         formatter.dateFormat = "YYYY-MM-DDTHH:mm:SSZ"
         return formatter
@@ -270,22 +288,13 @@ final actor Domain: ObservableObject, Identifiable {
         return formatter
     }()
 
-    private func updateIndexedState(url: URL) {
-        let newState = DomainState.indexing(indexed.count, pending.count, url)
-        Task { @MainActor in
-            if state.isActive {
-                state = newState
-            }
-        }
-    }
-
     private func index(page entry: IndexEntry) async -> CSSearchableItem? {
         // TODO: robots
         // TODO: Run update scans using last-modified
 
         let url = entry.url
 
-        updateIndexedState(url: url)
+        signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
 
         var headRequest = URLRequest(url: url)
         headRequest.httpMethod = "head"
@@ -317,7 +326,7 @@ final actor Domain: ObservableObject, Identifiable {
 
         let lastModified: Date?
         if let httpResponse = (contentResult.1 as? HTTPURLResponse)?.allHeaderFields, let lastModifiedHeader = (httpResponse["Last-Modified"] ?? httpResponse["last-modified"]) as? String {
-            lastModified = Domain.httpHeaderDateFormatter.date(from: lastModifiedHeader)
+            lastModified = Self.httpHeaderDateFormatter.date(from: lastModifiedHeader)
         } else {
             lastModified = nil
         }
@@ -357,7 +366,7 @@ final actor Domain: ObservableObject, Identifiable {
             }
 
             let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
-            let creationDate = Domain.isoFormatter.date(from: createdDateString) ?? Domain.isoFormatter2.date(from: createdDateString) ?? Domain.isoFormatter3.date(from: createdDateString)
+            let creationDate = Self.isoFormatter.date(from: createdDateString) ?? Self.isoFormatter2.date(from: createdDateString) ?? Self.isoFormatter3.date(from: createdDateString)
             let keywords = header.metaNameContent(for: "keywords")?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 
             return (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords)
