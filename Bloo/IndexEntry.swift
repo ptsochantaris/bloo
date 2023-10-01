@@ -1,21 +1,28 @@
 import Foundation
 
+enum IndexState: Codable {
+    case pending(Bool), visited(Date?)
+}
+
 struct IndexEntry: Codable, Hashable {
-    let id: String
-    let url: URL
-    let lastModified: Date?
+    let url: String
+    let state: IndexState
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+        hasher.combine(url)
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id
+        lhs.url == rhs.url
     }
 
-    init(url: URL, lastModified: Date? = nil) {
-        self.id = url.absoluteString
+    init(url: URL, isSitemap: Bool) {
+        self.url = url.absoluteString
+        self.state = .pending(isSitemap)
+    }
+
+    init(url: String, state: IndexState) {
         self.url = url
-        self.lastModified = lastModified
+        self.state = state
     }
 }

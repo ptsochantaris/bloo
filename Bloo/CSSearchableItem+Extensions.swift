@@ -3,7 +3,7 @@ import Foundation
 import NaturalLanguage
 
 extension CSSearchableItem {
-    convenience init(title: String, text: String, indexEntry: IndexEntry, thumbnailUrl: URL?, contentDescription: String?, id: String, creationDate: Date?, keywords: [String]?) async {
+    convenience init?(title: String, text: String, indexEntry: IndexEntry, thumbnailUrl: URL?, contentDescription: String?, id: String, creationDate: Date?, keywords: [String]?) async {
         let imageData = Task<URL?, Never>.detached {
             if let thumbnailUrl,
                let data = try? await urlSession.data(from: thumbnailUrl).0,
@@ -14,13 +14,17 @@ extension CSSearchableItem {
             return nil
         }
 
+        guard case let .visited(lastModified) = indexEntry.state else {
+            return nil
+        }
+
         let attributes = CSSearchableItemAttributeSet(contentType: .url)
         if let creationDate {
             attributes.contentModificationDate = creationDate
         } else if let cd = await CSSearchableItem.generateDate(from: text) {
             attributes.contentModificationDate = cd
         } else {
-            attributes.contentModificationDate = indexEntry.lastModified
+            attributes.contentModificationDate = lastModified
         }
         attributes.contentDescription = (contentDescription ?? "").isEmpty ? text : contentDescription
         attributes.textContent = text
@@ -32,7 +36,7 @@ extension CSSearchableItem {
         }
         attributes.thumbnailURL = await imageData.value
 
-        self.init(uniqueIdentifier: indexEntry.url.absoluteString, domainIdentifier: id, attributeSet: attributes)
+        self.init(uniqueIdentifier: indexEntry.url, domainIdentifier: id, attributeSet: attributes)
     }
 
     private static func generateDate(from text: String) async -> Date? {

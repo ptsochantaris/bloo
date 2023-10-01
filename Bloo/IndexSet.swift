@@ -1,7 +1,8 @@
 import Foundation
+import OrderedCollections
 
 struct IndexSet: Codable {
-    private var items: Set<IndexEntry>
+    private var items: OrderedSet<IndexEntry>
 
     enum CodingKeys: CodingKey {
         case items
@@ -14,7 +15,7 @@ struct IndexSet: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        items = try container.decode(Set<IndexEntry>.self, forKey: .items)
+        items = try container.decode(OrderedSet<IndexEntry>.self, forKey: .items)
     }
 
     init() {
@@ -34,12 +35,12 @@ struct IndexSet: Codable {
     }
 
     func contains(_ url: URL) -> Bool {
-        let tempEntry = IndexEntry(url: url)
+        let tempEntry = IndexEntry(url: url, isSitemap: false)
         return items.contains(tempEntry)
     }
 
     mutating func remove(_ url: URL) {
-        let tempEntry = IndexEntry(url: url)
+        let tempEntry = IndexEntry(url: url, isSitemap: false)
         items.remove(tempEntry)
     }
 
@@ -57,16 +58,16 @@ struct IndexSet: Codable {
 
     @discardableResult
     mutating func insert(_ url: IndexEntry) -> Bool {
-        items.insert(url).inserted
+        items.append(url).inserted
     }
 
     mutating func formUnion(_ newItems: any Sequence<URL>) {
-        let entries = newItems.map { IndexEntry(url: $0) }
-        items.formUnion(entries)
+        let entries = newItems.map { IndexEntry(url: $0, isSitemap: false) }
+        items.append(contentsOf: entries)
     }
 
     mutating func formUnion(_ newItems: any Sequence<IndexEntry>) {
-        items.formUnion(newItems)
+        items.append(contentsOf: newItems)
     }
 
     mutating func removeFirst() -> IndexEntry? {

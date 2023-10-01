@@ -73,7 +73,7 @@ final actor Crawler {
 
     fileprivate init(id: String, url: URL, pending: IndexSet, indexed: IndexSet) async throws {
         self.id = id
-        bootupEntry = IndexEntry(url: url)
+        bootupEntry = IndexEntry(url: url, isSitemap: false)
         self.indexed = indexed
         self.pending = pending
     }
@@ -132,66 +132,29 @@ final actor Crawler {
         log("Domain deleted: \(id)")
     }
 
-    private func parseSitemap() async {
-        guard let url = URL(string: "https://\(id)/sitemap.xml") else {
+    private func parseSitemap(at url: URL) async {
+        guard let xmlData = try? await urlSession.data(from: url).0 else {
+            log("Failed to fetch sitemap data from \(url.absoluteString)")
             return
         }
+        log("Fetched sitemap from \(url.absoluteString)")
+        var (newUrls, newSitemaps) = await SitemapParser(data: xmlData).extract()
 
-        log("\(id): Inspecting sitemap")
-
-        let start = Date.now
-        var map = Set<IndexEntry>([IndexEntry(url: url)])
-        var extraPending = Set<IndexEntry>()
-        var visited = Set<IndexEntry>()
-
-        let siteMapLock = Semalot(tickets: 8)
-
-        while map.isPopulated {
-            let pendingChunk: Set<IndexEntry>
-            (map, pendingChunk) = await withTaskGroup(of: (Set<IndexEntry>?, Set<IndexEntry>?).self, returning: (Set<IndexEntry>, Set<IndexEntry>).self) { group in
-                for next in map where !visited.contains(next) {
-                    visited.insert(next)
-                    group.addTask { () -> (Set<IndexEntry>?, Set<IndexEntry>?) in
-                        await siteMapLock.takeTicket()
-                        defer {
-                            siteMapLock.returnTicket()
-                        }
-                        let url = next.url
-                        guard let xmlData = try? await urlSession.data(from: url).0 else {
-                            log("Failed to fetch sitemap data from \(next.url.absoluteString)")
-                            return (nil, nil)
-                        }
-                        log("Fetched sitemap from \(url.absoluteString)")
-                        return await SitemapParser(data: xmlData).extract()
-                    }
-                }
-
-                var allPending = Set<IndexEntry>()
-                var allXml = Set<IndexEntry>()
-                var passCount = 0
-                for await (pending, xml) in group {
-                    if let xml, xml.isPopulated {
-                        allXml.formUnion(xml)
-                        log("\(id) Further sitemaps from pass #\(passCount): \(xml.count)")
-                    }
-                    if let pending, pending.isPopulated {
-                        allPending.formUnion(pending)
-                        log("\(id) Further URLs from sitemap #\(passCount): \(pending.count)")
-                    }
-                    passCount += 1
-                }
-                return (allXml, allPending)
-            }
-            extraPending.formUnion(pendingChunk)
+        log("\(id): Considering \(newSitemaps.count) further sitemap URLs")
+        indexed.remove(from: &newSitemaps)
+        if newSitemaps.isPopulated {
+            log("\(id): Adding \(newSitemaps.count) unindexed URLs from sitemap")
+            pending.formUnion(newSitemaps)
         }
 
-        log("\(id): Considering \(extraPending.count) potential URLs from sitemap")
-        indexed.remove(from: &extraPending)
-        if extraPending.isPopulated {
-            log("\(id): Adding \(extraPending.count) unindexed URLs from sitemap")
-            pending.formUnion(extraPending)
+        log("\(id): Considering \(newUrls.count) potential URLs from sitemap")
+        indexed.remove(from: &newUrls)
+        if newUrls.isPopulated {
+            log("\(id): Adding \(newUrls.count) unindexed URLs from sitemap")
+            pending.formUnion(newUrls)
         }
-        log("\(id): Sitemap processing complete - \(-start.timeIntervalSinceNow) sec")
+
+        await signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
     }
 
     private func go() async {
@@ -204,7 +167,10 @@ final actor Crawler {
 
         await signalState(.loading(pending.count))
         if indexed.isEmpty {
-            await parseSitemap()
+            if let url = URL(string: "https://\(id)/sitemap.xml") {
+                let sitemapEntry = IndexEntry(url: url, isSitemap: true)
+                pending.insert(sitemapEntry)
+            }
             pending.insert(bootupEntry)
         }
         pending.subtract(indexed)
@@ -216,14 +182,27 @@ final actor Crawler {
         while let next = pending.removeFirst() {
             let start = Date()
 
-            if let newItem = await index(page: next) {
-                spotlightQueue.append(newItem)
+            switch next.state {
+            case let .pending(isSitemap):
+                if isSitemap {
+                    if let url = URL(string: next.url) {
+                        await parseSitemap(at: url)
+                    }
+                } else {
+                    if let newItem = await index(page: next) {
+                        spotlightQueue.append(newItem)
 
-                if spotlightQueue.count > 59 {
-                    await snapshot()
+                        if spotlightQueue.count > 59 {
+                            await snapshot()
+                        }
+                    }
                 }
+            case .visited:
+                // wuuuut
+                continue
             }
 
+            // Detect stop
             let currentState = await currentState
             guard currentState.isActive else {
                 if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
@@ -280,35 +259,39 @@ final actor Crawler {
         // TODO: robots
         // TODO: Run update scans using last-modified
 
-        let url = entry.url
+        let link = entry.url
+        guard let site = URL(string: link) else {
+            log("\(link) is not a valid URL")
+            return nil
+        }
 
-        await signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
+        await signalState(.indexing(indexed.count, pending.count, site), onlyIfActive: true)
 
-        var headRequest = URLRequest(url: url)
+        var headRequest = URLRequest(url: site)
         headRequest.httpMethod = "head"
 
         guard let response = try? await urlSession.data(for: headRequest).1 else {
-            log("No HEAD response from \(url.absoluteString)")
+            log("No HEAD response from \(link)")
             return nil
         }
 
         guard let mimeType = response.mimeType, mimeType.hasPrefix("text/html") else {
-            log("Not HTML in \(url.absoluteString)")
+            log("Not HTML in \(link)")
             return nil
         }
 
-        guard let contentResult = try? await urlSession.data(from: url) else {
-            log("No content response from \(url.absoluteString)")
+        guard let contentResult = try? await urlSession.data(from: site) else {
+            log("No content response from \(link)")
             return nil
         }
 
         guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
-            log("Cannot decode text from \(url.absoluteString)")
+            log("Cannot decode text from \(link)")
             return nil
         }
 
-        guard let htmlDoc = try? SwiftSoup.parse(documentText, url.absoluteString) else {
-            log("Cannot parse HTML from \(url.absoluteString)")
+        guard let htmlDoc = try? SwiftSoup.parse(documentText, link) else {
+            log("Cannot parse HTML from \(link)")
             return nil
         }
 
@@ -321,7 +304,7 @@ final actor Crawler {
 
         let headerTask = Task.detached { [id] in
             guard let header = htmlDoc.head() else {
-                log("Cannot parse header from \(url.absoluteString)")
+                log("Cannot parse header from \(link)")
                 return (String, String?, URL?, [URL], Date?, [String]?)?.none
             }
 
@@ -331,7 +314,7 @@ final actor Crawler {
             } else if let foundTitle = header.metaPropertyContent(for: "og:title") {
                 title = foundTitle
             } else {
-                log("No title located at \(url.absoluteString)")
+                log("No title located at \(link)")
                 return nil
             }
 
@@ -339,15 +322,15 @@ final actor Crawler {
 
             var thumbnailUrl: URL?
             if let ogImage = header.metaPropertyContent(for: "og:image") {
-                thumbnailUrl = try? URL.create(from: ogImage, relativeTo: url, checkExtension: false)
+                thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false)
             }
 
             let links = (try? htmlDoc.select("a[href]").compactMap { try? $0.attr("href") }) ?? []
             var newUrls = [URL]()
             for link in links {
-                if let newUrl = try? URL.create(from: link, relativeTo: url, checkExtension: true),
+                if let newUrl = try? URL.create(from: link, relativeTo: site, checkExtension: true),
                    newUrl.host()?.hasSuffix(id) == true,
-                   url != newUrl,
+                   site != newUrl,
                    await !self.indexed.contains(newUrl) {
                     newUrls.append(newUrl)
                 }
@@ -361,19 +344,19 @@ final actor Crawler {
         }
 
         guard let textContent = try? htmlDoc.body()?.text(trimAndNormaliseWhitespace: true) else {
-            log("Cannot parse text in \(url.absoluteString)")
+            log("Cannot parse text in \(link)")
             return nil
         }
 
         guard let (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords) = await headerTask.value else {
-            log("Could not parse metadata from \(url.absoluteString)")
+            log("Could not parse metadata from \(link)")
             return nil
         }
 
         pending.formUnion(newUrls)
 
-        let newEntry = IndexEntry(url: url, lastModified: lastModified)
-        log("Adding URL to indexed: \(url.absoluteString)")
+        let newEntry = IndexEntry(url: link, state: .visited(lastModified))
+        log("Adding URL to indexed: \(link)")
         indexed.insert(newEntry)
 
         return await CSSearchableItem(title: title, text: textContent, indexEntry: newEntry, thumbnailUrl: thumbnailUrl, contentDescription: contentDescription, id: id, creationDate: creationDate, keywords: keywords)
