@@ -125,22 +125,16 @@ private struct DomainRow: View {
                     Spacer(minLength: 0)
                     Text("Deleting")
                         .font(.blooBody)
-                    ProgressView()
-                        .scaleEffect(x: 0.4, y: 0.4)
                 }
 
             case let .done(indexed):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
-                    VStack(alignment: .trailing) {
-                        Text(indexed, format: .number)
-                            .font(.blooBody)
-                            .bold()
-                        Text("indexed")
-                            .font(.blooFootnote)
-                    }
-                    .foregroundColor(.secondary)
+                    Text(indexed, format: .number)
+                        .font(.blooBody)
+                        .bold()
+                        .foregroundColor(.secondary)
                 }
             }
         }
@@ -236,9 +230,9 @@ private struct ResultRow: View {
                                 .cornerRadius(22)
                                 .offset(x: 5, y: -5)
                         case .empty, .failure:
-                            Color.clear
+                            Color.clear.hidden()
                         @unknown default:
-                            Color.clear
+                            Color.clear.hidden()
                         }
                     }
                 }
@@ -367,7 +361,7 @@ private struct ResultsSection: View {
                         .font(.blooTitle)
 
                 case .noSearch:
-                    Color.clear
+                    Color.clear.hidden()
 
                 case .searching:
                     HStack {
@@ -524,6 +518,30 @@ private struct AdditionSection: View {
     }
 }
 
+private struct OverlayMessage: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+            VStack(spacing: 10) {
+                Text(title)
+                    .font(.title)
+                Text(subtitle)
+                    .font(.body)
+            }
+            .padding()
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .foregroundStyle(.windowBackground)
+                    .shadow(radius: 4)
+            }
+        }
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var model: Model
     @State private var isSearching = false
@@ -544,13 +562,24 @@ struct ContentView: View {
                 .padding()
                 .allowsHitTesting(model.runState == .running)
             }
+            .overlay {
+                switch model.runState {
+                case .stopped:
+                    OverlayMessage(title: "One Moment…", subtitle: "This operation can take up to a minute")
+
+                case .backgrounded:
+                    OverlayMessage(title: "Suspended", subtitle: "This operation will resume when device has enough power and resources to resume it")
+
+                case .running:
+                    Color.clear.hidden()
+                }
+            }
             .searchable(text: $model.searchQuery, isPresented: $isSearching)
             #if os(iOS)
                 .background(Color.background)
             #endif
                 .navigationTitle("Bloo")
         }
-        .opacity(model.runState == .running ? 1 : 0.6)
         #if os(macOS)
             .onAppear {
                 Task { @MainActor in
