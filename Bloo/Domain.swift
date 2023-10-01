@@ -14,7 +14,7 @@ private protocol CrawlerDelegate: AnyObject {
 final class Domain: ObservableObject, Identifiable, CrawlerDelegate {
     let id: String
     let crawler: Crawler
-    private let stateChangedHandler: (() -> Void)
+    private let stateChangedHandler: () -> Void
 
     @Published var state = DomainState.paused(0, 0, false, false) {
         didSet {
@@ -33,11 +33,12 @@ final class Domain: ObservableObject, Identifiable, CrawlerDelegate {
         }
 
         self.id = id
-        self.stateChangedHandler = handler
-        let domainPath = documentsPath.appendingPathComponent(id, isDirectory: true)
-        let (pending, indexed, state) = try await Model.shared.data(in: domainPath)
-        self.state = state
-        crawler = try await Crawler(id: id, url: url, domainPath: domainPath, pending: pending, indexed: indexed)
+        stateChangedHandler = handler
+
+        let snapshot = try await Model.shared.data(for: id)
+        state = snapshot.state
+        crawler = try await Crawler(id: id, url: url, pending: snapshot.pending, indexed: snapshot.indexed)
+
         crawler.crawlerDelegate = self
     }
 
@@ -61,26 +62,24 @@ final class Domain: ObservableObject, Identifiable, CrawlerDelegate {
 final actor Crawler {
     let id: String
     private let bootupEntry: IndexEntry
-    private let domainPath: URL
 
-    private var pending: PersistedSet
-    private var indexed: PersistedSet
+    private var pending: IndexSet
+    private var indexed: IndexSet
     private var spotlightQueue = [CSSearchableItem]()
     private var goTask: Task<Void, Never>?
 
     @MainActor
     fileprivate weak var crawlerDelegate: CrawlerDelegate!
 
-    fileprivate init(id: String, url: URL, domainPath: URL, pending: PersistedSet, indexed: PersistedSet) async throws {
+    fileprivate init(id: String, url: URL, pending: IndexSet, indexed: IndexSet) async throws {
         self.id = id
-        self.bootupEntry = IndexEntry(url: url)
-        self.domainPath = domainPath
+        bootupEntry = IndexEntry(url: url)
         self.indexed = indexed
         self.pending = pending
     }
 
-    private func signalState(_ state: DomainState, onlyIfActive: Bool = false) {
-        Task { @MainActor in
+    private func signalState(_ state: DomainState, onlyIfActive: Bool = false) async {
+        await MainActor.run {
             if !onlyIfActive || crawlerDelegate.state.isActive {
                 crawlerDelegate.state = state
             }
@@ -93,10 +92,10 @@ final actor Crawler {
         }
     }
 
-    fileprivate func start() {
+    fileprivate func start() async {
         let count = pending.count
+        await signalState(.loading(count))
         goTask = Task {
-            signalState(.loading(count))
             await go()
         }
     }
@@ -104,7 +103,7 @@ final actor Crawler {
     fileprivate func pause(resumable: Bool) async {
         let newState = DomainState.paused(indexed.count, pending.count, true, resumable)
         if let g = goTask {
-            signalState(newState)
+            await signalState(newState)
             goTask = nil
             await g.value
         }
@@ -117,27 +116,15 @@ final actor Crawler {
         log("Resetting domain \(id)")
         pending.removeAll()
         indexed.removeAll()
-        signalState(.loading(0))
-        Task { @MainActor in
-            let fm = FileManager.default
-            if fm.fileExists(atPath: domainPath.path) {
-                try! fm.removeItem(at: domainPath)
-            }
-            try! fm.createDirectory(at: domainPath, withIntermediateDirectories: true)
-            await clearSpotlight()
-            await start()
-        }
+        await Model.shared.clearDomainSpotlight(for: id)
+        await start()
+        await snapshot()
     }
 
     fileprivate func remove() async {
         pending.removeAll()
         indexed.removeAll()
-        signalState(.deleting)
-        await clearSpotlight()
-    }
-
-    private func clearSpotlight() async {
-        await Model.shared.clearDomainSpotlight(for: id)
+        await signalState(.deleting)
         await snapshot()
     }
 
@@ -215,7 +202,7 @@ final actor Crawler {
             }
         }
 
-        signalState(.loading(pending.count))
+        await signalState(.loading(pending.count))
         if indexed.isEmpty {
             await parseSitemap()
             pending.insert(bootupEntry)
@@ -224,7 +211,7 @@ final actor Crawler {
         if pending.isEmpty {
             pending.insert(bootupEntry)
         }
-        signalState(.loading(pending.count))
+        await signalState(.loading(pending.count))
 
         while let next = pending.removeFirst() {
             let start = Date()
@@ -240,7 +227,7 @@ final actor Crawler {
             let currentState = await currentState
             guard currentState.isActive else {
                 if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
-                    signalState(.paused(x, y, false, resumeOnLaunch))
+                    await signalState(.paused(x, y, false, resumeOnLaunch))
                 }
                 await snapshot()
                 return
@@ -252,17 +239,18 @@ final actor Crawler {
             }
         }
 
-        signalState(.done(indexed.count))
+        await signalState(.done(indexed.count))
         await snapshot()
     }
 
     private func snapshot() async {
-        let item = await Snapshotter.Item(domainName: id,
-                                          state: currentState,
-                                          items: spotlightQueue,
-                                          pending: pending,
-                                          indexed: indexed,
-                                          domainRoot: domainPath)
+        let state = await currentState
+        log("Snapshotting \(id) with state \(state)")
+        let item = Snapshot(id: id,
+                            state: state,
+                            items: spotlightQueue,
+                            pending: pending,
+                            indexed: indexed)
         spotlightQueue.removeAll(keepingCapacity: true)
         await Model.shared.queueSnapshot(item: item)
     }
@@ -294,7 +282,7 @@ final actor Crawler {
 
         let url = entry.url
 
-        signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
+        await signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
 
         var headRequest = URLRequest(url: url)
         headRequest.httpMethod = "head"
@@ -385,10 +373,9 @@ final actor Crawler {
         pending.formUnion(newUrls)
 
         let newEntry = IndexEntry(url: url, lastModified: lastModified)
+        log("Adding URL to indexed: \(url.absoluteString)")
         indexed.insert(newEntry)
 
-        let thumbnailPath = domainPath.appendingPathComponent("thumbnails", isDirectory: true)
-
-        return await CSSearchableItem(title: title, text: textContent, indexEntry: newEntry, thumbnailUrl: thumbnailUrl, contentDescription: contentDescription, domain: id, creationDate: creationDate, keywords: keywords, thumbnailPath: thumbnailPath)
+        return await CSSearchableItem(title: title, text: textContent, indexEntry: newEntry, thumbnailUrl: thumbnailUrl, contentDescription: contentDescription, id: id, creationDate: creationDate, keywords: keywords)
     }
 }

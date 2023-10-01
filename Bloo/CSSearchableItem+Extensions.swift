@@ -3,26 +3,13 @@ import Foundation
 import NaturalLanguage
 
 extension CSSearchableItem {
-    convenience init(title: String, text: String, indexEntry: IndexEntry, thumbnailUrl: URL?, contentDescription: String?, domain: String, creationDate: Date?, keywords: [String]?, thumbnailPath: URL) async {
+    convenience init(title: String, text: String, indexEntry: IndexEntry, thumbnailUrl: URL?, contentDescription: String?, id: String, creationDate: Date?, keywords: [String]?) async {
         let imageData = Task<URL?, Never>.detached {
             if let thumbnailUrl,
                let data = try? await urlSession.data(from: thumbnailUrl).0,
                let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
                let dataToSave = image.jpegData {
-                let uuid = UUID().uuidString
-                let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 1)])
-                let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 2) ... uuid.index(uuid.startIndex, offsetBy: 3)])
-                let location = thumbnailPath
-                    .appendingPathComponent(first, isDirectory: true)
-                    .appendingPathComponent(second, isDirectory: true)
-
-                let fm = FileManager.default
-                if !fm.fileExists(atPath: location.path(percentEncoded: false)) {
-                    try! fm.createDirectory(at: location, withIntermediateDirectories: true)
-                }
-                let fileUrl = location.appendingPathComponent(uuid + ".jpg", isDirectory: false)
-                try! dataToSave.write(to: fileUrl)
-                return fileUrl
+                return await Model.shared.storeImageData(dataToSave, for: id)
             }
             return nil
         }
@@ -45,7 +32,7 @@ extension CSSearchableItem {
         }
         attributes.thumbnailURL = await imageData.value
 
-        self.init(uniqueIdentifier: indexEntry.url.absoluteString, domainIdentifier: domain, attributeSet: attributes)
+        self.init(uniqueIdentifier: indexEntry.url.absoluteString, domainIdentifier: id, attributeSet: attributes)
     }
 
     private static func generateDate(from text: String) async -> Date? {

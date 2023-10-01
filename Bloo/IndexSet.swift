@@ -1,8 +1,25 @@
 import Foundation
 
-struct PersistedSet {
-    private var items = Set<IndexEntry>()
-    private let path: URL
+struct IndexSet: Codable {
+    private var items: Set<IndexEntry>
+
+    enum CodingKeys: CodingKey {
+        case items
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(items, forKey: .items)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        items = try container.decode(Set<IndexEntry>.self, forKey: .items)
+    }
+
+    init() {
+        items = []
+    }
 
     mutating func removeAll() {
         items.removeAll()
@@ -34,7 +51,7 @@ struct PersistedSet {
         items.isPopulated
     }
 
-    mutating func subtract(_ set: PersistedSet) {
+    mutating func subtract(_ set: IndexSet) {
         items.subtract(set.items)
     }
 
@@ -57,25 +74,6 @@ struct PersistedSet {
             items.removeFirst()
         } else {
             nil
-        }
-    }
-
-    init(path: URL) throws {
-        self.path = path
-        if FileManager.default.fileExists(atPath: path.path) {
-            let decoder = JSONDecoder()
-            let data = try Data(contentsOf: path)
-            items = try decoder.decode(Set<IndexEntry>.self, from: data)
-            log("Read \(path.path)")
-        } else {
-            items = []
-            log("Started new file at \(path.path)")
-        }
-    }
-
-    func write() async {
-        Task.detached { [items] in
-            try! JSONEncoder().encode(items).write(to: path, options: .atomic)
         }
     }
 }

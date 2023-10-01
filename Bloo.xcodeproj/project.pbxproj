@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1634CF912AC34D780022A8F6 /* Lista in Frameworks */ = {isa = PBXBuildFile; productRef = 1634CF902AC34D780022A8F6 /* Lista */; };
-		1634CF932AC365040022A8F6 /* PersistedSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF922AC365040022A8F6 /* PersistedSet.swift */; };
+		1634CF932AC365040022A8F6 /* IndexSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF922AC365040022A8F6 /* IndexSet.swift */; };
 		1634CF952AC365800022A8F6 /* Snapshotter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF942AC365800022A8F6 /* Snapshotter.swift */; };
 		1634CF972AC365D90022A8F6 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF962AC365D90022A8F6 /* Domain.swift */; };
 		1634CF992AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */; };
@@ -37,7 +37,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		1634CF922AC365040022A8F6 /* PersistedSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedSet.swift; sourceTree = "<group>"; };
+		1634CF922AC365040022A8F6 /* IndexSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexSet.swift; sourceTree = "<group>"; };
 		1634CF942AC365800022A8F6 /* Snapshotter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshotter.swift; sourceTree = "<group>"; };
 		1634CF962AC365D90022A8F6 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
 		1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CSSearchableItem+Extensions.swift"; sourceTree = "<group>"; };
@@ -121,7 +121,7 @@
 				165F10C12AC8802400442892 /* IndexEntry.swift */,
 				1634CF9C2AC367760022A8F6 /* Model.swift */,
 				16FD23392AC4867D00751A85 /* NSImage+Extensions.swift */,
-				1634CF922AC365040022A8F6 /* PersistedSet.swift */,
+				1634CF922AC365040022A8F6 /* IndexSet.swift */,
 				165F10C32AC8803C00442892 /* SearchResult.swift */,
 				165F10C72AC8810D00442892 /* SearchState.swift */,
 				165F10BF2AC87C4600442892 /* SitemapParser.swift */,
@@ -229,7 +229,7 @@
 				1634CF992AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift in Sources */,
 				16FD233A2AC4867D00751A85 /* NSImage+Extensions.swift in Sources */,
 				16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */,
-				1634CF932AC365040022A8F6 /* PersistedSet.swift in Sources */,
+				1634CF932AC365040022A8F6 /* IndexSet.swift in Sources */,
 				165F10C62AC880DC00442892 /* DomainSection.swift in Sources */,
 				1634CF972AC365D90022A8F6 /* Domain.swift in Sources */,
 				1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */,

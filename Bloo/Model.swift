@@ -38,8 +38,12 @@ final class Model: ObservableObject {
         }
     }
 
-    func queueSnapshot(item: Snapshotter.Item) {
+    func queueSnapshot(item: Snapshot) {
         snapshotter.queue(item)
+    }
+
+    func storeImageData(_ data: Data, for id: String) -> URL {
+        snapshotter.storeImageData(data, for: id)
     }
 
     func clearDomainSpotlight(for domainId: String) {
@@ -58,8 +62,8 @@ final class Model: ObservableObject {
         }
     }
 
-    func data(in domainPath: URL) async throws -> (PersistedSet, PersistedSet, DomainState) {
-        try await snapshotter.data(in: domainPath)
+    func data(for id: String) async throws -> Snapshot {
+        try await snapshotter.data(for: id)
     }
 
     func resetQuery(full: Bool) {
@@ -222,7 +226,7 @@ final class Model: ObservableObject {
         let domainList = domainSections.flatMap(\.domains)
         return domainList.contains {
             $0.id == domain
-            || domain.hasSuffix(".\($0.id)")
+                || domain.hasSuffix(".\($0.id)")
         }
     }
 
