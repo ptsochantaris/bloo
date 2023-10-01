@@ -81,8 +81,7 @@ enum DomainState: CaseIterable, Codable, Hashable {
     var logText: String {
         switch self {
         case let .done(count): "Completed, \(count) indexed items"
-        case let .indexing(pending, indexed, url): "Indexing (\(pending)/\(indexed): \(url.absoluteString)"
-        case .deleting, .loading, .paused: title
+        case .deleting, .loading, .paused, .indexing: title
         }
     }
 }

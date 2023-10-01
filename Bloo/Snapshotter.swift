@@ -11,12 +11,17 @@ final class Snapshotter {
         let domainRoot: URL
     }
 
-    private var queueContinuation: AsyncStream<Item>.Continuation
+    private var queueContinuation: AsyncStream<Item>.Continuation?
     private var loopTask: Task<Void, Never>?
 
-    init() {
+    func start() {
+        guard loopTask == nil else {
+            return
+        }
+
         let q = AsyncStream<Item>.makeStream()
         queueContinuation = q.continuation
+
         loopTask = Task.detached {
             for await item in q.stream {
                 if item.state == .deleting {
@@ -57,8 +62,9 @@ final class Snapshotter {
 
     func shutdown() async {
         if let l = loopTask {
+            queueContinuation?.finish()
+            queueContinuation = nil
             loopTask = nil
-            queueContinuation.finish()
             await l.value
         }
     }
@@ -68,6 +74,7 @@ final class Snapshotter {
     }
 
     func queue(_ item: Item) {
-        queueContinuation.yield(item)
+        assert(queueContinuation != nil)
+        queueContinuation?.yield(item)
     }
 }

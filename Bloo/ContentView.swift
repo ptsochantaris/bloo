@@ -83,15 +83,14 @@ private struct DomainRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
-                    Text(indexed, format: .number)
-                        .font(.blooBody)
-                        .bold()
-                        .foregroundColor(.secondary)
-                    Text("|")
-                        .font(.blooBody)
-                        .foregroundColor(.secondary)
                     Text(pending, format: .number)
-                        .font(.blooBody)
+                        .font(.blooBody).bold()
+                        .foregroundColor(.secondary)
+                    Text("→")
+                        .font(.blooBody).bold()
+                        .foregroundColor(.secondary)
+                    Text(indexed, format: .number)
+                        .font(.blooBody).bold()
                         .bold()
                 }
                 FooterText(text: url.absoluteString)
@@ -105,15 +104,14 @@ private struct DomainRow: View {
                             .font(.blooBody)
                     } else {
                         if indexed > 0 || pending > 0 {
-                            Text(indexed, format: .number)
-                                .font(.blooBody)
-                                .bold()
-                                .foregroundColor(.secondary)
-                            Text("|")
-                                .font(.blooBody)
-                                .foregroundColor(.secondary)
                             Text(pending, format: .number)
-                                .font(.blooBody)
+                                .font(.blooBody).bold()
+                                .foregroundColor(.secondary)
+                            Text("→")
+                                .font(.blooBody).bold()
+                                .foregroundColor(.secondary)
+                            Text(indexed, format: .number)
+                                .font(.blooBody).bold()
                                 .bold()
                         }
                     }
@@ -134,7 +132,6 @@ private struct DomainRow: View {
                     Text(indexed, format: .number)
                         .font(.blooBody)
                         .bold()
-                        .foregroundColor(.secondary)
                 }
             }
         }

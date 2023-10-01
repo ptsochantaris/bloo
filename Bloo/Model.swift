@@ -149,13 +149,16 @@ final class Model: ObservableObject {
         }
     }
 
+    private var initialisedViaLaunch = false
     @MainActor
-    func start() async {
-        if runState == .running {
+    func start(fromInitialiser: Bool = false) async {
+        guard fromInitialiser || initialisedViaLaunch, runState != .running else {
             return
         }
 
+        initialisedViaLaunch = true
         runState = .running
+        snapshotter.start()
 
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections where section.state.canStart {
@@ -173,7 +176,7 @@ final class Model: ObservableObject {
     @MainActor
     func waitForIndexingToEnd() async {
         while isRunningAndBusy {
-            try? await Task.sleep(for: .seconds(1))
+            try? await Task.sleep(for: .seconds(0.5))
         }
     }
 
@@ -183,18 +186,19 @@ final class Model: ObservableObject {
             return
         }
 
-        if backgrounded, isRunningAndBusy {
-            runState = .backgrounded
-
-            do {
-                let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")
-                request.requiresNetworkConnectivity = true
-                request.requiresExternalPower = true
-                try BGTaskScheduler.shared.submit(request)
-            } catch {
-                log("Error submitting background processing task: \(error.localizedDescription)")
+        if backgrounded {
+            if isRunningAndBusy {
+                do {
+                    let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")
+                    request.requiresNetworkConnectivity = true
+                    request.requiresExternalPower = true
+                    try BGTaskScheduler.shared.submit(request)
+                    log("Registered for background wakeup")
+                } catch {
+                    log("Error submitting background processing task: \(error.localizedDescription)")
+                }
             }
-
+            runState = .backgrounded
         } else {
             searchQuery = ""
             runState = .stopped
@@ -207,12 +211,10 @@ final class Model: ObservableObject {
                 }
             }
         }
-        await Task.yield()
         log("All domains are shut down")
         await snapshotter.shutdown()
         log("Snapshots and model are now shut down")
-        await Task.yield()
-        try? await Task.sleep(for: .milliseconds(300))
+        try? await Task.sleep(for: .milliseconds(100))
     }
 
     func contains(domain: String) -> Bool {
@@ -225,12 +227,14 @@ final class Model: ObservableObject {
 
     @MainActor
     func addDomain(_ domain: String, startAfterAdding: Bool) async {
+        log("Adding domain: \(domain), willStart: \(startAfterAdding)")
         do {
             let newDomain = try await Task.detached { try await Domain(startingAt: domain) }.value
             sortDomains(adding: newDomain)
             newDomain.setStateChangedHandler { [weak self] _ in
                 self?.sortDomains()
             }
+            log("Added domain: \(domain), willStart: \(startAfterAdding)")
             if startAfterAdding {
                 await newDomain.start()
             }
@@ -241,15 +245,16 @@ final class Model: ObservableObject {
 
     @MainActor
     func sortDomains(adding newDomain: Domain? = nil) {
-        log("Sorting domains")
         var domainList = domainSections.flatMap(\.domains)
         if let newDomain {
             domainList.append(newDomain)
         }
-        let newSections = DomainState.allCases.map { state in
+        let newSections = DomainState.allCases.compactMap { state -> DomainSection? in
             let domainsForState = domainList.filter { $0.state == state }.sorted { $0.id < $1.id }
+            if domainsForState.isEmpty { return nil }
             return DomainSection(state: state, domains: domainsForState)
         }
+        log("Sorted sections: \(newSections.map { $0.state.title }.joined(separator: ", "))")
         withAnimation(.easeInOut(duration: 0.3)) {
             domainSections = newSections
         }
@@ -257,6 +262,7 @@ final class Model: ObservableObject {
 
     init() {
         guard CSSearchableIndex.isIndexingAvailable() else {
+            // TODO
             log("Spotlight not available")
             hasDomains = false
             return
@@ -273,11 +279,11 @@ final class Model: ObservableObject {
             await withTaskGroup(of: Void.self) { group in
                 for domain in entryPoints {
                     group.addTask {
-                        await self.addDomain(domain, startAfterAdding: false)
+                        await self.addDomain(domain, startAfterAdding: false) // the start call will start these
                     }
                 }
             }
-            await start()
+            await start(fromInitialiser: true)
         }
     }
 
@@ -296,6 +302,7 @@ final class Model: ObservableObject {
                 if await UIApplication.shared.applicationState == .background {
                     await shutdown(backgrounded: false)
                 }
+                log("Background task complete")
                 task.setTaskCompleted(success: true)
             }
         }
