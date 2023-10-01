@@ -516,7 +516,7 @@ private struct AdditionSection: View {
                     let h = $0.host ?? ""
                     return h.isEmpty ? false : !model.contains(domain: h)
                 }.map(\.absoluteString)
-                withAnimation {
+                withAnimation(.easeInOut(duration: 0.3)) {
                     results = Set(list).sorted()
                 }
             }
@@ -542,7 +542,7 @@ struct ContentView: View {
                     }
                 }
                 .padding()
-                .allowsHitTesting(model.isRunning)
+                .allowsHitTesting(model.runState == .running)
             }
             .searchable(text: $model.searchQuery, isPresented: $isSearching)
             #if os(iOS)
@@ -550,7 +550,7 @@ struct ContentView: View {
             #endif
                 .navigationTitle("Bloo")
         }
-        .opacity(model.isRunning ? 1 : 0.6)
+        .opacity(model.runState == .running ? 1 : 0.6)
         #if os(macOS)
             .onAppear {
                 Task { @MainActor in

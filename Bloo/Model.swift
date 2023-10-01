@@ -2,10 +2,17 @@ import CoreSpotlight
 import Foundation
 import PopTimer
 import SwiftUI
+#if os(iOS)
+    import BackgroundTasks
+#endif
 
 final class Model: ObservableObject {
+    enum RunState {
+        case stopped, backgrounded, running
+    }
+
     @Published var hasDomains: Bool
-    @Published var isRunning = true
+    @Published var runState: RunState = .stopped
     @Published var searchState: SearchState = .noSearch
     @Published var domainSections = [DomainSection]() {
         didSet {
@@ -43,13 +50,9 @@ final class Model: ObservableObject {
         }
     }
 
-    func resurrect() {
-        isRunning = true
-    }
-
     func updateSearchRunning(_ newState: SearchState) {
         Task { @MainActor in
-            withAnimation {
+            withAnimation(.easeInOut(duration: 0.3)) {
                 searchState = newState
             }
         }
@@ -138,7 +141,7 @@ final class Model: ObservableObject {
         searchQuery = ""
 
         await withTaskGroup(of: Void.self) { group in
-            for section in domainSections where !section.state.isActive {
+            for section in domainSections where section.state.canStop {
                 group.addTask {
                     await section.restartAll()
                 }
@@ -147,24 +150,39 @@ final class Model: ObservableObject {
     }
 
     @MainActor
-    func shutdown() async {
-        guard isRunning else {
+    func start() async {
+        if runState == .running {
             return
         }
 
-        searchQuery = ""
+        runState = .running
 
         await withTaskGroup(of: Void.self) { group in
-            Task { @MainActor in
-                isRunning = false
+            for section in domainSections where section.state.canStart {
+                group.addTask {
+                    await section.startAll()
+                }
             }
-            for section in domainSections {
-                for domain in section.domains {
-                    group.addTask { @MainActor in
-                        if domain.state.isActive {
-                            await domain.pause()
-                        }
-                    }
+        }
+    }
+
+    @MainActor
+    func shutdown(backgrounded: Bool) async {
+        guard runState == .running else {
+            return
+        }
+
+        if backgrounded {
+            runState = .backgrounded
+        } else {
+            searchQuery = ""
+            runState = .stopped
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            for section in domainSections where section.state.canStop {
+                group.addTask {
+                    await section.pauseAll()
                 }
             }
         }
@@ -211,7 +229,7 @@ final class Model: ObservableObject {
             let domainsForState = domainList.filter { $0.state == state }.sorted { $0.id < $1.id }
             return DomainSection(state: state, domains: domainsForState)
         }
-        withAnimation {
+        withAnimation(.easeInOut(duration: 0.3)) {
             domainSections = newSections
         }
     }
@@ -238,6 +256,23 @@ final class Model: ObservableObject {
                     }
                 }
             }
+            await start()
         }
     }
+
+    #if os(iOS)
+        func backgroundTask(_ task: BGProcessingTask) {
+            task.expirationHandler = {
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    await shutdown(backgrounded: true)
+                }
+            }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await start()
+                task.setTaskCompleted(success: true)
+            }
+        }
+    #endif
 }
