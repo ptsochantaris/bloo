@@ -166,14 +166,35 @@ final class Model: ObservableObject {
         }
     }
 
+    var isRunningAndBusy: Bool {
+        runState == .running && domainSections.contains(where: { $0.state.isActive })
+    }
+
+    @MainActor
+    func waitForIndexingToEnd() async {
+        while isRunningAndBusy {
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
     @MainActor
     func shutdown(backgrounded: Bool) async {
         guard runState == .running else {
             return
         }
 
-        if backgrounded {
+        if backgrounded, isRunningAndBusy {
             runState = .backgrounded
+
+            do {
+                let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")
+                request.requiresNetworkConnectivity = true
+                request.requiresExternalPower = true
+                try BGTaskScheduler.shared.submit(request)
+            } catch {
+                log("Error submitting background processing task: \(error.localizedDescription)")
+            }
+
         } else {
             searchQuery = ""
             runState = .stopped
@@ -191,7 +212,7 @@ final class Model: ObservableObject {
         await snapshotter.shutdown()
         log("Snapshots and model are now shut down")
         await Task.yield()
-        try? await Task.sleep(for: .seconds(0.3))
+        try? await Task.sleep(for: .milliseconds(300))
     }
 
     func contains(domain: String) -> Bool {
@@ -268,9 +289,13 @@ final class Model: ObservableObject {
                     await shutdown(backgrounded: true)
                 }
             }
-            Task { @MainActor [weak self] in
+            Task { [weak self] in
                 guard let self else { return }
                 await start()
+                await waitForIndexingToEnd()
+                if await UIApplication.shared.applicationState == .background {
+                    await shutdown(backgrounded: false)
+                }
                 task.setTaskCompleted(success: true)
             }
         }

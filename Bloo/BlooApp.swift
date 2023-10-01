@@ -8,12 +8,13 @@ import SwiftUI
 @main
 struct BlooApp: App {
     #if canImport(AppKit)
+
         final class AppDelegate: NSObject, NSApplicationDelegate {
             func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
                 if Model.shared.runState == .running {
                     Task {
                         await Model.shared.shutdown(backgrounded: false)
-                        try? await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
+                        try? await Task.sleep(for: .milliseconds(100))
                         NSApp.terminate(nil)
                     }
                     return .terminateCancel
@@ -23,17 +24,21 @@ struct BlooApp: App {
         }
 
         @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     #elseif canImport(UIKit)
+
         final class AppDelegate: NSObject, UIApplicationDelegate {
             func application(_: UIApplication, willFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
                 BGTaskScheduler.shared.register(forTaskWithIdentifier: "build.bru.bloo.background", using: nil) { task in
                     Model.shared.backgroundTask(task as! BGProcessingTask)
                 }
+                return true
             }
         }
 
-        @Environment(\.scenePhase) private var scenePhase
         @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+        @Environment(\.scenePhase) private var scenePhase
+
     #endif
 
     @ObservedObject private var model = Model.shared

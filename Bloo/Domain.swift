@@ -231,8 +231,7 @@ final actor Domain: ObservableObject, Identifiable {
 
             let duration = max(0, 1 + start.timeIntervalSinceNow)
             if duration > 0 {
-                let msec = UInt64(duration * 1000)
-                try? await Task.sleep(nanoseconds: msec * NSEC_PER_MSEC)
+                try? await Task.sleep(for: .seconds(duration))
             }
         }
 

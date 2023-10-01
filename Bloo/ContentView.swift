@@ -459,6 +459,7 @@ private struct AdditionSection: View {
                     .textContentType(.URL)
                     .autocapitalization(.none)
                     .padding(8)
+                    .submitLabel(.done)
                     .background(.fill.opacity(backgroundOpacity))
                     .cornerRadius(8)
                 #else
@@ -581,25 +582,25 @@ struct ContentView: View {
                 .navigationTitle("Bloo")
         }
         #if os(macOS)
-            .onAppear {
-                Task { @MainActor in
-                    if model.hasDomains {
-                        isSearching = true
-                    }
+        .onAppear {
+            Task { @MainActor in
+                if model.hasDomains {
+                    isSearching = true
                 }
             }
+        }
         #elseif os(iOS)
-            .preferredColorScheme(.dark)
+        .preferredColorScheme(.dark)
         #endif
-            .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
-                if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
-                    openURL(url)
-                }
+        .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+            if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
+                openURL(url)
             }
-            .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
-                if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
-                    model.searchQuery = searchString
-                }
+        }
+        .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
+            if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
+                model.searchQuery = searchString
             }
+        }
     }
 }
