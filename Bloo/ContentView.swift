@@ -95,7 +95,7 @@ private struct DomainRow: View {
                 }
                 FooterText(text: url.absoluteString)
 
-            case let .paused(indexed, pending, transitioning):
+            case let .paused(indexed, pending, transitioning, _):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
@@ -159,7 +159,7 @@ private struct DomainRow: View {
             } else if domain.state.canStop {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        await domain?.pause()
+                        await domain?.pause(resumable: false)
                     }
                 } label: {
                     Text("Pause")
@@ -312,7 +312,7 @@ private struct DomainGrid: View {
                             Button {
                                 actioning = true
                                 Task {
-                                    await section.pauseAll()
+                                    await section.pauseAll(resumable: false)
                                     actioning = false
                                 }
                             } label: {

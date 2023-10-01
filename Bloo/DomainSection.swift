@@ -20,15 +20,23 @@ struct DomainSection: Identifiable {
         }
     }
 
+    func resumeAll() async {
+        await allDomains {
+            if case let .paused(_, _, _, resumable) = await $0.state, resumable {
+                await $0.start()
+            }
+        }
+    }
+
     func startAll() async {
         await allDomains {
             await $0.start()
         }
     }
 
-    func pauseAll() async {
+    func pauseAll(resumable: Bool) async {
         await allDomains {
-            await $0.pause()
+            await $0.pause(resumable: resumable)
         }
     }
 

@@ -7,7 +7,7 @@ import SwiftUI
 
 final actor Domain: ObservableObject, Identifiable {
     @MainActor
-    @Published var state = DomainState.paused(0, 0, false) {
+    @Published var state = DomainState.paused(0, 0, false, false) {
         didSet {
             if oldValue != state { // only handle base enum changes
                 log("Domain \(id) state is now \(state.logText)")
@@ -71,8 +71,9 @@ final actor Domain: ObservableObject, Identifiable {
         }
     }
 
-    func pause() async {
-        let newState = DomainState.paused(indexed.count, pending.count, true)
+    func pause(resumable: Bool) async {
+        let currentState = await state
+        let newState = DomainState.paused(indexed.count, pending.count, true, resumable)
         if let g = goTask {
             await MainActor.run {
                 state = newState
@@ -220,9 +221,9 @@ final actor Domain: ObservableObject, Identifiable {
 
             let currentState = await state
             guard currentState.isActive else {
-                if case let .paused(x, y, busy) = currentState, busy {
+                if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
                     await MainActor.run {
-                        state = .paused(x, y, false)
+                        state = .paused(x, y, false, resumeOnLaunch)
                     }
                 }
                 await snapshot()

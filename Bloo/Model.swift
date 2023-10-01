@@ -163,7 +163,7 @@ final class Model: ObservableObject {
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections where section.state.canStart {
                 group.addTask {
-                    await section.startAll()
+                    await section.resumeAll()
                 }
             }
         }
@@ -207,7 +207,7 @@ final class Model: ObservableObject {
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections where section.state.canStop {
                 group.addTask {
-                    await section.pauseAll()
+                    await section.pauseAll(resumable: true)
                 }
             }
         }

@@ -47,7 +47,7 @@ final class Snapshotter {
                         case .done, .paused:
                             item.state
                         case .deleting, .indexing, .loading:
-                            .paused(0, 0, false)
+                            .paused(0, 0, false, true)
                         }
 
                         let path = documentsPath.appendingPathComponent(item.domainName, isDirectory: true).appendingPathComponent("state.json", isDirectory: false)
