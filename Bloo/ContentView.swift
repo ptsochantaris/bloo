@@ -51,7 +51,7 @@ private struct FooterText: View {
 }
 
 private struct DomainTitle: View {
-    var domain: Domain
+    let domain: Domain
 
     var body: some View {
         HStack {
@@ -75,7 +75,7 @@ private struct Triangle: View {
 }
 
 private struct DomainRow: View {
-    var domain: Domain
+    let domain: Domain
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -357,86 +357,147 @@ private struct DomainGrid: View {
     }
 }
 
-private struct ResultsSection: View {
-    var model: Model
+private struct SearchField: View {
+    @Bindable var model: Model
 
     var body: some View {
-        if model.searchState.resultMode {
-            VStack(alignment: .leading, spacing: 16) {
-                switch model.searchState {
-                case .noResults:
-                    Text("No results found")
-                        .font(.blooTitle)
+        TextField("Search for keyword(s)", text: $model.searchQuery)
+        #if canImport(UIKit)
+            .autocapitalization(.none)
+            .padding(8)
+            .submitLabel(.search)
+            .background(.fill.opacity(backgroundOpacity))
+            .cornerRadius(8)
+        #else
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+        #endif
+    }
+}
 
-                case .noSearch:
-                    Color.clear.hidden()
+private struct SearchResults: View {
+    let results: (type: SearchState.ResultType, items: [SearchResult])
 
-                case .searching:
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(CGSize(width: 0.7, height: 0.7))
-
-                        Text(" Searching")
-                            .font(.blooTitle)
-                            .foregroundStyle(.secondary)
+    var body: some View {
+        switch results.type {
+        case .limited, .top:
+            ScrollView(.horizontal) {
+                HStack {
+                    ForEach(results.items) {
+                        ResultRow(result: $0)
+                            .frame(width: 320)
                     }
-                    .padding()
+                }
+            }
+            .scrollClipDisabled()
 
-                case let .results(type, results):
-                    Group {
-                        HStack {
-                            switch type {
-                            case .limited:
-                                Text("Results")
-                                    .font(.blooTitle)
-                                    .foregroundStyle(.secondary)
-                                Spacer(minLength: 0)
-                            case .top:
-                                Text("Top Results")
-                                    .font(.blooTitle)
-                                    .foregroundStyle(.secondary)
-                                Spacer(minLength: 0)
-                                Button {
-                                    model.resetQuery(full: true)
-                                } label: {
-                                    Text("All Results")
-                                }
-                            case .all:
-                                Text(results.count > 1 ? " \(results.count, format: .number) Results" : "1 Result")
-                                    .font(.blooTitle)
-                                    .foregroundStyle(.secondary)
-                                Spacer(minLength: 0)
-                                Button {
-                                    model.resetQuery(full: false)
-                                } label: {
-                                    Text("Top Ressults")
-                                }
-                            }
-                        }
-
-                        switch type {
-                        case .limited, .top:
-                            ScrollView(.horizontal) {
-                                HStack {
-                                    ForEach(results) {
-                                        ResultRow(result: $0)
-                                            .frame(width: 320)
-                                    }
-                                }
-                            }
-                        case .all:
-                            LazyVGrid(columns: gridColumns) {
-                                ForEach(results) {
-                                    ResultRow(result: $0)
-                                }
-                            }
-                        }
-                    }
-                    .scrollClipDisabled()
-                    .frame(maxWidth: .infinity)
+        case .all:
+            LazyVGrid(columns: gridColumns) {
+                ForEach(results.items) {
+                    ResultRow(result: $0)
                 }
             }
         }
+    }
+}
+
+private struct SearchSection: View {
+    private let model: Model
+    private let title: String
+    private let ctaTitle: String?
+    private let showProgress: Bool
+    private let fullView: Bool
+
+    @MainActor
+    init(model: Model) {
+        self.model = model
+
+        switch model.searchState {
+        case .noSearch:
+            title = "Search"
+            showProgress = false
+            ctaTitle = nil
+            fullView = false
+
+        case .searching:
+            title = "Searching"
+            showProgress = true
+            ctaTitle = nil
+            fullView = false
+
+        case let .updating(resultType, _):
+            title = "Searching"
+            showProgress = true
+            ctaTitle = nil
+
+            switch resultType {
+            case .all:
+                fullView = false
+            case .limited:
+                fullView = false
+            case .top:
+                fullView = true
+            }
+
+        case let .results(resultType, results):
+            switch resultType {
+            case .all:
+                let c = results.count
+                title = c > 1 ? " \(c) Results" : "1 Result"
+                showProgress = false
+                ctaTitle = "Top Results"
+                fullView = false
+            case .limited:
+                let c = results.count
+                title = c > 1 ? " \(c) Results" : "1 Result"
+                showProgress = false
+                ctaTitle = nil
+                fullView = false
+            case .top:
+                title = "Top Results"
+                showProgress = false
+                ctaTitle = "Show More"
+                fullView = true
+            }
+
+        case .noResults:
+            title = "No results found"
+            showProgress = false
+            ctaTitle = nil
+            fullView = false
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: hspacing) {
+                Text(title)
+                    .font(.blooTitle)
+                    .foregroundStyle(.secondary)
+
+                SearchField(model: model)
+
+                if showProgress {
+                    ProgressView()
+                        .frame(width: 20, height: 20)
+                        .scaleEffect(CGSize(width: 0.8, height: 0.8))
+
+                } else if let ctaTitle {
+                    Button {
+                        model.resetQuery(full: fullView)
+                    } label: {
+                        Text(ctaTitle)
+                    }
+                }
+            }
+
+            if let results = model.searchState.results {
+                SearchResults(results: results)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(.fill.opacity(backgroundOpacity))
+        .cornerRadius(wideCorner)
     }
 }
 
@@ -467,7 +528,7 @@ struct StatusIcon: View {
 }
 
 private struct AdditionSection: View {
-    var model: Model
+    let model: Model
 
     @State private var input = ""
     @State private var results = [String]()
@@ -571,7 +632,7 @@ private struct OverlayMessage: View {
 }
 
 struct ContentView: View {
-    @Bindable var model: Model
+    let model: Model
     @State private var isSearching = false
     @Environment(\.openURL) private var openURL
 
@@ -579,7 +640,7 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    ResultsSection(model: model)
+                    SearchSection(model: model)
 
                     AdditionSection(model: model)
 
@@ -588,25 +649,19 @@ struct ContentView: View {
                     }
                 }
                 .padding()
-                .allowsHitTesting(model.runState == .running)
             }
             .overlay {
-                switch model.runState {
-                case .stopped:
+                if model.runState == .stopped {
                     OverlayMessage(title: "One Moment…", subtitle: "This operation can take up to a minute")
 
-                case .backgrounded:
+                } else if model.runState == .backgrounded {
                     OverlayMessage(title: "Suspended", subtitle: "This operation will resume when device has enough power and resources to resume it")
-
-                case .running:
-                    Color.clear.hidden()
                 }
             }
-            .searchable(text: $model.searchQuery, isPresented: $isSearching)
             #if os(iOS)
-                .background(Color.background)
+            .background(Color.background)
             #endif
-                .navigationTitle("Bloo")
+            .navigationTitle("Bloo")
         }
         #if os(macOS)
         .onAppear {

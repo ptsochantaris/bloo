@@ -85,7 +85,14 @@ final class Model {
         log("Starting new query: '\(searchText)'")
         let searchTerms = searchText.split(separator: " ").map { String($0) }
 
-        updateSearchRunning(.searching)
+        switch searchState {
+        case .noResults, .noSearch:
+            updateSearchRunning(.searching)
+        case let .results(resultType, array):
+            updateSearchRunning(.updating(resultType, array))
+        case .searching, .updating:
+            break
+        }
 
         let largeChunkSize = 100
         let smallChunkSize = 10
@@ -276,7 +283,7 @@ final class Model {
 
         hasDomains = entryPoints.isPopulated
 
-        queryTimer = PopTimer(timeInterval: 0.3) { [weak self] in
+        queryTimer = PopTimer(timeInterval: 0.4) { [weak self] in
             self?.resetQuery(full: false)
         }
 

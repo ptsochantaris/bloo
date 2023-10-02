@@ -5,14 +5,14 @@ enum SearchState {
         case limited, top, all
     }
 
-    case noSearch, searching, results(ResultType, [SearchResult]), noResults
+    case noSearch, searching, updating(ResultType, [SearchResult]), results(ResultType, [SearchResult]), noResults
 
-    var resultMode: Bool {
+    var results: (ResultType, [SearchResult])? {
         switch self {
-        case .noSearch, .searching:
-            false
-        case .noResults, .results:
-            true
+        case .noResults, .noSearch, .searching:
+            return nil
+        case let .updating(type, items), let .results(type, items):
+            return (type, items)
         }
     }
 }
