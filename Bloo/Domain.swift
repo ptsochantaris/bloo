@@ -11,12 +11,13 @@ private protocol CrawlerDelegate: AnyObject {
 }
 
 @MainActor
-final class Domain: ObservableObject, Identifiable, CrawlerDelegate {
+@Observable
+final class Domain: Identifiable, CrawlerDelegate {
     let id: String
     let crawler: Crawler
     private let stateChangedHandler: () -> Void
 
-    @Published var state = DomainState.paused(0, 0, false, false) {
+    fileprivate(set) var state = DomainState.paused(0, 0, false, false) {
         didSet {
             if oldValue != state { // only handle base enum changes
                 log("Domain \(id) state is now \(state.logText)")

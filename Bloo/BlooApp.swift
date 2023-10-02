@@ -41,7 +41,7 @@ struct BlooApp: App {
 
     #endif
 
-    @ObservedObject private var model = Model.shared
+    private var model = Model.shared
 
     var body: some Scene {
         WindowGroup {

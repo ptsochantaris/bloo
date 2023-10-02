@@ -51,7 +51,7 @@ private struct FooterText: View {
 }
 
 private struct DomainTitle: View {
-    @ObservedObject var domain: Domain
+    var domain: Domain
 
     var body: some View {
         HStack {
@@ -75,7 +75,7 @@ private struct Triangle: View {
 }
 
 private struct DomainRow: View {
-    @ObservedObject var domain: Domain
+    var domain: Domain
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -358,7 +358,7 @@ private struct DomainGrid: View {
 }
 
 private struct ResultsSection: View {
-    @ObservedObject var model: Model
+    var model: Model
 
     var body: some View {
         if model.searchState.resultMode {
@@ -449,7 +449,7 @@ struct StatusIcon: View {
 }
 
 private struct AdditionSection: View {
-    @ObservedObject var model: Model
+    var model: Model
 
     @State private var input = ""
     @State private var results = [String]()
@@ -553,7 +553,7 @@ private struct OverlayMessage: View {
 }
 
 struct ContentView: View {
-    @ObservedObject var model: Model
+    @Bindable var model: Model
     @State private var isSearching = false
     @Environment(\.openURL) private var openURL
 

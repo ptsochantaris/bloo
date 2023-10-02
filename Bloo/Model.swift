@@ -7,17 +7,24 @@ import SwiftUI
 #endif
 
 @MainActor
-final class Model: ObservableObject {
+@Observable
+final class Model {
     enum RunState {
         case stopped, backgrounded, running
     }
 
-    @Published var hasDomains: Bool
-    @Published var runState: RunState = .stopped
-    @Published var searchState: SearchState = .noSearch
-    @Published var domainSections = [DomainSection]() {
+    var hasDomains: Bool
+    var runState: RunState = .stopped
+    var searchState: SearchState = .noSearch
+    var domainSections = [DomainSection]() {
         didSet {
             hasDomains = domainSections.isPopulated
+        }
+    }
+
+    var searchQuery = "" {
+        didSet {
+            queryTimer?.push()
         }
     }
 
@@ -27,16 +34,7 @@ final class Model: ObservableObject {
     private var currentQuery: CSUserQuery?
     private var lastSearchKey = ""
     private var initialisedViaLaunch = false
-
-    private lazy var queryTimer = PopTimer(timeInterval: 0.3) { [weak self] in
-        self?.resetQuery(full: false)
-    }
-
-    @Published var searchQuery = "" {
-        didSet {
-            queryTimer.push()
-        }
-    }
+    private var queryTimer: PopTimer?
 
     func queueSnapshot(item: Snapshot) {
         snapshotter.queue(item)
@@ -67,7 +65,7 @@ final class Model: ObservableObject {
     }
 
     func resetQuery(full: Bool) {
-        queryTimer.abort()
+        queryTimer?.abort()
 
         let newSearch = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         let newKey = "\(newSearch)-\(full)"
@@ -277,6 +275,10 @@ final class Model: ObservableObject {
             .map { "https://\($0.lastPathComponent)" }
 
         hasDomains = entryPoints.isPopulated
+
+        queryTimer = PopTimer(timeInterval: 0.3) { [weak self] in
+            self?.resetQuery(full: false)
+        }
 
         Task {
             await withTaskGroup(of: Void.self) { group in
