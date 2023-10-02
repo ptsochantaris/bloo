@@ -21,6 +21,20 @@ struct BlooApp: App {
                 }
                 return .terminateNow
             }
+
+            func application(_: NSApplication, continue userActivity: NSUserActivity, restorationHandler _: @escaping ([NSUserActivityRestoring]) -> Void) -> Bool {
+                if userActivity.activityType == CSSearchableItemActionType, let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
+                    NSWorkspace.shared.open(url)
+                    return true
+                }
+
+                if userActivity.activityType == CSQueryContinuationActionType, let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
+                    Model.shared.searchQuery = searchString
+                    return true
+                }
+
+                return false
+            }
         }
 
         @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate

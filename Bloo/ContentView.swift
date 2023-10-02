@@ -618,7 +618,6 @@ struct ContentView: View {
         }
         #elseif os(iOS)
         .preferredColorScheme(.dark)
-        #endif
         .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
             if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
                 openURL(url)
@@ -629,5 +628,6 @@ struct ContentView: View {
                 model.searchQuery = searchString
             }
         }
+        #endif
     }
 }
