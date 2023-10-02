@@ -1,13 +1,17 @@
 import Foundation
 
 enum SearchState {
-    case noSearch, searching, topResults([SearchResult]), moreResults([SearchResult]), noResults
+    enum ResultType {
+        case limited, top, all
+    }
+
+    case noSearch, searching, results(ResultType, [SearchResult]), noResults
 
     var resultMode: Bool {
         switch self {
         case .noSearch, .searching:
             false
-        case .moreResults, .noResults, .topResults:
+        case .noResults, .results:
             true
         }
     }

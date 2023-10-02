@@ -87,7 +87,9 @@ final class Model {
 
         updateSearchRunning(.searching)
 
-        let chunkSize = full ? 100 : 10
+        let largeChunkSize = 100
+        let smallChunkSize = 10
+        let chunkSize = full ? largeChunkSize : smallChunkSize
 
         let context = CSUserQueryContext()
         context.fetchAttributes = ["title", "contentDescription", "keywords", "thumbnailURL", "contentModificationDate"]
@@ -128,12 +130,14 @@ final class Model {
             }
 
             Task { [chunk] in
-                if chunk.isEmpty {
-                    updateSearchRunning(.noResults)
-                } else if full {
-                    updateSearchRunning(.moreResults(chunk))
+                if chunk.count < smallChunkSize {
+                    if chunk.isEmpty {
+                        updateSearchRunning(.noResults)
+                    } else {
+                        updateSearchRunning(.results(.limited, chunk))
+                    }
                 } else {
-                    updateSearchRunning(.topResults(chunk))
+                    updateSearchRunning(.results(full ? .all : .top, chunk))
                 }
             }
         }

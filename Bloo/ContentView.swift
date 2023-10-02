@@ -382,47 +382,57 @@ private struct ResultsSection: View {
                     }
                     .padding()
 
-                case let .topResults(results):
-                    HStack {
-                        Text("Top Results")
-                            .font(.blooTitle)
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 0)
-                        Button {
-                            model.resetQuery(full: true)
-                        } label: {
-                            Text("All Results")
-                        }
-                    }
-                    ScrollView(.horizontal) {
+                case let .results(type, results):
+                    Group {
                         HStack {
-                            ForEach(results) {
-                                ResultRow(result: $0)
-                                    .frame(width: 320)
+                            switch type {
+                            case .limited:
+                                Text("Results")
+                                    .font(.blooTitle)
+                                    .foregroundStyle(.secondary)
+                                Spacer(minLength: 0)
+                            case .top:
+                                Text("Top Results")
+                                    .font(.blooTitle)
+                                    .foregroundStyle(.secondary)
+                                Spacer(minLength: 0)
+                                Button {
+                                    model.resetQuery(full: true)
+                                } label: {
+                                    Text("All Results")
+                                }
+                            case .all:
+                                Text(results.count > 1 ? " \(results.count, format: .number) Results" : "1 Result")
+                                    .font(.blooTitle)
+                                    .foregroundStyle(.secondary)
+                                Spacer(minLength: 0)
+                                Button {
+                                    model.resetQuery(full: false)
+                                } label: {
+                                    Text("Top Ressults")
+                                }
+                            }
+                        }
+
+                        switch type {
+                        case .limited, .top:
+                            ScrollView(.horizontal) {
+                                HStack {
+                                    ForEach(results) {
+                                        ResultRow(result: $0)
+                                            .frame(width: 320)
+                                    }
+                                }
+                            }
+                        case .all:
+                            LazyVGrid(columns: gridColumns) {
+                                ForEach(results) {
+                                    ResultRow(result: $0)
+                                }
                             }
                         }
                     }
                     .scrollClipDisabled()
-                    .frame(maxWidth: .infinity)
-
-                case let .moreResults(results):
-                    HStack {
-                        Text(results.count > 1 ? " \(results.count, format: .number) Results" : "1 Result")
-                            .font(.blooTitle)
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 0)
-                        Button {
-                            model.resetQuery(full: false)
-                        } label: {
-                            Text("Top Ressults")
-                        }
-                    }
-
-                    LazyVGrid(columns: gridColumns) {
-                        ForEach(results) {
-                            ResultRow(result: $0)
-                        }
-                    }
                     .frame(maxWidth: .infinity)
                 }
             }
