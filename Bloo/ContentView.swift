@@ -391,7 +391,7 @@ private struct ResultsSection: View {
                         Button {
                             model.resetQuery(full: true)
                         } label: {
-                            Text("See More")
+                            Text("All Results")
                         }
                     }
                     ScrollView(.horizontal) {
@@ -406,9 +406,17 @@ private struct ResultsSection: View {
                     .frame(maxWidth: .infinity)
 
                 case let .moreResults(results):
-                    Text(results.count > 1 ? " \(results.count, format: .number) Results" : "1 Result")
-                        .font(.blooTitle)
-                        .foregroundStyle(.secondary)
+                    HStack {
+                        Text(results.count > 1 ? " \(results.count, format: .number) Results" : "1 Result")
+                            .font(.blooTitle)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                        Button {
+                            model.resetQuery(full: false)
+                        } label: {
+                            Text("Top Ressults")
+                        }
+                    }
 
                     LazyVGrid(columns: gridColumns) {
                         ForEach(results) {
