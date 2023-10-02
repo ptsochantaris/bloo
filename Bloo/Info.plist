@@ -8,6 +8,8 @@
 	</array>
 	<key>CoreSpotlightContinuation</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -26,7 +28,5 @@
 		<key>UIImageRespectsSafeAreaInsets</key>
 		<true/>
 	</dict>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 </dict>
 </plist>
