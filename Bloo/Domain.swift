@@ -207,6 +207,7 @@ final actor Crawler {
                 if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
                     await signalState(.paused(x, y, false, resumeOnLaunch))
                 }
+                log("\(id): Stopping crawl")
                 await snapshot()
                 return
             }
@@ -342,7 +343,7 @@ final actor Crawler {
             return (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords)
         }
 
-        guard let textContent = try? htmlDoc.body()?.text(trimAndNormaliseWhitespace: true) else {
+        guard let textContent = try? htmlDoc.body()?.text() else {
             log("Cannot parse text in \(link)")
             return nil
         }

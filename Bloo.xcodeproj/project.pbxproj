@@ -121,19 +121,19 @@
 				16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */,
 				1634CF9A2AC366D90022A8F6 /* Globals.swift */,
 				165F10C12AC8802400442892 /* IndexEntry.swift */,
+				1634CF922AC365040022A8F6 /* IndexSet.swift */,
 				1634CF9C2AC367760022A8F6 /* Model.swift */,
 				16FD23392AC4867D00751A85 /* NSImage+Extensions.swift */,
-				1634CF922AC365040022A8F6 /* IndexSet.swift */,
 				165F10C32AC8803C00442892 /* SearchResult.swift */,
 				165F10C72AC8810D00442892 /* SearchState.swift */,
 				165F10BF2AC87C4600442892 /* SitemapParser.swift */,
+				1697539E2ACA350B00C2281D /* Snapshot.swift */,
 				1634CF942AC365800022A8F6 /* Snapshotter.swift */,
 				16FD233B2AC5CD1600751A85 /* String+Extensions.swift */,
 				16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */,
 				16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */,
 				16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */,
 				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
-				1697539E2ACA350B00C2281D /* Snapshot.swift */,
 			);
 			path = Bloo;
 			sourceTree = "<group>";

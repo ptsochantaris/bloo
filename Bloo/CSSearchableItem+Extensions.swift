@@ -46,7 +46,6 @@ extension CSSearchableItem {
             attributes.contentModificationDate = lastModified
         }
         attributes.contentDescription = (contentDescription ?? "").isEmpty ? text : contentDescription
-        attributes.textContent = text
         attributes.title = title
         if let keywords {
             attributes.keywords = keywords
