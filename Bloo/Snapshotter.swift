@@ -24,7 +24,7 @@ final class Snapshotter {
         }.value
     }
 
-    private func commitData(for item: Snapshot) async {
+    private static func commitData(for item: Snapshot) {
         let domainPath = domainPath(for: item.id)
 
         if item.state == .deleting {
@@ -36,16 +36,14 @@ final class Snapshotter {
             return
         }
 
-        await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                try await CSSearchableIndex.default().indexSearchableItems(item.items)
-            }
-            group.addTask {
-                let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
-                try! JSONEncoder().encode(item).write(to: path, options: .atomic)
-            }
-        }
-        log("Saved checkpoint for \(item.id), - \(item.pending.count) pending items, \(item.indexed.count) indexed items")
+        let start = Date()
+
+        CSSearchableIndex.default().indexSearchableItems(item.items)
+
+        let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
+        try! JSONEncoder().encode(item).write(to: path, options: .atomic)
+
+        log("Saved checkpoint for \(item.id), - \(item.pending.count) pending items, \(item.indexed.count) indexed items - \(-start.timeIntervalSinceNow) sec")
     }
 
     func start() {
@@ -56,24 +54,9 @@ final class Snapshotter {
         let q = AsyncStream<Snapshot>.makeStream()
         queueContinuation = q.continuation
 
-        loopTask = Task {
-            let max: UInt = 4
-            let loopLimit = Semalot(tickets: max)
+        loopTask = Task.detached {
             for await item in q.stream {
-                await loopLimit.takeTicket()
-                Task.detached { [weak self] in
-                    guard let self else { return }
-                    await commitData(for: item)
-                    loopLimit.returnTicket()
-                }
-            }
-            // ensure queue is drained before continuing
-            // TODO: put this in Semalot as a method
-            for _ in 0 ..< max {
-                await loopLimit.takeTicket()
-            }
-            for _ in 0 ..< max {
-                loopLimit.returnTicket()
+                Self.commitData(for: item)
             }
         }
     }
