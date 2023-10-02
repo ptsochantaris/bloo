@@ -23,7 +23,6 @@
 		1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1697539E2ACA350B00C2281D /* Snapshot.swift */; };
 		16B43D252AC7B05D00EB4815 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D232AC7B05D00EB4815 /* README.md */; };
 		16B43D262AC7B05D00EB4815 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D242AC7B05D00EB4815 /* LICENSE */; };
-		16B43D2A2AC8439200EB4815 /* Semalot in Frameworks */ = {isa = PBXBuildFile; productRef = 16B43D292AC8439200EB4815 /* Semalot */; };
 		16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */; };
 		16B43D2E2AC8D8ED00EB4815 /* DomainState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */; };
 		16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* BlooApp.swift */; };
@@ -73,7 +72,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */,
-				16B43D2A2AC8439200EB4815 /* Semalot in Frameworks */,
 				1697539D2ACA2F9600C2281D /* OrderedCollections in Frameworks */,
 				16FD23352AC3A5A600751A85 /* Maintini in Frameworks */,
 				1634CF912AC34D780022A8F6 /* Lista in Frameworks */,
@@ -161,7 +159,6 @@
 				1634CF902AC34D780022A8F6 /* Lista */,
 				16FD23342AC3A5A600751A85 /* Maintini */,
 				16FD23372AC43D0F00751A85 /* PopTimer */,
-				16B43D292AC8439200EB4815 /* Semalot */,
 				1697539C2ACA2F9600C2281D /* OrderedCollections */,
 			);
 			productName = Nibbel;
@@ -197,7 +194,6 @@
 				1634CF8F2AC34D780022A8F6 /* XCRemoteSwiftPackageReference "Lista" */,
 				16FD23332AC3A5A600751A85 /* XCRemoteSwiftPackageReference "maintini" */,
 				16FD23362AC43D0F00751A85 /* XCRemoteSwiftPackageReference "pop-timer" */,
-				16B43D272AC8430F00EB4815 /* XCRemoteSwiftPackageReference "semalot" */,
 				1697539B2ACA2F9600C2281D /* XCRemoteSwiftPackageReference "swift-collections" */,
 			);
 			productRefGroup = 16E8A0E52AC1F96500CCB10D /* Products */;
@@ -482,14 +478,6 @@
 				minimumVersion = 1.0.4;
 			};
 		};
-		16B43D272AC8430F00EB4815 /* XCRemoteSwiftPackageReference "semalot" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "http://github.com/ptsochantaris/semalot";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
 		16E8A0F62AC1F9B500CCB10D /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/scinfu/SwiftSoup";
@@ -526,11 +514,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1697539B2ACA2F9600C2281D /* XCRemoteSwiftPackageReference "swift-collections" */;
 			productName = OrderedCollections;
-		};
-		16B43D292AC8439200EB4815 /* Semalot */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 16B43D272AC8430F00EB4815 /* XCRemoteSwiftPackageReference "semalot" */;
-			productName = Semalot;
 		};
 		16E8A0F72AC1F9B500CCB10D /* SwiftSoup */ = {
 			isa = XCSwiftPackageProductDependency;

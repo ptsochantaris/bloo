@@ -28,15 +28,6 @@
       }
     },
     {
-      "identity" : "semalot",
-      "kind" : "remoteSourceControl",
-      "location" : "http://github.com/ptsochantaris/semalot",
-      "state" : {
-        "branch" : "main",
-        "revision" : "afd667b48a54772d59fa6ddd4038d887bb452b48"
-      }
-    },
-    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",

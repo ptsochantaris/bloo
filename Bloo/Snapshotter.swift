@@ -1,6 +1,5 @@
 import CoreSpotlight
 import Foundation
-import Semalot
 
 final class Snapshotter {
     private var queueContinuation: AsyncStream<Snapshot>.Continuation?

@@ -1,7 +1,6 @@
 import CoreSpotlight
 import Foundation
 import Maintini
-import Semalot
 import SwiftSoup
 import SwiftUI
 
