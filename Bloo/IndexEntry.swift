@@ -18,7 +18,7 @@ struct IndexEntry: Codable, Hashable {
 
     init(url: URL, isSitemap: Bool) {
         self.url = url.absoluteString
-        self.state = .pending(isSitemap)
+        state = .pending(isSitemap)
     }
 
     init(url: String, state: IndexState) {

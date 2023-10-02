@@ -29,3 +29,7 @@ let urlSession: URLSession = {
 }()
 
 let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("storage.noindex", isDirectory: true)
+
+func domainPath(for id: String) -> URL {
+    documentsPath.appendingPathComponent(id, isDirectory: true)
+}

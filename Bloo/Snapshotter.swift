@@ -1,6 +1,6 @@
+import CoreSpotlight
 import Foundation
 import Semalot
-import CoreSpotlight
 
 final class Snapshotter {
     private var queueContinuation: AsyncStream<Snapshot>.Continuation?
@@ -8,7 +8,7 @@ final class Snapshotter {
 
     func data(for id: String) async throws -> Snapshot {
         try await Task.detached {
-            let domainPath = Snapshotter.domainPath(for: id)
+            let domainPath = domainPath(for: id)
             let fm = FileManager.default
             if !fm.fileExists(atPath: domainPath.path) {
                 try fm.createDirectory(at: domainPath, withIntermediateDirectories: true)
@@ -24,31 +24,8 @@ final class Snapshotter {
         }.value
     }
 
-    static func domainPath(for id: String) -> URL {
-        documentsPath.appendingPathComponent(id, isDirectory: true)
-    }
-
-    func storeImageData(_ data: Data, for id: String) -> URL {
-        let uuid = UUID().uuidString
-        let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 1)])
-        let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 2) ... uuid.index(uuid.startIndex, offsetBy: 3)])
-
-        let domainPath = Snapshotter.domainPath(for: id)
-        let location = domainPath.appendingPathComponent("thumbnails", isDirectory: true)
-            .appendingPathComponent(first, isDirectory: true)
-            .appendingPathComponent(second, isDirectory: true)
-
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: location.path(percentEncoded: false)) {
-            try! fm.createDirectory(at: location, withIntermediateDirectories: true)
-        }
-        let fileUrl = location.appendingPathComponent(uuid + ".jpg", isDirectory: false)
-        try! data.write(to: fileUrl)
-        return fileUrl
-    }
-
     private func commitData(for item: Snapshot) async {
-        let domainPath = Snapshotter.domainPath(for: item.id)
+        let domainPath = domainPath(for: item.id)
 
         if item.state == .deleting {
             let fm = FileManager.default
@@ -61,11 +38,11 @@ final class Snapshotter {
 
         await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
-                try! JSONEncoder().encode(item).write(to: path, options: .atomic)
+                try await CSSearchableIndex.default().indexSearchableItems(item.items)
             }
             group.addTask {
-                try await CSSearchableIndex.default().indexSearchableItems(item.items)
+                let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
+                try! JSONEncoder().encode(item).write(to: path, options: .atomic)
             }
         }
         log("Saved checkpoint for \(item.id), - \(item.pending.count) pending items, \(item.indexed.count) indexed items")
@@ -108,10 +85,6 @@ final class Snapshotter {
             loopTask = nil
             await l.value
         }
-    }
-
-    func clearDomainSpotlight(for domainId: String) async throws {
-        try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [domainId])
     }
 
     func queue(_ item: Snapshot) {

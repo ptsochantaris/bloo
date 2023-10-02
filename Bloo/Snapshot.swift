@@ -1,12 +1,5 @@
-//
-//  Snapshot.swift
-//  Bloo
-//
-//  Created by Paul Tsochantaris on 02/10/2023.
-//
-
-import Foundation
 import CoreSpotlight
+import Foundation
 
 struct Snapshot: Codable {
     let id: String
@@ -22,7 +15,7 @@ struct Snapshot: Codable {
         self.indexed = indexed
 
         switch state {
-        case .done, .paused, .deleting:
+        case .deleting, .done, .paused:
             self.state = state
         case .indexing, .loading:
             self.state = .paused(0, 0, false, true)

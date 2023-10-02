@@ -40,14 +40,10 @@ final class Model {
         snapshotter.queue(item)
     }
 
-    func storeImageData(_ data: Data, for id: String) -> URL {
-        snapshotter.storeImageData(data, for: id)
-    }
-
     func clearDomainSpotlight(for domainId: String) {
         Task {
             do {
-                try await snapshotter.clearDomainSpotlight(for: domainId)
+                try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [domainId])
             } catch {
                 log("Error clearing domain \(domainId): \(error.localizedDescription)")
             }

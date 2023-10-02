@@ -3,13 +3,32 @@ import Foundation
 import NaturalLanguage
 
 extension CSSearchableItem {
+    private static func storeImageData(_ data: Data, for id: String) -> URL {
+        let uuid = UUID().uuidString
+        let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 1)])
+        let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 2) ... uuid.index(uuid.startIndex, offsetBy: 3)])
+
+        let domainPath = domainPath(for: id)
+        let location = domainPath.appendingPathComponent("thumbnails", isDirectory: true)
+            .appendingPathComponent(first, isDirectory: true)
+            .appendingPathComponent(second, isDirectory: true)
+
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: location.path(percentEncoded: false)) {
+            try! fm.createDirectory(at: location, withIntermediateDirectories: true)
+        }
+        let fileUrl = location.appendingPathComponent(uuid + ".jpg", isDirectory: false)
+        try! data.write(to: fileUrl)
+        return fileUrl
+    }
+
     convenience init?(title: String, text: String, indexEntry: IndexEntry, thumbnailUrl: URL?, contentDescription: String?, id: String, creationDate: Date?, keywords: [String]?) async {
-        let imageData = Task<URL?, Never>.detached {
+        let imageFileUrl = Task<URL?, Never>.detached {
             if let thumbnailUrl,
                let data = try? await urlSession.data(from: thumbnailUrl).0,
                let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
                let dataToSave = image.jpegData {
-                return await Model.shared.storeImageData(dataToSave, for: id)
+                return Self.storeImageData(dataToSave, for: id)
             }
             return nil
         }
@@ -34,7 +53,7 @@ extension CSSearchableItem {
         } else {
             attributes.keywords = await CSSearchableItem.generateKeywords(from: text)
         }
-        attributes.thumbnailURL = await imageData.value
+        attributes.thumbnailURL = await imageFileUrl.value
 
         self.init(uniqueIdentifier: indexEntry.url, domainIdentifier: id, attributeSet: attributes)
     }
