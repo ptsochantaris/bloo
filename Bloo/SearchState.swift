@@ -10,9 +10,9 @@ enum SearchState {
     var results: (ResultType, [SearchResult])? {
         switch self {
         case .noResults, .noSearch, .searching:
-            return nil
-        case let .updating(type, items), let .results(type, items):
-            return (type, items)
+            nil
+        case let .results(type, items), let .updating(type, items):
+            (type, items)
         }
     }
 }
