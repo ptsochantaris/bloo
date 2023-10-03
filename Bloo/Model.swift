@@ -13,18 +13,15 @@ final class Model {
         case stopped, backgrounded, running
     }
 
-    var hasDomains: Bool
     var runState: RunState = .stopped
     var searchState: SearchState = .noSearch
-    var domainSections = [DomainSection]() {
-        didSet {
-            hasDomains = domainSections.isPopulated
-        }
-    }
+    var domainSections = [DomainSection]()
 
     var searchQuery = "" {
         didSet {
-            queryTimer?.push()
+            if searchQuery != oldValue {
+                queryTimer?.push()
+            }
         }
     }
 
@@ -272,7 +269,6 @@ final class Model {
         guard CSSearchableIndex.isIndexingAvailable() else {
             // TODO:
             log("Spotlight not available")
-            hasDomains = false
             return
         }
 
@@ -280,8 +276,6 @@ final class Model {
         let entryPoints = directoryList
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
             .map { "https://\($0.lastPathComponent)" }
-
-        hasDomains = entryPoints.isPopulated
 
         queryTimer = PopTimer(timeInterval: 0.4) { [weak self] in
             self?.resetQuery(full: false)

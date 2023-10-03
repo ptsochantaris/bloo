@@ -474,7 +474,11 @@ private struct SearchSection: View {
                     .font(.blooTitle)
                     .foregroundStyle(.secondary)
 
+                #if os(macOS)
                 SearchField(model: model)
+                #else
+                Spacer()
+                #endif
 
                 if showProgress {
                     ProgressView()
@@ -632,16 +636,20 @@ private struct OverlayMessage: View {
 }
 
 struct ContentView: View {
-    let model: Model
-    @State private var isSearching = false
+    @Bindable var model: Model
     @Environment(\.openURL) private var openURL
-
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    #if os(iOS)
+                    if model.searchState.results != nil {
+                        SearchSection(model: model)
+                    }
+                    #else
                     SearchSection(model: model)
-
+                    #endif
                     AdditionSection(model: model)
 
                     ForEach(model.domainSections) {
@@ -650,6 +658,7 @@ struct ContentView: View {
                 }
                 .padding()
             }
+            .scrollDismissesKeyboard(.immediately)
             .overlay {
                 if model.runState == .stopped {
                     OverlayMessage(title: "One Moment…", subtitle: "This operation can take up to a minute")
@@ -663,15 +672,7 @@ struct ContentView: View {
             #endif
             .navigationTitle("Bloo")
         }
-        #if os(macOS)
-        .onAppear {
-            Task { @MainActor in
-                if model.hasDomains {
-                    isSearching = true
-                }
-            }
-        }
-        #elseif os(iOS)
+        #if os(iOS)
         .preferredColorScheme(.dark)
         .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
             if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
@@ -683,6 +684,7 @@ struct ContentView: View {
                 model.searchQuery = searchString
             }
         }
+        .searchable(text: $model.searchQuery)
         #endif
     }
 }
