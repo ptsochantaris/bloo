@@ -475,9 +475,9 @@ private struct SearchSection: View {
                     .foregroundStyle(.secondary)
 
                 #if os(macOS)
-                SearchField(model: model)
+                    SearchField(model: model)
                 #else
-                Spacer()
+                    Spacer()
                 #endif
 
                 if showProgress {
@@ -513,11 +513,10 @@ struct StatusIcon: View {
 
     var body: some View {
         ZStack {
+            Color.background
             #if os(iOS)
-                Color.black
                 color.opacity(0.8)
             #else
-                Color.black
                 color.opacity(colorScheme == .dark ? 0.6 : 0.7)
             #endif
 
@@ -635,30 +634,63 @@ private struct OverlayMessage: View {
     }
 }
 
+#if os(macOS)
+    private struct Header: View {
+        var body: some View {
+            let bgColor = Color(NSColor.windowBackgroundColor)
+            Text("Bloo")
+                .font(.headline)
+                .shadow(color: bgColor, radius: 4)
+                .frame(maxWidth: .infinity)
+                .frame(height: 29)
+                .background {
+                    LinearGradient(colors: [bgColor, .clear], startPoint: .top, endPoint: .bottom)
+                }
+                .ignoresSafeArea()
+        }
+    }
+#endif
+
 struct ContentView: View {
     @Bindable var model: Model
     @Environment(\.openURL) private var openURL
-    
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    #if os(iOS)
-                    if model.searchState.results != nil {
-                        SearchSection(model: model)
-                    }
-                    #else
-                    SearchSection(model: model)
-                    #endif
-                    AdditionSection(model: model)
 
-                    ForEach(model.domainSections) {
-                        DomainGrid(section: $0)
+    var body: some View {
+        #if os(iOS)
+            let showSearchSection = model.searchState.results != nil
+        #elseif os(macOS)
+            let showSearchSection = true
+        #endif
+
+        NavigationStack {
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        if showSearchSection {
+                            SearchSection(model: model)
+                        }
+
+                        AdditionSection(model: model)
+
+                        ForEach(model.domainSections) {
+                            DomainGrid(section: $0)
+                        }
                     }
+                    #if os(iOS)
+                    .padding()
+                    #else
+                    .padding([.horizontal, .bottom])
+                    #endif
                 }
-                .padding()
+                #if os(iOS)
+                .scrollDismissesKeyboard(.immediately)
+                #endif
             }
-            .scrollDismissesKeyboard(.immediately)
+            #if os(macOS)
+            .overlay(alignment: .top) {
+                Header()
+            }
+            #endif
             .overlay {
                 if model.runState == .stopped {
                     OverlayMessage(title: "One Moment…", subtitle: "This operation can take up to a minute")
@@ -669,8 +701,8 @@ struct ContentView: View {
             }
             #if os(iOS)
             .background(Color.background)
-            #endif
             .navigationTitle("Bloo")
+            #endif
         }
         #if os(iOS)
         .preferredColorScheme(.dark)

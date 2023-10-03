@@ -95,6 +95,8 @@ struct BlooApp: App {
                 break
             }
         }
+        #elseif canImport(AppKit)
+        .windowStyle(HiddenTitleBarWindowStyle())
         #endif
     }
 }
