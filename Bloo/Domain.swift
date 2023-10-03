@@ -3,6 +3,7 @@ import Foundation
 import Maintini
 import SwiftSoup
 import SwiftUI
+import NaturalLanguage
 
 @MainActor
 private protocol CrawlerDelegate: AnyObject {
@@ -133,7 +134,7 @@ final actor Crawler {
     }
 
     private func parseSitemap(at url: URL) async {
-        guard let xmlData = try? await urlSession.data(from: url).0 else {
+        guard let xmlData = try? await Network.getData(from: url).0 else {
             log("Failed to fetch sitemap data from \(url.absoluteString)")
             return
         }
@@ -257,7 +258,7 @@ final actor Crawler {
 
     private func index(page entry: IndexEntry) async -> CSSearchableItem? {
         // TODO: robots
-        // TODO: Run update scans using last-modified
+        // TODO: Run update scans; use if-last-modified in HEAD requests, if available, and weed out the 304s
 
         let link = entry.url
         guard let site = URL(string: link) else {
@@ -270,7 +271,7 @@ final actor Crawler {
         var headRequest = URLRequest(url: site)
         headRequest.httpMethod = "head"
 
-        guard let response = try? await urlSession.data(for: headRequest).1 else {
+        guard let response = try? await Network.getData(for: headRequest).1 else {
             log("No HEAD response from \(link)")
             return nil
         }
@@ -280,7 +281,7 @@ final actor Crawler {
             return nil
         }
 
-        guard let contentResult = try? await urlSession.data(from: site) else {
+        guard let contentResult = try? await Network.getData(from: site) else {
             log("No content response from \(link)")
             return nil
         }
@@ -293,13 +294,6 @@ final actor Crawler {
         guard let htmlDoc = try? SwiftSoup.parse(documentText, link) else {
             log("Cannot parse HTML from \(link)")
             return nil
-        }
-
-        let lastModified: Date?
-        if let httpResponse = (contentResult.1 as? HTTPURLResponse)?.allHeaderFields, let lastModifiedHeader = (httpResponse["Last-Modified"] ?? httpResponse["last-modified"]) as? String {
-            lastModified = Self.httpHeaderDateFormatter.date(from: lastModifiedHeader)
-        } else {
-            lastModified = nil
         }
 
         let headerTask = Task.detached { [id] in
@@ -353,12 +347,95 @@ final actor Crawler {
             return nil
         }
 
+        let imageFileUrl = Task<URL?, Never>.detached { [id] in
+            if let thumbnailUrl,
+               let data = try? await Network.getData(from: thumbnailUrl).0,
+               let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
+               let dataToSave = image.jpegData {
+                return Self.storeImageData(dataToSave, for: id)
+            }
+            return nil
+        }
+
+        let lastModified = await Task.detached { () -> Date? in
+            let headers = contentResult.1.allHeaderFields
+            if let lastModifiedHeader = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeader) {
+                return lm
+            } else if let creationDate {
+                return creationDate
+            } else {
+                return await Self.generateDate(from: textContent)
+            }
+        }.value
+
+        let attributes = CSSearchableItemAttributeSet(contentType: .url)
+        if let keywords {
+            attributes.keywords = keywords
+        } else {
+            attributes.keywords = await Self.generateKeywords(from: textContent)
+        }
+        attributes.contentDescription = (contentDescription ?? "").isEmpty ? textContent : contentDescription
+        attributes.title = title
+        attributes.contentModificationDate = lastModified
+        attributes.thumbnailURL = await imageFileUrl.value
+
+        let newEntry = IndexEntry(url: link, state: .visited(lastModified: lastModified))
+        indexed.insert(newEntry)
         pending.formUnion(newUrls)
 
-        let newEntry = IndexEntry(url: link, state: .visited(lastModified))
-        log("Adding URL to indexed: \(link)")
-        indexed.insert(newEntry)
+        /*
+        log("""
+            URL: \(newEntry.url)
+            Modified: \(attributes.contentModificationDate?.description ?? "<none>")
+            State: \(newEntry.state)
+            """)
+         */
 
-        return await CSSearchableItem(title: title, text: textContent, indexEntry: newEntry, thumbnailUrl: thumbnailUrl, contentDescription: contentDescription, id: id, creationDate: creationDate, keywords: keywords)
+        return CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes)
+
+    }
+
+    private static func storeImageData(_ data: Data, for id: String) -> URL {
+        let uuid = UUID().uuidString
+        let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 1)])
+        let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 2) ... uuid.index(uuid.startIndex, offsetBy: 3)])
+
+        let domainPath = domainPath(for: id)
+        let location = domainPath.appendingPathComponent("thumbnails", isDirectory: true)
+            .appendingPathComponent(first, isDirectory: true)
+            .appendingPathComponent(second, isDirectory: true)
+
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: location.path(percentEncoded: false)) {
+            try! fm.createDirectory(at: location, withIntermediateDirectories: true)
+        }
+        let fileUrl = location.appendingPathComponent(uuid + ".jpg", isDirectory: false)
+        try! data.write(to: fileUrl)
+        return fileUrl
+    }
+
+    private static func generateDate(from text: String) async -> Date? {
+        let types: NSTextCheckingResult.CheckingType = [.date]
+        guard let detector = try? NSDataDetector(types: types.rawValue) else {
+            return nil
+        }
+        return detector.firstMatch(in: text, range: NSRange(text.startIndex ..< text.endIndex, in: text))?.date
+    }
+
+    private static func generateKeywords(from text: String) async -> [String] {
+        let tagger = NLTagger(tagSchemes: [.nameType])
+        tagger.string = text
+        let range = text.startIndex ..< text.endIndex
+        let results = tagger.tags(in: range, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitOther, .omitPunctuation])
+        let res = results.compactMap { token -> String? in
+            guard let tag = token.0 else { return nil }
+            switch tag {
+            case .noun, .organizationName, .personalName, .placeName:
+                return String(text[token.1])
+            default:
+                return nil
+            }
+        }
+        return Array(Set(res))
     }
 }

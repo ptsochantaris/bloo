@@ -5,21 +5,10 @@ struct SearchResult: Identifiable {
     let title: String
     let url: URL
     let descriptionText: String
-    let updatedAt: Date?
+    let displayDate: Date?
     let thumbnailUrl: URL?
-    let terms: [String]
     let keywords: [String]
-
-    init(title: String, url: URL, descriptionText: String, updatedAt: Date?, thumbnailUrl: URL?, keywords: [String], terms: [String]) {
-        id = url.absoluteString
-        self.title = title
-        self.url = url
-        self.descriptionText = descriptionText
-        self.updatedAt = updatedAt
-        self.thumbnailUrl = thumbnailUrl
-        self.terms = terms
-        self.keywords = keywords
-    }
+    let terms: [String]
 
     var attributedTitle: AttributedString {
         title.highlightedAttributedStirng(terms)

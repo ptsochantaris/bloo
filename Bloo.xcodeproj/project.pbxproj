@@ -11,7 +11,6 @@
 		1634CF932AC365040022A8F6 /* IndexSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF922AC365040022A8F6 /* IndexSet.swift */; };
 		1634CF952AC365800022A8F6 /* Snapshotter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF942AC365800022A8F6 /* Snapshotter.swift */; };
 		1634CF972AC365D90022A8F6 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF962AC365D90022A8F6 /* Domain.swift */; };
-		1634CF992AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */; };
 		1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9A2AC366D90022A8F6 /* Globals.swift */; };
 		1634CF9D2AC367760022A8F6 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9C2AC367760022A8F6 /* Model.swift */; };
 		165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10BF2AC87C4600442892 /* SitemapParser.swift */; };
@@ -41,7 +40,6 @@
 		1634CF922AC365040022A8F6 /* IndexSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexSet.swift; sourceTree = "<group>"; };
 		1634CF942AC365800022A8F6 /* Snapshotter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshotter.swift; sourceTree = "<group>"; };
 		1634CF962AC365D90022A8F6 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
-		1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CSSearchableItem+Extensions.swift"; sourceTree = "<group>"; };
 		1634CF9A2AC366D90022A8F6 /* Globals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Globals.swift; sourceTree = "<group>"; };
 		1634CF9C2AC367760022A8F6 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		165F10BF2AC87C4600442892 /* SitemapParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitemapParser.swift; sourceTree = "<group>"; };
@@ -115,7 +113,6 @@
 				16E8A0F92AC2161000CCB10D /* Info.plist */,
 				16E8A0E72AC1F96500CCB10D /* BlooApp.swift */,
 				16E8A0E92AC1F96500CCB10D /* ContentView.swift */,
-				1634CF982AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift */,
 				1634CF962AC365D90022A8F6 /* Domain.swift */,
 				165F10C52AC880DC00442892 /* DomainSection.swift */,
 				16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */,
@@ -229,7 +226,6 @@
 				165F10C42AC8803C00442892 /* SearchResult.swift in Sources */,
 				165F10C82AC8810D00442892 /* SearchState.swift in Sources */,
 				165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */,
-				1634CF992AC3663F0022A8F6 /* CSSearchableItem+Extensions.swift in Sources */,
 				16FD233A2AC4867D00751A85 /* NSImage+Extensions.swift in Sources */,
 				16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */,
 				1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */,
@@ -381,7 +377,7 @@
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = X727JSJUGJ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -415,7 +411,7 @@
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = X727JSJUGJ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;

@@ -1,7 +1,7 @@
 import Foundation
 
 enum IndexState: Codable {
-    case pending(Bool), visited(Date?)
+    case pending(isSitemapEntry: Bool), visited(lastModified: Date?)
 }
 
 struct IndexEntry: Codable, Hashable {
@@ -18,7 +18,7 @@ struct IndexEntry: Codable, Hashable {
 
     init(url: URL, isSitemap: Bool) {
         self.url = url.absoluteString
-        state = .pending(isSitemap)
+        state = .pending(isSitemapEntry: isSitemap)
     }
 
     init(url: String, state: IndexState) {

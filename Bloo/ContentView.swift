@@ -211,8 +211,8 @@ private struct ResultRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if let update = result.updatedAt {
-                        Text(update, style: .date)
+                    if let entryDate = result.displayDate {
+                        Text(entryDate, style: .date)
                             .font(.blooCaption2)
                             .lineLimit(1)
                             .foregroundColor(.secondary)

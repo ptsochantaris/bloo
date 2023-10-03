@@ -123,10 +123,11 @@ final class Model {
                     continue
                 }
 
-                let res = SearchResult(title: title,
+                let res = SearchResult(id: url.absoluteString,
+                                       title: title,
                                        url: url,
                                        descriptionText: contentDescription,
-                                       updatedAt: attributes.contentModificationDate,
+                                       displayDate: attributes.contentModificationDate,
                                        thumbnailUrl: attributes.thumbnailURL,
                                        keywords: attributes.keywords ?? [],
                                        terms: searchTerms)
@@ -151,8 +152,9 @@ final class Model {
         searchQuery = ""
 
         await withTaskGroup(of: Void.self) { group in
-            for section in domainSections where section.state.canStop {
+            for section in domainSections {
                 group.addTask {
+                    await section.pauseAll(resumable: false)
                     await section.restartAll()
                 }
             }
