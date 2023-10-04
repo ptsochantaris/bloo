@@ -11,9 +11,9 @@ struct BlooApp: App {
 
         final class AppDelegate: NSObject, NSApplicationDelegate {
             func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
-                if Model.shared.runState == .running {
+                if BlooCore.shared.runState == .running {
                     Task {
-                        await Model.shared.shutdown(backgrounded: false)
+                        await BlooCore.shared.shutdown(backgrounded: false)
                         try? await Task.sleep(for: .milliseconds(100))
                         NSApp.terminate(nil)
                     }
@@ -29,7 +29,7 @@ struct BlooApp: App {
                 }
 
                 if userActivity.activityType == CSQueryContinuationActionType, let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
-                    Model.shared.searchQuery = searchString
+                    BlooCore.shared.searchQuery = searchString
                     return true
                 }
 
@@ -45,7 +45,7 @@ struct BlooApp: App {
             func application(_: UIApplication, willFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
                 Maintini.setup()
                 BGTaskScheduler.shared.register(forTaskWithIdentifier: "build.bru.bloo.background", using: nil) { task in
-                    Model.shared.backgroundTask(task as! BGProcessingTask)
+                    BlooCore.shared.backgroundTask(task as! BGProcessingTask)
                 }
                 return true
             }
@@ -56,7 +56,7 @@ struct BlooApp: App {
 
     #endif
 
-    private var model = Model.shared
+    private var model = BlooCore.shared
 
     var body: some Scene {
         WindowGroup {

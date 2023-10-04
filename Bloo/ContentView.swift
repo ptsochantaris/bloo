@@ -358,7 +358,7 @@ private struct DomainGrid: View {
 }
 
 private struct SearchField: View {
-    @Bindable var model: Model
+    @Bindable var model: BlooCore
 
     var body: some View {
         TextField("Search for keyword(s)", text: $model.searchQuery)
@@ -401,14 +401,14 @@ private struct SearchResults: View {
 }
 
 private struct SearchSection: View {
-    private let model: Model
+    private let model: BlooCore
     private let title: String
     private let ctaTitle: String?
     private let showProgress: Bool
     private let fullView: Bool
 
     @MainActor
-    init(model: Model) {
+    init(model: BlooCore) {
         self.model = model
 
         switch model.searchState {
@@ -531,7 +531,7 @@ struct StatusIcon: View {
 }
 
 private struct AdditionSection: View {
-    let model: Model
+    let model: BlooCore
 
     @State private var input = ""
     @State private var results = [String]()
@@ -652,7 +652,7 @@ private struct OverlayMessage: View {
 #endif
 
 struct ContentView: View {
-    @Bindable var model: Model
+    @Bindable var model: BlooCore
     @Environment(\.openURL) private var openURL
 
     var body: some View {

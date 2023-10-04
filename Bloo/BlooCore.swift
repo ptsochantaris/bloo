@@ -8,7 +8,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class Model {
+final class BlooCore {
     enum RunState {
         case stopped, backgrounded, running
     }
@@ -25,7 +25,7 @@ final class Model {
         }
     }
 
-    static let shared = Model()
+    static let shared = BlooCore()
 
     private var snapshotter = Snapshotter()
     private var currentQuery: CSUserQuery?

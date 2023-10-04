@@ -37,7 +37,7 @@ final class Domain: Identifiable, CrawlerDelegate {
         self.id = id
         stateChangedHandler = handler
 
-        let snapshot = try await Model.shared.data(for: id)
+        let snapshot = try await BlooCore.shared.data(for: id)
         state = snapshot.state
         crawler = try await Crawler(id: id, url: url, pending: snapshot.pending, indexed: snapshot.indexed)
 
@@ -75,7 +75,7 @@ final actor Crawler {
 
     fileprivate init(id: String, url: URL, pending: OrderedCollections.OrderedSet<IndexEntry>, indexed: OrderedCollections.OrderedSet<IndexEntry>) async throws {
         self.id = id
-        bootupEntry = IndexEntry(url: url, isSitemap: false)
+        bootupEntry = .pending(url: url, isSitemap: false)
         self.indexed = indexed
         self.pending = pending
     }
@@ -118,7 +118,7 @@ final actor Crawler {
         log("Resetting domain \(id)")
         pending.removeAll()
         indexed.removeAll()
-        await Model.shared.clearDomainSpotlight(for: id)
+        await BlooCore.shared.clearDomainSpotlight(for: id)
         await start()
         await snapshot()
     }
@@ -170,8 +170,7 @@ final actor Crawler {
         await signalState(.loading(pending.count))
         if indexed.isEmpty {
             if let url = URL(string: "https://\(id)/sitemap.xml") {
-                let sitemapEntry = IndexEntry(url: url, isSitemap: true)
-                pending.append(sitemapEntry)
+                pending.append(.pending(url: url, isSitemap: true))
             }
             pending.append(bootupEntry)
         }
@@ -184,12 +183,10 @@ final actor Crawler {
         while pending.isPopulated {
             let next = pending.removeFirst()
             let start = Date()
-            switch next.state {
-            case let .pending(isSitemap):
+            switch next {
+            case let .pending(nextUrl, isSitemap):
                 if isSitemap {
-                    if let url = URL(string: next.url) {
-                        await parseSitemap(at: url)
-                    }
+                    await parseSitemap(at: nextUrl)
                 } else {
                     if let newItem = await index(page: next) {
                         spotlightQueue.append(newItem)
@@ -234,7 +231,7 @@ final actor Crawler {
                             pending: pending,
                             indexed: indexed)
         spotlightQueue.removeAll(keepingCapacity: true)
-        await Model.shared.queueSnapshot(item: item)
+        await BlooCore.shared.queueSnapshot(item: item)
     }
 
     private static let isoFormatter = ISO8601DateFormatter()
@@ -262,11 +259,8 @@ final actor Crawler {
         // TODO: robots
         // TODO: Run update scans; use if-last-modified in HEAD requests, if available, and weed out the 304s
 
-        let link = entry.url
-        guard let site = URL(string: link) else {
-            log("\(link) is not a valid URL")
-            return nil
-        }
+        let site = entry.url
+        let link = site.absoluteString
 
         await signalState(.indexing(indexed.count, pending.count, site), onlyIfActive: true)
 
@@ -327,8 +321,7 @@ final actor Crawler {
                 if let newUrl = try? URL.create(from: link, relativeTo: site, checkExtension: true),
                    newUrl.host()?.hasSuffix(id) == true,
                    site != newUrl {
-                    let newEntry = IndexEntry(url: newUrl.absoluteString, state: .pending(isSitemapEntry: false))
-                    newUrls.insert(newEntry)
+                    newUrls.insert(.pending(url: newUrl, isSitemap: false))
                 }
             }
 
@@ -381,8 +374,7 @@ final actor Crawler {
         attributes.contentModificationDate = lastModified
         attributes.thumbnailURL = await imageFileUrl.value
 
-        let newEntry = IndexEntry(url: link, state: .visited(lastModified: lastModified))
-        indexed.append(newEntry)
+        indexed.append(.visited(url: site, lastModified: lastModified))
         pending.formUnion(newUrls.subtracting(indexed))
 
         /*
