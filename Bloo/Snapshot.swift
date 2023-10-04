@@ -1,14 +1,15 @@
 import CoreSpotlight
 import Foundation
+import OrderedCollections
 
 struct Snapshot: Codable {
     let id: String
     let state: DomainState
     let items: [CSSearchableItem]
-    let pending: IndexSet
-    let indexed: IndexSet
+    let pending: OrderedSet<IndexEntry>
+    let indexed: OrderedSet<IndexEntry>
 
-    init(id: String, state: DomainState, items: [CSSearchableItem], pending: IndexSet, indexed: IndexSet) {
+    init(id: String, state: DomainState, items: [CSSearchableItem], pending: OrderedSet<IndexEntry>, indexed: OrderedSet<IndexEntry>) {
         self.id = id
         self.items = items
         self.pending = pending
@@ -38,8 +39,8 @@ struct Snapshot: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         state = try container.decode(DomainState.self, forKey: .state)
-        pending = try container.decode(IndexSet.self, forKey: .pending)
-        indexed = try container.decode(IndexSet.self, forKey: .indexed)
+        pending = try container.decode(OrderedSet<IndexEntry>.self, forKey: .pending)
+        indexed = try container.decode(OrderedSet<IndexEntry>.self, forKey: .indexed)
         items = []
     }
 }

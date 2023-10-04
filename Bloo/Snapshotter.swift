@@ -19,7 +19,7 @@ final class Snapshotter {
                let snapshot = try? decoder.decode(Snapshot.self, from: data) {
                 return snapshot
             }
-            return Snapshot(id: id, state: .paused(0, 0, false, false), items: [], pending: IndexSet(), indexed: IndexSet())
+            return Snapshot(id: id, state: .paused(0, 0, false, false), items: [], pending: [], indexed: [])
         }.value
     }
 

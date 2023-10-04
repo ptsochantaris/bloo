@@ -4,6 +4,7 @@ import Maintini
 import SwiftSoup
 import SwiftUI
 import NaturalLanguage
+import OrderedCollections
 
 @MainActor
 private protocol CrawlerDelegate: AnyObject {
@@ -64,15 +65,15 @@ final actor Crawler {
     let id: String
     private let bootupEntry: IndexEntry
 
-    private var pending: IndexSet
-    private var indexed: IndexSet
+    private var pending: OrderedCollections.OrderedSet<IndexEntry>
+    private var indexed: OrderedCollections.OrderedSet<IndexEntry>
     private var spotlightQueue = [CSSearchableItem]()
     private var goTask: Task<Void, Never>?
 
     @MainActor
     fileprivate weak var crawlerDelegate: CrawlerDelegate!
 
-    fileprivate init(id: String, url: URL, pending: IndexSet, indexed: IndexSet) async throws {
+    fileprivate init(id: String, url: URL, pending: OrderedCollections.OrderedSet<IndexEntry>, indexed: OrderedCollections.OrderedSet<IndexEntry>) async throws {
         self.id = id
         bootupEntry = IndexEntry(url: url, isSitemap: false)
         self.indexed = indexed
@@ -142,14 +143,14 @@ final actor Crawler {
         var (newUrls, newSitemaps) = await SitemapParser(data: xmlData).extract()
 
         log("\(id): Considering \(newSitemaps.count) further sitemap URLs")
-        indexed.remove(from: &newSitemaps)
+        newSitemaps.subtract(indexed)
         if newSitemaps.isPopulated {
             log("\(id): Adding \(newSitemaps.count) unindexed URLs from sitemap")
             pending.formUnion(newSitemaps)
         }
 
         log("\(id): Considering \(newUrls.count) potential URLs from sitemap")
-        indexed.remove(from: &newUrls)
+        newUrls.subtract(indexed)
         if newUrls.isPopulated {
             log("\(id): Adding \(newUrls.count) unindexed URLs from sitemap")
             pending.formUnion(newUrls)
@@ -170,17 +171,18 @@ final actor Crawler {
         if indexed.isEmpty {
             if let url = URL(string: "https://\(id)/sitemap.xml") {
                 let sitemapEntry = IndexEntry(url: url, isSitemap: true)
-                pending.insert(sitemapEntry)
+                pending.append(sitemapEntry)
             }
-            pending.insert(bootupEntry)
+            pending.append(bootupEntry)
         }
         pending.subtract(indexed)
         if pending.isEmpty {
-            pending.insert(bootupEntry)
+            pending.append(bootupEntry)
         }
         await signalState(.loading(pending.count))
 
-        while let next = pending.removeFirst() {
+        while pending.isPopulated {
+            let next = pending.removeFirst()
             let start = Date()
             switch next.state {
             case let .pending(isSitemap):
@@ -299,7 +301,7 @@ final actor Crawler {
         let headerTask = Task.detached { [id] in
             guard let header = htmlDoc.head() else {
                 log("Cannot parse header from \(link)")
-                return (String, String?, URL?, [URL], Date?, [String]?)?.none
+                return (String, String?, URL?, Set<IndexEntry>, Date?, [String]?)?.none
             }
 
             let title: String
@@ -320,13 +322,13 @@ final actor Crawler {
             }
 
             let links = (try? htmlDoc.select("a[href]").compactMap { try? $0.attr("href") }) ?? []
-            var newUrls = [URL]()
+            var newUrls = Set<IndexEntry>()
             for link in links {
                 if let newUrl = try? URL.create(from: link, relativeTo: site, checkExtension: true),
                    newUrl.host()?.hasSuffix(id) == true,
-                   site != newUrl,
-                   await !self.indexed.contains(newUrl) {
-                    newUrls.append(newUrl)
+                   site != newUrl {
+                    let newEntry = IndexEntry(url: newUrl.absoluteString, state: .pending(isSitemapEntry: false))
+                    newUrls.insert(newEntry)
                 }
             }
 
@@ -380,8 +382,8 @@ final actor Crawler {
         attributes.thumbnailURL = await imageFileUrl.value
 
         let newEntry = IndexEntry(url: link, state: .visited(lastModified: lastModified))
-        indexed.insert(newEntry)
-        pending.formUnion(newUrls)
+        indexed.append(newEntry)
+        pending.formUnion(newUrls.subtracting(indexed))
 
         /*
         log("""
