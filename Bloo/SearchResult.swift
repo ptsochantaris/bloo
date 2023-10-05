@@ -1,3 +1,4 @@
+import CoreSpotlight
 import Foundation
 
 struct SearchResult: Identifiable {
@@ -9,6 +10,23 @@ struct SearchResult: Identifiable {
     let thumbnailUrl: URL?
     let keywords: [String]
     let terms: [String]
+
+    init?(_ item: CSSearchableItem, searchTerms: [String]) {
+        id = item.uniqueIdentifier
+        terms = searchTerms
+
+        let attributes = item.attributeSet
+        guard let sourceUrl = URL(string: id), let sourceTitle = attributes.title, let contentDescription = attributes.contentDescription else {
+            return nil
+        }
+
+        url = sourceUrl
+        title = sourceTitle
+        descriptionText = contentDescription
+        displayDate = attributes.contentModificationDate
+        thumbnailUrl = attributes.thumbnailURL
+        keywords = attributes.keywords ?? []
+    }
 
     var attributedTitle: AttributedString {
         title.highlightedAttributedStirng(terms)

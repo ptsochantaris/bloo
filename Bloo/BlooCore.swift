@@ -47,7 +47,7 @@ final class BlooCore {
         }
     }
 
-    func updateSearchRunning(_ newState: SearchState) {
+    private func updateSearchRunning(_ newState: SearchState) {
         withAnimation(.easeInOut(duration: 0.3)) {
             searchState = newState
         }
@@ -91,23 +91,23 @@ final class BlooCore {
             break
         }
 
-        let largeChunkSize = 100
+        let largeChunkSize = 1000
         let smallChunkSize = 10
         let chunkSize = full ? largeChunkSize : smallChunkSize
 
         let context = CSUserQueryContext()
-        context.fetchAttributes = ["title", "contentDescription", "keywords", "thumbnailURL", "contentModificationDate"]
-        context.enableRankedResults = true
+        context.fetchAttributes = ["title", "contentDescription", "keywords", "thumbnailURL", "contentModificationDate", "rankingHint"]
+        // context.enableRankedResults = true
         context.maxResultCount = chunkSize
         let q = CSUserQuery(userQueryString: searchText, userQueryContext: context)
         currentQuery = q
         q.start()
 
-        Task {
+        Task.detached { [weak self] in
             var check = Set<String>()
             check.reserveCapacity(chunkSize)
 
-            var chunk = [SearchResult]()
+            var chunk = ContiguousArray<CSSearchableItem>()
             chunk.reserveCapacity(chunkSize)
 
             for try await result in q.results {
@@ -118,31 +118,23 @@ final class BlooCore {
                     continue
                 }
 
-                let attributes = result.item.attributeSet
-                guard let title = attributes.title, let contentDescription = attributes.contentDescription, let url = URL(string: id) else {
-                    continue
-                }
-
-                let res = SearchResult(id: url.absoluteString,
-                                       title: title,
-                                       url: url,
-                                       descriptionText: contentDescription,
-                                       displayDate: attributes.contentModificationDate,
-                                       thumbnailUrl: attributes.thumbnailURL,
-                                       keywords: attributes.keywords ?? [],
-                                       terms: searchTerms)
-                chunk.append(res)
+                chunk.append(result.item)
             }
 
-            Task { [chunk] in
-                if chunk.count < smallChunkSize {
+            let results = chunk.compactMap {
+                SearchResult($0, searchTerms: searchTerms)
+            }
+
+            Task { @MainActor [weak self, chunk] in
+                guard let self else { return }
+                if results.count < smallChunkSize {
                     if chunk.isEmpty {
                         updateSearchRunning(.noResults)
                     } else {
-                        updateSearchRunning(.results(.limited, chunk))
+                        updateSearchRunning(.results(.limited, results))
                     }
                 } else {
-                    updateSearchRunning(.results(full ? .all : .top, chunk))
+                    updateSearchRunning(.results(full ? .all : .top, results))
                 }
             }
         }

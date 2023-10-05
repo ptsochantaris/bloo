@@ -24,7 +24,7 @@ func domainPath(for id: String) -> URL {
 }
 
 enum Network {
-    static private let urlSession: URLSession = {
+    private static let urlSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpShouldUsePipelining = true
         config.httpShouldSetCookies = false
@@ -34,9 +34,9 @@ enum Network {
         let meg = 1000 * 1000
         let gig = 1000 * meg
         #if os(iOS)
-        config.urlCache = URLCache(memoryCapacity: 40 * meg, diskCapacity: 4 * gig)
+            config.urlCache = URLCache(memoryCapacity: 40 * meg, diskCapacity: 4 * gig)
         #elseif os(macOS)
-        config.urlCache = URLCache(memoryCapacity: 1000 * meg, diskCapacity: 10 * gig)
+            config.urlCache = URLCache(memoryCapacity: 1000 * meg, diskCapacity: 10 * gig)
         #endif
         return URLSession(configuration: config)
     }()
@@ -63,4 +63,3 @@ enum Network {
         return (res.0, res.1 as! HTTPURLResponse)
     }
 }
-

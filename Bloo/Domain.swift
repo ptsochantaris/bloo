@@ -1,10 +1,10 @@
 import CoreSpotlight
 import Foundation
 import Maintini
-import SwiftSoup
-import SwiftUI
 import NaturalLanguage
 import OrderedCollections
+import SwiftSoup
+import SwiftUI
 
 @MainActor
 private protocol CrawlerDelegate: AnyObject {
@@ -75,7 +75,7 @@ final class Domain: Identifiable, CrawlerDelegate {
 
         fileprivate init(id: String, url: URL, pending: OrderedCollections.OrderedSet<IndexEntry>, indexed: OrderedCollections.OrderedSet<IndexEntry>) async throws {
             self.id = id
-            self.bootupEntry = .pending(url: url, isSitemap: false)
+            bootupEntry = .pending(url: url, isSitemap: false)
             self.indexed = indexed
             self.pending = pending
         }
@@ -293,44 +293,19 @@ final class Domain: Identifiable, CrawlerDelegate {
                 return nil
             }
 
-            let headerTask = Task.detached { [id] in
-                guard let header = htmlDoc.head() else {
-                    log("Cannot parse header from \(link)")
-                    return (String, String?, URL?, Set<IndexEntry>, Date?, [String]?)?.none
-                }
+            guard let header = htmlDoc.head() else {
+                log("Cannot parse header from \(link)")
+                return nil
+            }
 
-                let title: String
-                if let v = try? htmlDoc.title().trimmingCharacters(in: .whitespacesAndNewlines), v.isPopulated {
-                    title = v
-                } else if let foundTitle = header.metaPropertyContent(for: "og:title") {
-                    title = foundTitle
-                } else {
-                    log("No title located at \(link)")
-                    return nil
-                }
-
-                let contentDescription = header.metaPropertyContent(for: "og:description")
-
-                var thumbnailUrl: URL?
-                if let ogImage = header.metaPropertyContent(for: "og:image") {
-                    thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false)
-                }
-
-                let links = (try? htmlDoc.select("a[href]").compactMap { try? $0.attr("href") }) ?? []
-                var newUrls = Set<IndexEntry>()
-                for link in links {
-                    if let newUrl = try? URL.create(from: link, relativeTo: site, checkExtension: true),
-                       newUrl.host()?.hasSuffix(id) == true,
-                       site != newUrl {
-                        newUrls.insert(.pending(url: newUrl, isSitemap: false))
-                    }
-                }
-
-                let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
-                let creationDate = Self.isoFormatter.date(from: createdDateString) ?? Self.isoFormatter2.date(from: createdDateString) ?? Self.isoFormatter3.date(from: createdDateString)
-                let keywords = header.metaNameContent(for: "keywords")?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-                return (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords)
+            let title: String
+            if let v = try? htmlDoc.title().trimmingCharacters(in: .whitespacesAndNewlines), v.isPopulated {
+                title = v
+            } else if let foundTitle = header.metaPropertyContent(for: "og:title") {
+                title = foundTitle
+            } else {
+                log("No title located at \(link)")
+                return nil
             }
 
             guard let textContent = try? htmlDoc.body()?.text() else {
@@ -338,13 +313,9 @@ final class Domain: Identifiable, CrawlerDelegate {
                 return nil
             }
 
-            guard let (title, contentDescription, thumbnailUrl, newUrls, creationDate, keywords) = await headerTask.value else {
-                log("Could not parse metadata from \(link)")
-                return nil
-            }
-
             let imageFileUrl = Task<URL?, Never>.detached { [id] in
-                if let thumbnailUrl,
+                if let ogImage = header.metaPropertyContent(for: "og:image"),
+                   let thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false),
                    let data = try? await Network.getData(from: thumbnailUrl).0,
                    let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
                    let dataToSave = image.jpegData {
@@ -353,41 +324,94 @@ final class Domain: Identifiable, CrawlerDelegate {
                 return nil
             }
 
-            let lastModified = await Task.detached { () -> Date? in
-                let headers = contentResult.1.allHeaderFields
-                if let lastModifiedHeader = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeader) {
-                    return lm
-                } else if let creationDate {
-                    return creationDate
-                } else {
-                    return await Self.generateDate(from: textContent)
-                }
-            }.value
+            let contentDescription = header.metaPropertyContent(for: "og:description")
 
-            let attributes = CSSearchableItemAttributeSet(contentType: .url)
-            if let keywords {
-                attributes.keywords = keywords
-            } else {
-                attributes.keywords = await Self.generateKeywords(from: textContent)
+            let links = (try? htmlDoc.select("a[href]").compactMap { try? $0.attr("href") }) ?? []
+            var newUrls = Set<IndexEntry>()
+            for link in links {
+                if let newUrl = try? URL.create(from: link, relativeTo: site, checkExtension: true),
+                   newUrl.host()?.hasSuffix(id) == true,
+                   site != newUrl {
+                    newUrls.insert(.pending(url: newUrl, isSitemap: false))
+                }
             }
-            attributes.contentDescription = (contentDescription ?? "").isEmpty ? textContent : contentDescription
-            attributes.title = title
-            attributes.contentModificationDate = lastModified
-            attributes.thumbnailURL = await imageFileUrl.value
+
+            let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
+            let creationDate = Self.isoFormatter.date(from: createdDateString) ?? Self.isoFormatter2.date(from: createdDateString) ?? Self.isoFormatter3.date(from: createdDateString)
+            let keywords = header
+                .metaNameContent(for: "keywords")?.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                ?? Self.generateKeywords(from: textContent)
+
+            let lastModified: Date?
+            let headers = contentResult.1.allHeaderFields
+            if let lastModifiedHeader = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeader) {
+                lastModified = lm
+            } else if let creationDate {
+                lastModified = creationDate
+            } else {
+                lastModified = Self.generateDate(from: textContent)
+            }
+
+            var rankHint = 0
+            let descriptionInfo = (contentDescription ?? "").isEmpty ? textContent : contentDescription
+            let descriptionTokens = Set((descriptionInfo ?? "").split(separator: " "))
+            if descriptionTokens.isPopulated, keywords.isPopulated {
+                if let lastModified {
+                    let time = lastModified.timeIntervalSinceNow
+                    if time > -(3600 * 24) {
+                        rankHint += 4
+                    } else if time > -(3600 * 24 * 7) {
+                        rankHint += 3
+                    } else if time > -(3600 * 24 * 30) {
+                        rankHint += 2
+                    } else if time > -(3600 * 24 * 265) {
+                        rankHint += 1
+                    }
+                }
+
+                var numberOfKeywordsInTitle = 0
+                var numberOfKeywordsInDescription = 0
+                let titleTokens = Set(title.split(separator: " "))
+                for keyword in keywords {
+                    if titleTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                        numberOfKeywordsInTitle += 1
+                    }
+                    if descriptionTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                        numberOfKeywordsInDescription += 1
+                    }
+                }
+
+                switch numberOfKeywordsInTitle {
+                case 3...: rankHint += 3
+                case 2: rankHint += 2
+                case 1: rankHint += 1
+                default: break
+                }
+
+                if numberOfKeywordsInTitle > 0, numberOfKeywordsInDescription > 0 {
+                    rankHint += 1
+                }
+
+                switch numberOfKeywordsInDescription {
+                case 3...: rankHint += 3
+                case 2: rankHint += 2
+                case 1: rankHint += 1
+                default: break
+                }
+            }
 
             indexed.append(.visited(url: site, lastModified: lastModified))
             pending.formUnion(newUrls.subtracting(indexed))
 
-            /*
-             log("""
-             URL: \(newEntry.url)
-             Modified: \(attributes.contentModificationDate?.description ?? "<none>")
-             State: \(newEntry.state)
-             """)
-             */
-
+            let attributes = CSSearchableItemAttributeSet(contentType: .url)
+            attributes.keywords = keywords
+            attributes.contentDescription = descriptionInfo
+            attributes.title = title
+            attributes.contentModificationDate = lastModified
+            attributes.thumbnailURL = await imageFileUrl.value
+            attributes.rankingHint = NSNumber(value: rankHint)
             return CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes)
-
         }
 
         private static func storeImageData(_ data: Data, for id: String) -> URL {
@@ -409,7 +433,7 @@ final class Domain: Identifiable, CrawlerDelegate {
             return fileUrl
         }
 
-        private static func generateDate(from text: String) async -> Date? {
+        private static func generateDate(from text: String) -> Date? {
             let types: NSTextCheckingResult.CheckingType = [.date]
             guard let detector = try? NSDataDetector(types: types.rawValue) else {
                 return nil
@@ -417,7 +441,7 @@ final class Domain: Identifiable, CrawlerDelegate {
             return detector.firstMatch(in: text, range: NSRange(text.startIndex ..< text.endIndex, in: text))?.date
         }
 
-        private static func generateKeywords(from text: String) async -> [String] {
+        private static func generateKeywords(from text: String) -> [String] {
             let tagger = NLTagger(tagSchemes: [.nameType])
             tagger.string = text
             let range = text.startIndex ..< text.endIndex

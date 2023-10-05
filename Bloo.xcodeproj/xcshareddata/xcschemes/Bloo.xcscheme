@@ -70,20 +70,11 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "16E8A0E32AC1F96500CCB10D"
-            BuildableName = "Giggle.app"
-            BlueprintName = "Giggle"
-            ReferencedContainer = "container:Giggle.xcodeproj">
+            BuildableName = "Bloo.app"
+            BlueprintName = "Bloo"
+            ReferencedContainer = "container:Bloo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "16E8A0E32AC1F96500CCB10D"
-            BuildableName = "Giggle.app"
-            BlueprintName = "Giggle"
-            ReferencedContainer = "container:Giggle.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

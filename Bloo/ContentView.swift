@@ -591,9 +591,9 @@ private struct AdditionSection: View {
                     $0.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
                 }.map { text -> String in
                     if text.contains("//") {
-                        return String(text)
+                        String(text)
                     } else {
-                        return "https://\(String(text))"
+                        "https://\(String(text))"
                     }
                 }.compactMap {
                     try? URL.create(from: $0, relativeTo: nil, checkExtension: true)
@@ -636,16 +636,15 @@ private struct OverlayMessage: View {
 
 #if os(macOS)
     private struct Header: View {
+        static let height: CGFloat = 29
+
         var body: some View {
             let bgColor = Color(NSColor.windowBackgroundColor)
-            Text("Bloo")
-                .font(.headline)
-                .shadow(color: bgColor, radius: 4)
-                .frame(maxWidth: .infinity)
-                .frame(height: 29)
-                .background {
-                    LinearGradient(colors: [bgColor, .clear], startPoint: .top, endPoint: .bottom)
-                }
+            Rectangle()
+                .foregroundColor(bgColor)
+                .clipShape(.rect(bottomTrailingRadius: 10))
+                .frame(width: 68, height: Header.height)
+                .shadow(color: .primary.opacity(0.6), radius: 1, x: 0, y: 0)
                 .ignoresSafeArea()
         }
     }
@@ -665,29 +664,42 @@ struct ContentView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 0) {
+                        #if os(macOS)
+                            Text("Bloo")
+                                .font(.headline)
+                                .frame(height: Header.height - 8)
+                            Spacer(minLength: 0).frame(height: 18)
+                        #endif
+
                         if showSearchSection {
                             SearchSection(model: model)
+                            Spacer(minLength: 0).frame(height: 20)
                         }
 
                         AdditionSection(model: model)
+                        Spacer(minLength: 0).frame(height: 20)
 
                         ForEach(model.domainSections) {
                             DomainGrid(section: $0)
+                            Spacer(minLength: 0).frame(height: 20)
                         }
                     }
                     #if os(iOS)
                     .padding()
                     #else
                     .padding([.horizontal, .bottom])
+                    .padding(.top, 6)
                     #endif
                 }
                 #if os(iOS)
                 .scrollDismissesKeyboard(.immediately)
+                #else
+                .ignoresSafeArea()
                 #endif
             }
             #if os(macOS)
-            .overlay(alignment: .top) {
+            .overlay(alignment: .topLeading) {
                 Header()
             }
             #endif
