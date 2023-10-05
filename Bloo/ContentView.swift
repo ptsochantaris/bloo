@@ -294,55 +294,63 @@ private struct AdditionRow: View {
     }
 }
 
-private struct DomainGrid: View {
+private struct DomainHeader: View {
     let section: DomainSection
     @State private var actioning = false
 
     var body: some View {
-        if section.domains.isPopulated {
-            VStack(alignment: .leading) {
-                HStack(alignment: .top) {
-                    Text(section.state.title)
-                        .font(.blooTitle)
-                        .foregroundStyle(.secondary)
+        HStack(alignment: .top) {
+            Text(section.state.title)
+                .font(.blooTitle)
+                .foregroundStyle(.secondary)
 
-                    if !actioning {
-                        Spacer(minLength: 0)
+            if !actioning {
+                Spacer(minLength: 0)
 
-                        if section.state.canStart {
-                            Button {
-                                actioning = true
-                                Task {
-                                    await section.startAll()
-                                    actioning = false
-                                }
-                            } label: {
-                                Text("Start All")
-                            }
-                        } else if section.state.canStop {
-                            Button {
-                                actioning = true
-                                Task {
-                                    await section.pauseAll(resumable: false)
-                                    actioning = false
-                                }
-                            } label: {
-                                Text("Pause All")
-                            }
-                        } else if section.state.canRestart {
-                            Button {
-                                actioning = true
-                                Task {
-                                    await section.restartAll()
-                                    actioning = false
-                                }
-                            } label: {
-                                Text("Re-Scan All")
-                            }
+                if section.state.canStart {
+                    Button {
+                        actioning = true
+                        Task {
+                            await section.startAll()
+                            actioning = false
                         }
+                    } label: {
+                        Text("Start All")
+                    }
+                } else if section.state.canStop {
+                    Button {
+                        actioning = true
+                        Task {
+                            await section.pauseAll(resumable: false)
+                            actioning = false
+                        }
+                    } label: {
+                        Text("Pause All")
+                    }
+                } else if section.state.canRestart {
+                    Button {
+                        actioning = true
+                        Task {
+                            await section.restartAll()
+                            actioning = false
+                        }
+                    } label: {
+                        Text("Re-Scan All")
                     }
                 }
-                .padding(.horizontal, titleInset)
+            }
+        }
+        .padding(.horizontal, titleInset)
+    }
+}
+
+private struct DomainGrid: View {
+    let section: DomainSection
+
+    var body: some View {
+        if section.domains.isPopulated {
+            VStack(alignment: .leading) {
+                DomainHeader(section: section)
                 LazyVGrid(columns: gridColumns) {
                     ForEach(section.domains) { domain in
                         DomainRow(domain: domain)
@@ -354,23 +362,6 @@ private struct DomainGrid: View {
             .background(.fill.opacity(backgroundOpacity))
             .cornerRadius(wideCorner)
         }
-    }
-}
-
-private struct SearchField: View {
-    @Bindable var model: BlooCore
-
-    var body: some View {
-        TextField("Search for keyword(s)", text: $model.searchQuery)
-        #if canImport(UIKit)
-            .autocapitalization(.none)
-            .padding(8)
-            .submitLabel(.search)
-            .background(.fill.opacity(backgroundOpacity))
-            .cornerRadius(8)
-        #else
-            .textFieldStyle(RoundedBorderTextFieldStyle())
-        #endif
     }
 }
 
@@ -401,17 +392,17 @@ private struct SearchResults: View {
 }
 
 private struct SearchSection: View {
-    private let model: BlooCore
+    private let searcher: Searcher
     private let title: String
     private let ctaTitle: String?
     private let showProgress: Bool
     private let fullView: Bool
 
     @MainActor
-    init(model: BlooCore) {
-        self.model = model
+    init(searcher: Searcher) {
+        self.searcher = searcher
 
-        switch model.searchState {
+        switch searcher.searchState {
         case .noSearch:
             title = "Search"
             showProgress = false
@@ -474,11 +465,7 @@ private struct SearchSection: View {
                     .font(.blooTitle)
                     .foregroundStyle(.secondary)
 
-                #if os(macOS)
-                    SearchField(model: model)
-                #else
-                    Spacer()
-                #endif
+                Spacer()
 
                 if showProgress {
                     ProgressView()
@@ -487,14 +474,14 @@ private struct SearchSection: View {
 
                 } else if let ctaTitle {
                     Button {
-                        model.resetQuery(full: fullView)
+                        searcher.resetQuery(full: fullView)
                     } label: {
                         Text(ctaTitle)
                     }
                 }
             }
 
-            if let results = model.searchState.results {
+            if let results = searcher.searchState.results {
                 SearchResults(results: results)
             }
         }
@@ -634,101 +621,115 @@ private struct OverlayMessage: View {
     }
 }
 
-#if os(macOS)
-    private struct Header: View {
-        static let height: CGFloat = 29
+private struct ModelStateFeedback: View {
+    let model: BlooCore
 
-        var body: some View {
-            let bgColor = Color(NSColor.windowBackgroundColor)
-            Rectangle()
-                .foregroundColor(bgColor)
-                .clipShape(.rect(bottomTrailingRadius: 10))
-                .frame(width: 68, height: Header.height)
-                .shadow(color: .primary.opacity(0.6), radius: 1, x: 0, y: 0)
-                .ignoresSafeArea()
+    var body: some View {
+        if model.runState == .stopped {
+            OverlayMessage(title: "One Moment…", subtitle: "This operation can take up to a minute")
+
+        } else if model.runState == .backgrounded {
+            OverlayMessage(title: "Suspended", subtitle: "This operation will resume when device has enough power and resources to resume it")
         }
     }
-#endif
+}
+
+private struct Admin: View {
+    let model: BlooCore
+
+    @State private var showAddition = false
+    @State private var searchFocused = false
+    @FocusState private var additionFocused: Bool
+    @Bindable private var searcher: Searcher
+
+    init(model: BlooCore, windowId: UUID) {
+        self.model = model
+        searcher = Searcher(windowId: windowId)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                VStack(spacing: 18) {
+                    if showAddition {
+                        AdditionSection(model: model)
+                            .focused($additionFocused)
+                    }
+
+                    if searcher.searchState.results != nil {
+                        SearchSection(searcher: searcher)
+                    }
+
+                    ForEach(model.domainSections) {
+                        DomainGrid(section: $0)
+                    }
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Bloo")
+        .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, prompt: "Search for keyword(s)")
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    withAnimation {
+                        if showAddition {
+                            additionFocused = false
+                            searchFocused = true
+                        }
+                        showAddition.toggle()
+                        if showAddition {
+                            additionFocused = true
+                            searchFocused = false
+                        }
+                    }
+                } label: {
+                    Image(systemName: showAddition ? "arrow.down.and.line.horizontal.and.arrow.up" : "plus")
+                }
+            }
+        }
+        #if os(macOS)
+        .task {
+            await Task.yield()
+            searchFocused = true
+        }
+        #endif
+    }
+}
 
 struct ContentView: View {
-    @Bindable var model: BlooCore
+    let model: BlooCore
+    let windowId: UUID
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        #if os(iOS)
-            let showSearchSection = model.searchState.results != nil
-        #elseif os(macOS)
-            let showSearchSection = true
-        #endif
-
-        NavigationStack {
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        #if os(macOS)
-                            Text("Bloo")
-                                .font(.headline)
-                                .frame(height: Header.height - 8)
-                            Spacer(minLength: 0).frame(height: 18)
-                        #endif
-
-                        if showSearchSection {
-                            SearchSection(model: model)
-                            Spacer(minLength: 0).frame(height: 20)
-                        }
-
-                        AdditionSection(model: model)
-                        Spacer(minLength: 0).frame(height: 20)
-
-                        ForEach(model.domainSections) {
-                            DomainGrid(section: $0)
-                            Spacer(minLength: 0).frame(height: 20)
-                        }
-                    }
-                    #if os(iOS)
-                    .padding()
-                    #else
-                    .padding([.horizontal, .bottom])
-                    .padding(.top, 6)
-                    #endif
-                }
-                #if os(iOS)
-                .scrollDismissesKeyboard(.immediately)
-                #else
-                .ignoresSafeArea()
-                #endif
+        #if os(macOS)
+            NavigationStack {
+                Admin(model: model, windowId: windowId)
             }
-            #if os(macOS)
-            .overlay(alignment: .topLeading) {
-                Header()
-            }
-            #endif
             .overlay {
-                if model.runState == .stopped {
-                    OverlayMessage(title: "One Moment…", subtitle: "This operation can take up to a minute")
-
-                } else if model.runState == .backgrounded {
-                    OverlayMessage(title: "Suspended", subtitle: "This operation will resume when device has enough power and resources to resume it")
+                ModelStateFeedback(model: model)
+            }
+        #elseif os(iOS)
+            NavigationStack {
+                Admin(model: model)
+                    .background(Color.background)
+                    .scrollDismissesKeyboard(.immediately)
+            }
+            .overlay {
+                ModelStateFeedback(model: model)
+            }
+            .preferredColorScheme(.dark)
+            .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+                if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
+                    openURL(url)
                 }
             }
-            #if os(iOS)
-            .background(Color.background)
-            .navigationTitle("Bloo")
-            #endif
-        }
-        #if os(iOS)
-        .preferredColorScheme(.dark)
-        .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
-            if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
-                openURL(url)
+            .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
+                if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
+                    BlooCore.shared.newWindowWithSearch(searchString)
+                }
             }
-        }
-        .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
-            if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
-                model.searchQuery = searchString
-            }
-        }
-        .searchable(text: $model.searchQuery)
         #endif
     }
 }

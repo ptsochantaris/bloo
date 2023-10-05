@@ -29,7 +29,7 @@ struct BlooApp: App {
                 }
 
                 if userActivity.activityType == CSQueryContinuationActionType, let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
-                    BlooCore.shared.searchQuery = searchString
+                    BlooCore.shared.newWindowWithSearch(searchString)
                     return true
                 }
 
@@ -57,10 +57,21 @@ struct BlooApp: App {
     #endif
 
     private var model = BlooCore.shared
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        WindowGroup {
-            ContentView(model: model)
+        WindowGroup("Bloo", id: "search", for: UUID.self) { $uuid in
+            // TODO:
+            ContentView(model: model, windowId: uuid)
+            /* TODO:
+                .onReceive(NotificationCenter.default.publisher(for: .BlooCreateSearch)) { notification in
+                    if let text = notification.object as? String {
+                        openWindow(id: "main", value: text)
+                    }
+                }
+             */
+        } defaultValue: {
+            UUID()
         }
         .commands {
             CommandGroup(after: .appInfo) {
@@ -95,8 +106,6 @@ struct BlooApp: App {
                 break
             }
         }
-        #elseif canImport(AppKit)
-        .windowStyle(HiddenTitleBarWindowStyle())
         #endif
     }
 }

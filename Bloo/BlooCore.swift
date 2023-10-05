@@ -1,10 +1,14 @@
 import CoreSpotlight
 import Foundation
-import PopTimer
 import SwiftUI
 #if os(iOS)
     import BackgroundTasks
 #endif
+
+extension Notification.Name {
+    static let BlooClearSearches = Self("BlooClearSearches")
+    static let BlooCreateSearch = Self("BlooCreateSearch")
+}
 
 @MainActor
 @Observable
@@ -14,24 +18,20 @@ final class BlooCore {
     }
 
     var runState: RunState = .stopped
-    var searchState: SearchState = .noSearch
     var domainSections = [DomainSection]()
-
-    var searchQuery = "" {
-        didSet {
-            if searchQuery != oldValue {
-                queryTimer?.push()
-            }
-        }
-    }
 
     static let shared = BlooCore()
 
     private var snapshotter = Snapshotter()
-    private var currentQuery: CSUserQuery?
-    private var lastSearchKey = ""
     private var initialisedViaLaunch = false
-    private var queryTimer: PopTimer?
+
+    private func clearSearches() {
+        NotificationCenter.default.post(name: .BlooClearSearches, object: nil)
+    }
+
+    func newWindowWithSearch(_ text: String) {
+        NotificationCenter.default.post(name: .BlooCreateSearch, object: text)
+    }
 
     func queueSnapshot(item: Snapshot) {
         snapshotter.queue(item)
@@ -47,101 +47,12 @@ final class BlooCore {
         }
     }
 
-    private func updateSearchRunning(_ newState: SearchState) {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            searchState = newState
-        }
-    }
-
     func data(for id: String) async throws -> Snapshot {
         try await snapshotter.data(for: id)
     }
 
-    func resetQuery(full: Bool) {
-        queryTimer?.abort()
-
-        let newSearch = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        let newKey = "\(newSearch)-\(full)"
-        if newKey == lastSearchKey {
-            return
-        }
-        lastSearchKey = newKey
-
-        if let q = currentQuery {
-            log("Stopping current query")
-            q.cancel()
-            currentQuery = nil
-        }
-
-        let searchText = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        if searchText.isEmpty {
-            updateSearchRunning(.noSearch)
-            return
-        }
-
-        log("Starting new query: '\(searchText)'")
-        let searchTerms = searchText.split(separator: " ").map { String($0) }
-
-        switch searchState {
-        case .noResults, .noSearch:
-            updateSearchRunning(.searching)
-        case let .results(resultType, array):
-            updateSearchRunning(.updating(resultType, array))
-        case .searching, .updating:
-            break
-        }
-
-        let largeChunkSize = 1000
-        let smallChunkSize = 10
-        let chunkSize = full ? largeChunkSize : smallChunkSize
-
-        let context = CSUserQueryContext()
-        context.fetchAttributes = ["title", "contentDescription", "keywords", "thumbnailURL", "contentModificationDate", "rankingHint"]
-        // context.enableRankedResults = true
-        context.maxResultCount = chunkSize
-        let q = CSUserQuery(userQueryString: searchText, userQueryContext: context)
-        currentQuery = q
-        q.start()
-
-        Task.detached { [weak self] in
-            var check = Set<String>()
-            check.reserveCapacity(chunkSize)
-
-            var chunk = ContiguousArray<CSSearchableItem>()
-            chunk.reserveCapacity(chunkSize)
-
-            for try await result in q.results {
-                let id = result.item.uniqueIdentifier
-
-                // dedup
-                guard check.insert(id).inserted else {
-                    continue
-                }
-
-                chunk.append(result.item)
-            }
-
-            let results = chunk.compactMap {
-                SearchResult($0, searchTerms: searchTerms)
-            }
-
-            Task { @MainActor [weak self, chunk] in
-                guard let self else { return }
-                if results.count < smallChunkSize {
-                    if chunk.isEmpty {
-                        updateSearchRunning(.noResults)
-                    } else {
-                        updateSearchRunning(.results(.limited, results))
-                    }
-                } else {
-                    updateSearchRunning(.results(full ? .all : .top, results))
-                }
-            }
-        }
-    }
-
     func resetAll() async {
-        searchQuery = ""
+        clearSearches()
 
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections {
@@ -202,7 +113,6 @@ final class BlooCore {
             #endif
             runState = .backgrounded
         } else {
-            searchQuery = ""
             runState = .stopped
         }
 
@@ -270,10 +180,6 @@ final class BlooCore {
         let entryPoints = directoryList
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
             .map { "https://\($0.lastPathComponent)" }
-
-        queryTimer = PopTimer(timeInterval: 0.4) { [weak self] in
-            self?.resetQuery(full: false)
-        }
 
         Task {
             await withTaskGroup(of: Void.self) { group in
