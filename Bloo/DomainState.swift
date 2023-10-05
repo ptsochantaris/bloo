@@ -13,7 +13,7 @@ enum DomainState: CaseIterable, Codable, Hashable {
     case loading(Int), paused(Int, Int, Bool, Bool), indexing(Int, Int, URL), done(Int), deleting
 
     static var allCases: [DomainState] {
-        [.paused(0, 0, false, false), .loading(0), .indexing(0, 0, URL(filePath: "")), .done(0)]
+        [.loading(0), .indexing(0, 0, URL(filePath: "")), .paused(0, 0, false, false), .done(0)]
     }
 
     @ViewBuilder
