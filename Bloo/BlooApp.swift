@@ -10,6 +10,8 @@ struct BlooApp: App {
     #if canImport(AppKit)
 
         final class AppDelegate: NSObject, NSApplicationDelegate {
+            var newSearch: String?
+
             func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
                 if BlooCore.shared.runState == .running {
                     Task {
@@ -29,7 +31,7 @@ struct BlooApp: App {
                 }
 
                 if userActivity.activityType == CSQueryContinuationActionType, let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
-                    BlooCore.shared.newWindowWithSearch(searchString)
+                    newSearch = searchString
                     return true
                 }
 
@@ -58,18 +60,30 @@ struct BlooApp: App {
 
     private var model = BlooCore.shared
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openURL) private var openURL
 
     var body: some Scene {
         WindowGroup("Bloo", id: "search", for: UUID.self) { $uuid in
-            // TODO:
             ContentView(model: model, windowId: uuid)
-            /* TODO:
-                .onReceive(NotificationCenter.default.publisher(for: .BlooCreateSearch)) { notification in
-                    if let text = notification.object as? String {
-                        openWindow(id: "main", value: text)
+            #if os(macOS)
+                .onChange(of: appDelegate.newSearch) {
+                    if let newSearch = appDelegate.newSearch {
+                        appDelegate.newSearch = nil
+                        openWindow(id: "main", value: newSearch)
                     }
                 }
-             */
+            #elseif os(iOS)
+                .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+                    if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
+                        openURL(url)
+                    }
+                }
+                .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
+                    if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
+                        openWindow(id: "main", value: searchString)
+                    }
+                }
+            #endif
         } defaultValue: {
             UUID()
         }

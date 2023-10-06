@@ -7,7 +7,6 @@ import SwiftUI
 
 extension Notification.Name {
     static let BlooClearSearches = Self("BlooClearSearches")
-    static let BlooCreateSearch = Self("BlooCreateSearch")
 }
 
 @MainActor
@@ -27,10 +26,6 @@ final class BlooCore {
 
     private func clearSearches() {
         NotificationCenter.default.post(name: .BlooClearSearches, object: nil)
-    }
-
-    func newWindowWithSearch(_ text: String) {
-        NotificationCenter.default.post(name: .BlooCreateSearch, object: text)
     }
 
     func queueSnapshot(item: Snapshot) {

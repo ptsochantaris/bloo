@@ -718,7 +718,6 @@ private struct Admin: View {
 struct ContentView: View {
     let model: BlooCore
     let windowId: UUID
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
         #if os(macOS)
@@ -738,16 +737,6 @@ struct ContentView: View {
                 ModelStateFeedback(model: model)
             }
             .preferredColorScheme(.dark)
-            .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
-                if let uid = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String, let url = URL(string: uid) {
-                    openURL(url)
-                }
-            }
-            .onContinueUserActivity(CSQueryContinuationActionType) { userActivity in
-                if let searchString = userActivity.userInfo?[CSSearchQueryString] as? String {
-                    BlooCore.shared.newWindowWithSearch(searchString)
-                }
-            }
         #endif
     }
 }
