@@ -366,26 +366,32 @@ private struct DomainGrid: View {
 }
 
 private struct SearchResults: View {
-    let results: (type: SearchState.ResultType, items: [SearchResult])
+    let results: ResultState
 
     var body: some View {
-        switch results.type {
-        case .limited, .top:
-            ScrollView(.horizontal) {
-                HStack {
-                    ForEach(results.items) {
+        switch results {
+        case .noResults, .noSearch, .searching:
+            ProgressView()
+                .padding()
+
+        case let .results(mode, items), let .updating(mode, items):
+            switch mode {
+            case .all:
+                LazyVGrid(columns: gridColumns) {
+                    ForEach(items) {
                         ResultRow(result: $0)
-                            .frame(width: 320)
                     }
                 }
-            }
-            .scrollClipDisabled()
-
-        case .all:
-            LazyVGrid(columns: gridColumns) {
-                ForEach(results.items) {
-                    ResultRow(result: $0)
+            case .limited, .top:
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach(items) {
+                            ResultRow(result: $0)
+                                .frame(width: 320)
+                        }
+                    }
                 }
+                .scrollClipDisabled()
             }
         }
     }
@@ -396,24 +402,27 @@ private struct SearchSection: View {
     private let title: String
     private let ctaTitle: String?
     private let showProgress: Bool
-    private let fullView: Bool
+    private let prefersLargeView: Bool
+    private let showResults: Bool
 
     @MainActor
     init(searcher: Searcher) {
         self.searcher = searcher
 
-        switch searcher.searchState {
+        switch searcher.resultState {
         case .noSearch:
             title = "Search"
             showProgress = false
             ctaTitle = nil
-            fullView = false
+            prefersLargeView = false
+            showResults = false
 
         case .searching:
             title = "Searching"
             showProgress = true
             ctaTitle = nil
-            fullView = false
+            prefersLargeView = false
+            showResults = false
 
         case let .updating(resultType, _):
             title = "Searching"
@@ -422,12 +431,13 @@ private struct SearchSection: View {
 
             switch resultType {
             case .all:
-                fullView = false
+                prefersLargeView = false
             case .limited:
-                fullView = false
+                prefersLargeView = false
             case .top:
-                fullView = true
+                prefersLargeView = true
             }
+            showResults = true
 
         case let .results(resultType, results):
             switch resultType {
@@ -436,25 +446,29 @@ private struct SearchSection: View {
                 title = c > 1 ? " \(c) Results" : "1 Result"
                 showProgress = false
                 ctaTitle = "Top Results"
-                fullView = false
+                prefersLargeView = false
+                showResults = true
             case .limited:
                 let c = results.count
                 title = c > 1 ? " \(c) Results" : "1 Result"
                 showProgress = false
                 ctaTitle = nil
-                fullView = false
+                prefersLargeView = false
+                showResults = true
             case .top:
                 title = "Top Results"
                 showProgress = false
                 ctaTitle = "Show More"
-                fullView = true
+                prefersLargeView = true
+                showResults = true
             }
 
         case .noResults:
             title = "No results found"
             showProgress = false
             ctaTitle = nil
-            fullView = false
+            prefersLargeView = false
+            showResults = false
         }
     }
 
@@ -474,15 +488,15 @@ private struct SearchSection: View {
 
                 } else if let ctaTitle {
                     Button {
-                        searcher.resetQuery(full: fullView)
+                        searcher.resetQuery(expandIfNeeded: prefersLargeView, collapseIfNeeded: !prefersLargeView)
                     } label: {
                         Text(ctaTitle)
                     }
                 }
             }
 
-            if let results = searcher.searchState.results {
-                SearchResults(results: results)
+            if showResults {
+                SearchResults(results: searcher.resultState)
             }
         }
         .frame(maxWidth: .infinity)
@@ -656,7 +670,7 @@ private struct Admin: View {
                             .focused($additionFocused)
                     }
 
-                    if searcher.searchState.results != nil {
+                    if searcher.resultState.results != nil {
                         SearchSection(searcher: searcher)
                     }
 
@@ -667,7 +681,7 @@ private struct Admin: View {
             }
             .padding()
         }
-        .navigationTitle("Bloo")
+        .navigationTitle(searcher.title)
         .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, prompt: "Search for keyword(s)")
         .toolbar {
             ToolbarItem {
@@ -675,12 +689,16 @@ private struct Admin: View {
                     withAnimation {
                         if showAddition {
                             additionFocused = false
-                            searchFocused = true
+                            #if os(macOS)
+                                searchFocused = true
+                            #endif
                         }
                         showAddition.toggle()
                         if showAddition {
                             additionFocused = true
-                            searchFocused = false
+                            #if os(macOS)
+                                searchFocused = false
+                            #endif
                         }
                     }
                 } label: {
@@ -712,7 +730,7 @@ struct ContentView: View {
             }
         #elseif os(iOS)
             NavigationStack {
-                Admin(model: model)
+                Admin(model: model, windowId: windowId)
                     .background(Color.background)
                     .scrollDismissesKeyboard(.immediately)
             }

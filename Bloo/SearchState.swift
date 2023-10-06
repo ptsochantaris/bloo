@@ -1,13 +1,13 @@
 import Foundation
 
-enum SearchState {
-    enum ResultType {
+enum ResultState {
+    enum DisplayMode {
         case limited, top, all
     }
 
-    case noSearch, searching, updating(ResultType, [SearchResult]), results(ResultType, [SearchResult]), noResults
+    case noSearch, searching, updating(DisplayMode, [SearchResult]), results(DisplayMode, [SearchResult]), noResults
 
-    var results: (ResultType, [SearchResult])? {
+    var results: (DisplayMode, [SearchResult])? {
         switch self {
         case .noResults, .noSearch, .searching:
             nil
