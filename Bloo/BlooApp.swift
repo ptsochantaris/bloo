@@ -59,6 +59,7 @@ struct BlooApp: App {
     #endif
 
     private var model = BlooCore.shared
+    private var settings = Settings.shared
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
@@ -89,10 +90,33 @@ struct BlooApp: App {
         }
         .commands {
             CommandGroup(after: .appInfo) {
-                Menu("Re-index all domains") {
-                    Button("Confirm") {
-                        Task {
-                            await model.resetAll()
+                Menu("Throttling…") {
+                    Toggle("Only Use Efficiency CPU Cores", isOn: Binding<Bool> {
+                        settings.indexingTaskPriority == .background
+                    } set: { newValue in
+                        settings.indexingTaskPriority = newValue ? .background : .medium
+                    })
+                    Toggle("Minimise Network Usage", isOn: Binding<Bool> {
+                        settings.maxConcurrentIndexingOperations == 1
+                    } set: { newValue in
+                        settings.maxConcurrentIndexingOperations = newValue ? 1 : 0
+                    })
+                }
+            }
+            CommandGroup(after: .appInfo) {
+                Menu("All Items…") {
+                    Menu("Clear all data") {
+                        Button("Confirm: Clear Everything") {
+                            Task {
+                                await model.removeAll()
+                            }
+                        }
+                    }
+                    Menu("Re-index all domains") {
+                        Button("Confirm: Reset All Domains") {
+                            Task {
+                                await model.resetAll()
+                            }
                         }
                     }
                 }

@@ -59,6 +59,19 @@ final class BlooCore {
         }
     }
 
+    func removeAll() async {
+        clearSearches()
+
+        await withTaskGroup(of: Void.self) { group in
+            for section in domainSections {
+                group.addTask {
+                    await section.pauseAll(resumable: false)
+                    await section.removeAll()
+                }
+            }
+        }
+    }
+
     func start(fromInitialiser: Bool = false) async {
         guard fromInitialiser || initialisedViaLaunch, runState != .running else {
             return

@@ -28,6 +28,14 @@ struct DomainSection: Identifiable {
         }
     }
 
+    func removeAll() async {
+        await allDomains {
+            if case let .paused(_, _, _, resumable) = await $0.state, resumable {
+                await $0.remove()
+            }
+        }
+    }
+
     func startAll() async {
         await allDomains {
             await $0.start()

@@ -3,8 +3,16 @@ import Foundation
 import Maintini
 import NaturalLanguage
 import OrderedCollections
+import Semalot
 import SwiftSoup
 import SwiftUI
+
+@Observable
+final class Settings {
+    static let shared = Settings()
+    var indexingTaskPriority: TaskPriority = .medium
+    var maxConcurrentIndexingOperations: UInt = 0
+}
 
 @MainActor
 private protocol CrawlerDelegate: AnyObject {
@@ -97,8 +105,12 @@ final class Domain: Identifiable, CrawlerDelegate {
         fileprivate func start() async {
             let count = pending.count
             await signalState(.loading(count))
-            goTask = Task {
-                await go()
+            startGoTask(priority: Settings.shared.indexingTaskPriority, signalStateChange: true)
+        }
+
+        private func startGoTask(priority: TaskPriority, signalStateChange: Bool) {
+            goTask = Task(priority: priority) {
+                await go(signalStateChange: signalStateChange)
             }
         }
 
@@ -144,6 +156,7 @@ final class Domain: Identifiable, CrawlerDelegate {
 
             log("\(id): Considering \(newSitemaps.count) further sitemap URLs")
             newSitemaps.subtract(indexed)
+            newSitemaps.remove(.pending(url: url, isSitemap: true))
             if newSitemaps.isPopulated {
                 log("\(id): Adding \(newSitemaps.count) unindexed URLs from sitemap")
                 pending.formUnion(newSitemaps)
@@ -159,7 +172,9 @@ final class Domain: Identifiable, CrawlerDelegate {
             await signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
         }
 
-        private func go() async {
+        private static let requestLock = Semalot(tickets: 1)
+
+        private func go(signalStateChange: Bool) async {
             await Maintini.startMaintaining()
             defer {
                 Task {
@@ -167,7 +182,6 @@ final class Domain: Identifiable, CrawlerDelegate {
                 }
             }
 
-            await signalState(.loading(pending.count))
             if indexed.isEmpty {
                 if let url = URL(string: "https://\(id)/sitemap.xml") {
                     pending.append(.pending(url: url, isSitemap: true))
@@ -178,43 +192,67 @@ final class Domain: Identifiable, CrawlerDelegate {
             if pending.isEmpty {
                 pending.append(bootupEntry)
             }
-            await signalState(.loading(pending.count))
 
+            if signalStateChange {
+                await signalState(.loading(pending.count))
+            }
+
+            var operationCount = 0
+            let originalPriority = Settings.shared.indexingTaskPriority
             while pending.isPopulated {
+                let setPriority = Settings.shared.indexingTaskPriority
+                if originalPriority != setPriority {
+                    defer {
+                        startGoTask(priority: setPriority, signalStateChange: false)
+                    }
+                    return
+                }
+
+                let willThrottle = Settings.shared.maxConcurrentIndexingOperations == 1
+                if willThrottle {
+                    await Self.requestLock.takeTicket()
+                }
+
                 let next = pending.removeFirst()
                 let start = Date()
                 switch next {
                 case let .pending(nextUrl, isSitemap):
                     if isSitemap {
                         await parseSitemap(at: nextUrl)
-                    } else {
-                        if let newItem = await index(page: next) {
-                            spotlightQueue.append(newItem)
-
-                            if spotlightQueue.count > 59 {
-                                await snapshot()
-                            }
-                        }
+                    } else if let newItem = await index(page: next) {
+                        spotlightQueue.append(newItem)
                     }
                 case .visited:
                     log("Warning: Already visited entry showed up in the `pending` list")
-                    continue
                 }
 
                 // Detect stop
                 let currentState = await currentState
-                guard currentState.isActive else {
+                if currentState.isActive {
+                    operationCount += 1
+                    if operationCount > 59 {
+                        operationCount = 0
+                        await snapshot()
+                    }
+                    if willThrottle {
+                        Self.requestLock.returnTicket()
+                    }
+
+                    let duration = max(0, 1 + start.timeIntervalSinceNow)
+                    if duration > 0 {
+                        try? await Task.sleep(for: .seconds(duration))
+                    }
+
+                } else {
                     if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
                         await signalState(.paused(x, y, false, resumeOnLaunch))
                     }
                     log("\(id): Stopping crawl because of app action")
                     await snapshot()
+                    if willThrottle {
+                        Self.requestLock.returnTicket()
+                    }
                     return
-                }
-
-                let duration = max(0, 1 + start.timeIntervalSinceNow)
-                if duration > 0 {
-                    try? await Task.sleep(for: .seconds(duration))
                 }
             }
 
