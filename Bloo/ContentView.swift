@@ -663,23 +663,22 @@ private struct Admin: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 0) {
-                VStack(spacing: 18) {
-                    if showAddition {
-                        AdditionSection(model: model)
-                            .focused($additionFocused)
-                    }
-
-                    if searcher.resultState.results != nil {
-                        SearchSection(searcher: searcher)
-                    }
-
-                    ForEach(model.domainSections) {
-                        DomainGrid(section: $0)
-                    }
+            VStack(spacing: 18) {
+                if showAddition {
+                    AdditionSection(model: model)
+                        .focused($additionFocused)
+                }
+                
+                if searcher.resultState.results != nil {
+                    SearchSection(searcher: searcher)
+                }
+                
+                ForEach(model.domainSections) {
+                    DomainGrid(section: $0)
                 }
             }
             .padding()
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle(searcher.title)
         .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, prompt: "Search for keyword(s)")
