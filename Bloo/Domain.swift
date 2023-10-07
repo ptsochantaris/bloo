@@ -2,7 +2,7 @@ import CoreSpotlight
 import Foundation
 import Maintini
 import NaturalLanguage
-import OrderedCollections
+@preconcurrency import OrderedCollections
 import Semalot
 import SwiftSoup
 import SwiftUI
@@ -52,7 +52,7 @@ private protocol CrawlerDelegate: AnyObject {
 
 @MainActor
 @Observable
-final class Domain: Identifiable, CrawlerDelegate {
+final class Domain: Identifiable, CrawlerDelegate, Sendable {
     let id: String
 
     fileprivate(set) var state = DomainState.paused(0, 0, false, false) {
@@ -135,10 +135,9 @@ final class Domain: Identifiable, CrawlerDelegate {
             }
         }
 
+        @MainActor
         private var currentState: DomainState {
-            get async {
-                await crawlerDelegate.state
-            }
+            crawlerDelegate.state
         }
 
         fileprivate func start() async {
@@ -391,8 +390,9 @@ final class Domain: Identifiable, CrawlerDelegate {
                 return nil
             }
 
+            let ogImage = header.metaPropertyContent(for: "og:image")
             let imageFileUrl = Task<URL?, Never>.detached { [id] in
-                if let ogImage = header.metaPropertyContent(for: "og:image"),
+                if let ogImage,
                    let thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false),
                    let data = try? await Network.getData(from: thumbnailUrl).0,
                    let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),

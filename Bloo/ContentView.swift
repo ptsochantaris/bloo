@@ -223,7 +223,7 @@ private struct ResultRow: View {
                         .bold()
                         .lineLimit(2, reservesSpace: true)
                         .task {
-                            titleText = await Task.detached { result.attributedTitle }.value
+                            titleText = await Task.detached { [result] in result.attributedTitle }.value
                         }
                 }
 
@@ -251,7 +251,7 @@ private struct ResultRow: View {
                 .font(.blooBody)
                 .foregroundStyle(.secondary)
                 .task {
-                    descriptionText = await Task.detached { result.attributedDescription }.value
+                    descriptionText = await Task.detached { [result] in result.attributedDescription }.value
                 }
 
             Spacer(minLength: 0)
@@ -648,6 +648,7 @@ private struct ModelStateFeedback: View {
     }
 }
 
+@MainActor
 private struct Admin: View {
     let model: BlooCore
 

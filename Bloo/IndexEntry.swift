@@ -1,6 +1,6 @@
 import Foundation
 
-enum IndexEntry: Codable, Hashable {
+enum IndexEntry: Codable, Hashable, Sendable {
     case pending(url: URL, isSitemap: Bool), visited(url: URL, lastModified: Date?)
 
     func hash(into hasher: inout Hasher) {

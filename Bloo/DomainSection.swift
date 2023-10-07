@@ -10,7 +10,7 @@ struct DomainSection: Identifiable {
         self.domains = domains
     }
 
-    private func allDomains(_ block: @escaping (Domain) async -> Void) async {
+    private func allDomains(_ block: @escaping @Sendable (Domain) async -> Void) async {
         await withTaskGroup(of: Void.self) { group in
             for domain in domains {
                 group.addTask { @MainActor in

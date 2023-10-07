@@ -179,7 +179,9 @@ final class BlooCore {
         log("Adding domain: \(domain), willStart: \(startAfterAdding)")
         do {
             let newDomain = try await Domain(startingAt: domain)
-            domains.append(newDomain)
+            withAnimation {
+                domains.append(newDomain)
+            }
             log("Added domain: \(domain), willStart: \(startAfterAdding)")
             if startAfterAdding {
                 await newDomain.start()

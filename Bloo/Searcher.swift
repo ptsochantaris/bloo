@@ -1,9 +1,10 @@
-import CoreSpotlight
+@preconcurrency import CoreSpotlight
 import Foundation
+import Lista
 import PopTimer
 import SwiftUI
 
-enum Search: Equatable, Codable {
+enum Search: Equatable, Codable, Sendable {
     case none, top(String), full(String)
 
     var trimmedText: String {
@@ -13,13 +14,16 @@ enum Search: Equatable, Codable {
         }
     }
 
+    @MainActor
     private static var _windowIdToSearch: [UUID: Search]?
-    private static let searchesPath = documentsPath.appendingPathComponent("searches.json", isDirectory: false)
+
+    @MainActor
     static var windowIdToSearch: [UUID: Search] {
         get {
             if let _windowIdToSearch {
                 return _windowIdToSearch
             }
+            let searchesPath = documentsPath.appendingPathComponent("searches.json", isDirectory: false)
             if let data = try? Data(contentsOf: searchesPath),
                let searches = try? JSONDecoder().decode([UUID: Search].self, from: data) {
                 _windowIdToSearch = searches
@@ -30,6 +34,7 @@ enum Search: Equatable, Codable {
         }
         set {
             _windowIdToSearch = newValue
+            let searchesPath = documentsPath.appendingPathComponent("searches.json", isDirectory: false)
             if let data = try? JSONEncoder().encode(newValue) {
                 try? data.write(to: searchesPath)
             }
@@ -38,6 +43,7 @@ enum Search: Equatable, Codable {
 }
 
 @Observable
+@MainActor
 final class Searcher {
     private var lastSearchKey = ""
     private var queryTimer: PopTimer!
@@ -49,22 +55,24 @@ final class Searcher {
         queryTimer = PopTimer(timeInterval: 0.4) { [weak self] in
             self?.resetQuery()
         }
+
+        switch searchState {
+        case .none:
+            log("searcher init")
+
+        case let .top(string):
+            log("searcher init: \(string)")
+            searchQuery = string
+            resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
+
+        case let .full(string):
+            log("searcher init: \(string)")
+            searchQuery = string
+            resetQuery(expandIfNeeded: true, onlyIfChanged: false)
+        }
+
         Task {
-            switch searchState {
-            case .none:
-                log("searcher init")
-
-            case let .top(string):
-                log("searcher init: \(string)")
-                searchQuery = string
-                resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
-
-            case let .full(string):
-                log("searcher init: \(string)")
-                searchQuery = string
-                resetQuery(expandIfNeeded: true, onlyIfChanged: false)
-            }
-            for await _ in NotificationCenter.default.notifications(named: .BlooClearSearches, object: nil) {
+            for await _ in NotificationCenter.default.notifications(named: .BlooClearSearches, object: nil).map(\.name) {
                 searchQuery = ""
             }
         }
@@ -104,10 +112,8 @@ final class Searcher {
     }
 
     func updateResultState(_ newState: ResultState) {
-        Task { @MainActor in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                resultState = newState
-            }
+        withAnimation(.easeInOut(duration: 0.3)) { [self] in
+            resultState = newState
         }
     }
 
@@ -191,43 +197,36 @@ final class Searcher {
         q.start()
 
         Task.detached { [weak self] in
-            var check = Set<String>()
-            check.reserveCapacity(chunkSize)
+            guard let self else { return }
 
-            var chunk = ContiguousArray<CSSearchableItem>()
-            chunk.reserveCapacity(chunkSize)
+            var dedup = Set<String>()
+            dedup.reserveCapacity(chunkSize)
+
+            let chunk = Lista<CSSearchableItem>()
 
             for try await result in q.results {
-                let id = result.item.uniqueIdentifier
-
-                // dedup
-                guard check.insert(id).inserted else {
-                    continue
+                let item = result.item
+                if dedup.insert(item.uniqueIdentifier).inserted {
+                    chunk.append(item)
                 }
-
-                chunk.append(result.item)
             }
 
             let results = chunk.compactMap {
                 SearchResult($0, searchTerms: searchTerms)
             }
 
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-
-                let count = results.count
-                switch count {
-                case 0:
-                    updateResultState(.noResults)
-                case 1 ..< smallChunkSize:
-                    updateResultState(.results(.limited, results))
-                default:
-                    switch newSearch {
-                    case .none, .top:
-                        updateResultState(.results(.top, results))
-                    case .full:
-                        updateResultState(.results(.all, results))
-                    }
+            let count = results.count
+            switch count {
+            case 0:
+                await updateResultState(.noResults)
+            case 1 ..< smallChunkSize:
+                await updateResultState(.results(.limited, results))
+            default:
+                switch newSearch {
+                case .none, .top:
+                    await updateResultState(.results(.top, results))
+                case .full:
+                    await updateResultState(.results(.all, results))
                 }
             }
         }
