@@ -1,5 +1,6 @@
 import CoreSpotlight
 import Foundation
+import Lista
 import SwiftUI
 #if os(iOS)
     import BackgroundTasks
@@ -17,7 +18,36 @@ final class BlooCore {
     }
 
     var runState: RunState = .stopped
-    var domainSections = [DomainSection]()
+
+    private var domains = [Domain]()
+
+    var domainSections: [DomainSection] {
+        var disposableDomainPresent = false
+        let allCases = DomainState.allCases
+
+        var buckets = [DomainState: Lista<Domain>](minimumCapacity: allCases.count)
+        for domain in domains {
+            if domain.state == .deleting {
+                disposableDomainPresent = true
+                continue
+            }
+            if let list = buckets[domain.state] {
+                list.append(domain)
+            } else {
+                buckets[domain.state] = Lista(value: domain)
+            }
+        }
+        if disposableDomainPresent {
+            domains.removeAll { $0.shouldDispose }
+        }
+        return DomainState.allCases.compactMap {
+            if let list = buckets[$0], list.count > 0 {
+                DomainSection(state: $0, domains: Array(list))
+            } else {
+                nil
+            }
+        }
+    }
 
     static let shared = BlooCore()
 
@@ -148,32 +178,14 @@ final class BlooCore {
     func addDomain(_ domain: String, startAfterAdding: Bool) async {
         log("Adding domain: \(domain), willStart: \(startAfterAdding)")
         do {
-            let newDomain = try await Domain(startingAt: domain) { [weak self] in
-                self?.sortDomains()
-            }
-            sortDomains(adding: newDomain)
+            let newDomain = try await Domain(startingAt: domain)
+            domains.append(newDomain)
             log("Added domain: \(domain), willStart: \(startAfterAdding)")
             if startAfterAdding {
                 await newDomain.start()
             }
         } catch {
             log("Error: \(error.localizedDescription)")
-        }
-    }
-
-    func sortDomains(adding newDomain: Domain? = nil) {
-        var domainList = domainSections.flatMap(\.domains)
-        if let newDomain {
-            domainList.append(newDomain)
-        }
-        let newSections = DomainState.allCases.compactMap { state -> DomainSection? in
-            let domainsForState = domainList.filter { $0.state == state }.sorted { $0.id < $1.id }
-            if domainsForState.isEmpty { return nil }
-            return DomainSection(state: state, domains: domainsForState)
-        }
-        log("Sorted sections: \(newSections.map(\.state.title).joined(separator: ", "))")
-        withAnimation(.easeInOut(duration: 0.3)) {
-            domainSections = newSections
         }
     }
 

@@ -7,11 +7,42 @@ import Semalot
 import SwiftSoup
 import SwiftUI
 
+@propertyWrapper
+struct UserDefault<Value> {
+    let key: String
+    let defaultValue: Value
+
+    var wrappedValue: Value {
+        get {
+            UserDefaults.standard.object(forKey: key) as? Value ?? defaultValue
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: key)
+        }
+    }
+}
+
 @Observable
 final class Settings {
     static let shared = Settings()
-    var indexingTaskPriority: TaskPriority = .medium
-    var maxConcurrentIndexingOperations: UInt = 0
+
+    var indexingTaskPriority = TaskPriority(rawValue: Settings.indexingTaskPriorityRaw) {
+        didSet {
+            Settings.indexingTaskPriorityRaw = indexingTaskPriority.rawValue
+        }
+    }
+
+    var maxConcurrentIndexingOperations: UInt = Settings.maxConcurrentIndexingOperationsRaw {
+        didSet {
+            Settings.maxConcurrentIndexingOperationsRaw = maxConcurrentIndexingOperations
+        }
+    }
+
+    @UserDefault(key: "indexingTaskPriorityRaw", defaultValue: TaskPriority.medium.rawValue)
+    private static var indexingTaskPriorityRaw: UInt8
+
+    @UserDefault(key: "maxConcurrentIndexingOperations", defaultValue: 0)
+    private static var maxConcurrentIndexingOperationsRaw: UInt
 }
 
 @MainActor
@@ -26,17 +57,15 @@ final class Domain: Identifiable, CrawlerDelegate {
 
     fileprivate(set) var state = DomainState.paused(0, 0, false, false) {
         didSet {
-            if oldValue != state { // only handle base enum changes
+            if oldValue != state { // only report base enum changes
                 log("Domain \(id) state is now \(state.logText)")
-                stateChangedHandler()
             }
         }
     }
 
     private let crawler: Crawler
-    private let stateChangedHandler: () -> Void
 
-    init(startingAt: String, handler: @escaping (@MainActor () -> Void)) async throws {
+    init(startingAt: String) async throws {
         let url = try URL.create(from: startingAt, relativeTo: nil, checkExtension: true)
 
         guard let id = url.host() else {
@@ -44,7 +73,6 @@ final class Domain: Identifiable, CrawlerDelegate {
         }
 
         self.id = id
-        stateChangedHandler = handler
 
         let snapshot = try await BlooCore.shared.data(for: id)
         state = snapshot.state
@@ -69,6 +97,10 @@ final class Domain: Identifiable, CrawlerDelegate {
         await crawler.remove()
     }
 
+    var shouldDispose: Bool {
+        state == .deleting
+    }
+
     private final actor Crawler {
         let id: String
         private let bootupEntry: IndexEntry
@@ -91,7 +123,14 @@ final class Domain: Identifiable, CrawlerDelegate {
         private func signalState(_ state: DomainState, onlyIfActive: Bool = false) async {
             await MainActor.run {
                 if !onlyIfActive || crawlerDelegate.state.isActive {
-                    crawlerDelegate.state = state
+                    if crawlerDelegate.state != state {
+                        // category change, animate
+                        withAnimation {
+                            crawlerDelegate.state = state
+                        }
+                    } else {
+                        crawlerDelegate.state = state
+                    }
                 }
             }
         }
@@ -203,6 +242,7 @@ final class Domain: Identifiable, CrawlerDelegate {
                 let setPriority = Settings.shared.indexingTaskPriority
                 if originalPriority != setPriority {
                     defer {
+                        log("Restarting crawler for \(id) becaues of priority change")
                         startGoTask(priority: setPriority, signalStateChange: false)
                     }
                     return

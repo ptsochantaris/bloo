@@ -668,11 +668,11 @@ private struct Admin: View {
                     AdditionSection(model: model)
                         .focused($additionFocused)
                 }
-                
+
                 if searcher.resultState.results != nil {
                     SearchSection(searcher: searcher)
                 }
-                
+
                 ForEach(model.domainSections) {
                     DomainGrid(section: $0)
                 }
