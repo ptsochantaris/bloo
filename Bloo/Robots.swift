@@ -178,29 +178,25 @@ struct Robots {
         return Robots(host: _host, sitemaps: _sitemaps, agents: _agents)
     }
 
-    func agent(_ agent: String, canProceedTo url: URL) -> Bool {
-        let location = url.path
-
+    func agent(_ agent: String, canProceedTo path: String) -> Bool {
         if let thisAgent = agents[agent.lowercased()] {
-            switch thisAgent.canProceedTo(to: location) {
+            switch thisAgent.canProceedTo(to: path) {
             case .allowed:
                 return true
             case .noComment:
                 break
             case .disallowed:
-                log("URL \(url.absoluteString) not allowed in robots.txt for Bloo")
                 return false
             }
         }
 
         if let all = agents["*"] {
-            switch all.canProceedTo(to: location) {
+            switch all.canProceedTo(to: path) {
             case .allowed:
                 return true
             case .noComment:
                 break
             case .disallowed:
-                log("URL \(url.absoluteString) not allowed in robots.txt for crawlers")
                 return false
             }
         }

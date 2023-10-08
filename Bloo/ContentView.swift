@@ -104,7 +104,7 @@ private struct DomainRow: View {
                             .bold()
                     }
                 }
-                FooterText(text: url.absoluteString)
+                FooterText(text: url)
 
             case let .paused(indexed, pending, transitioning, _):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {

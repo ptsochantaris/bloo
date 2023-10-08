@@ -76,7 +76,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
         let snapshot = try await BlooCore.shared.data(for: id)
         state = snapshot.state
-        crawler = try await Crawler(id: id, url: url, pending: snapshot.pending, indexed: snapshot.indexed)
+        crawler = try await Crawler(id: id, url: url.absoluteString, pending: snapshot.pending, indexed: snapshot.indexed)
 
         crawler.crawlerDelegate = self
     }
@@ -110,11 +110,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private var indexed: OrderedCollections.OrderedSet<IndexEntry>
         private var spotlightQueue = [CSSearchableItem]()
         private var goTask: Task<Void, Never>?
+        private var rejectionCache = Set<String>()
 
         @MainActor
         fileprivate weak var crawlerDelegate: CrawlerDelegate!
 
-        fileprivate init(id: String, url: URL, pending: OrderedCollections.OrderedSet<IndexEntry>, indexed: OrderedCollections.OrderedSet<IndexEntry>) async throws {
+        fileprivate init(id: String, url: String, pending: OrderedCollections.OrderedSet<IndexEntry>, indexed: OrderedCollections.OrderedSet<IndexEntry>) async throws {
             self.id = id
             bootupEntry = .pending(url: url, isSitemap: false)
             self.indexed = indexed
@@ -185,12 +186,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             log("Domain deleted: \(id)")
         }
 
-        private func parseSitemap(at url: URL) async {
+        private func parseSitemap(at url: String) async {
             guard let xmlData = try? await Network.getData(from: url).0 else {
-                log("Failed to fetch sitemap data from \(url.absoluteString)")
+                log("Failed to fetch sitemap data from \(url)")
                 return
             }
-            log("Fetched sitemap from \(url.absoluteString)")
+            log("Fetched sitemap from \(url)")
             var (newUrls, newSitemaps) = await SitemapParser(data: xmlData).extract()
 
             log("\(id): Considering \(newSitemaps.count) further sitemap URLs")
@@ -217,8 +218,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
         private func scanRobots() async {
             log("\(id) - Scanning robots.txt")
-            if let url = URL(string: "https://\(id)/robots.txt"),
-               let data = try? await Network.getData(from: url).0,
+            let url = "https://\(id)/robots.txt"
+            if let data = try? await Network.getData(from: url).0,
                let robotText = String(data: data, encoding: .utf8) {
                 robots = Robots.parse(robotText)
             }
@@ -239,12 +240,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             await scanRobots()
 
             if indexed.isEmpty {
-                if let url = URL(string: "https://\(id)/sitemap.xml") {
-                    pending.append(.pending(url: url, isSitemap: true))
-                }
+                let url = "https://\(id)/sitemap.xml"
+                pending.append(.pending(url: url, isSitemap: true))
+
                 if let providedSitemaps = robots?.sitemaps {
                     let sitemapEntries = providedSitemaps
-                        .compactMap { URL(string: $0) }
                         .map { IndexEntry.pending(url: $0, isSitemap: true) }
                     pending.formUnion(sitemapEntries)
                 }
@@ -358,10 +358,14 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }()
 
         private func index(page entry: IndexEntry) async -> CSSearchableItem? {
-            let site = entry.url
-            let link = site.absoluteString
+            let link = entry.url
 
-            await signalState(.indexing(indexed.count, pending.count, site), onlyIfActive: true)
+            guard let site = URL(string: link) else {
+                log("Malformed URL: \(link)")
+                return nil
+            }
+
+            await signalState(.indexing(indexed.count, pending.count, link), onlyIfActive: true)
 
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
@@ -427,12 +431,19 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             let links = (try? htmlDoc.select("a[href]").compactMap { try? $0.attr("href") }) ?? []
             var newUrls = Set<IndexEntry>()
-            for link in links {
-                if let newUrl = try? URL.create(from: link, relativeTo: site, checkExtension: true),
-                   newUrl.host()?.hasSuffix(id) == true,
-                   site != newUrl,
-                   robots?.agent("Bloo", canProceedTo: newUrl) ?? true {
-                    newUrls.insert(.pending(url: newUrl, isSitemap: false))
+            for newLink in links.map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }) {
+                if let newUrl = try? URL.create(from: newLink, relativeTo: site, checkExtension: true), newUrl.host()?.hasSuffix(id) == true {
+                    let newUrlString = newUrl.absoluteString
+                    if rejectionCache.contains(newUrlString) {
+                        // log("rejection cache hit: \(newUrlString)")
+                    } else {
+                        if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrl.path) ?? true {
+                            newUrls.insert(.pending(url: newUrlString, isSitemap: false))
+                        } else {
+                            rejectionCache.insert(newUrlString)
+                            log("\(id) added rejected URL: \(newUrlString) - total: \(rejectionCache.count)")
+                        }
+                    }
                 }
             }
 
@@ -501,7 +512,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
             }
 
-            indexed.append(.visited(url: site, lastModified: lastModified))
+            indexed.append(.visited(url: link, lastModified: lastModified))
             pending.formUnion(newUrls.subtracting(indexed))
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)

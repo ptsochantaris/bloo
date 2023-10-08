@@ -1,7 +1,7 @@
 import Foundation
 
 enum IndexEntry: Codable, Hashable, Sendable {
-    case pending(url: URL, isSitemap: Bool), visited(url: URL, lastModified: Date?)
+    case pending(url: String, isSitemap: Bool), visited(url: String, lastModified: Date?)
 
     func hash(into hasher: inout Hasher) {
         switch self {
@@ -10,7 +10,7 @@ enum IndexEntry: Codable, Hashable, Sendable {
         }
     }
 
-    var url: URL {
+    var url: String {
         switch self {
         case let .pending(url, _), let .visited(url, _):
             url

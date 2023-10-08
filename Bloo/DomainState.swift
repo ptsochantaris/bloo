@@ -10,10 +10,10 @@ enum DomainState: CaseIterable, Codable, Hashable {
         hasher.combine(title)
     }
 
-    case loading(Int), paused(Int, Int, Bool, Bool), indexing(Int, Int, URL), done(Int), deleting
+    case loading(Int), paused(Int, Int, Bool, Bool), indexing(Int, Int, String), done(Int), deleting
 
     static var allCases: [DomainState] {
-        [.loading(0), .indexing(0, 0, URL(filePath: "")), .paused(0, 0, false, false), .done(0)]
+        [.loading(0), .indexing(0, 0, ""), .paused(0, 0, false, false), .done(0)]
     }
 
     @ViewBuilder
