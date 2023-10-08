@@ -216,7 +216,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         // TODO: Run update scans; use if-last-modified in HEAD requests, if available, and weed out the 304s
 
         private func scanRobots() async {
-            // TODO:
+            log("\(id) - Scanning robots.txt")
             if let url = URL(string: "https://\(id)/robots.txt"),
                let data = try? await Network.getData(from: url).0,
                let robotText = String(data: data, encoding: .utf8) {

@@ -651,16 +651,11 @@ private struct ModelStateFeedback: View {
 @MainActor
 private struct Admin: View {
     let model: BlooCore
+    @Bindable var searcher: Searcher
 
     @State private var showAddition = false
     @State private var searchFocused = false
     @FocusState private var additionFocused: Bool
-    @Bindable private var searcher: Searcher
-
-    init(model: BlooCore, windowId: UUID) {
-        self.model = model
-        searcher = Searcher(windowId: windowId)
-    }
 
     var body: some View {
         ScrollView {
@@ -709,21 +704,27 @@ private struct Admin: View {
     }
 }
 
+@MainActor
 struct ContentView: View {
-    let model: BlooCore
-    let windowId: UUID
+    private let model: BlooCore
+    private let searcher: Searcher
+
+    init(model: BlooCore, windowId: UUID) {
+        self.model = model
+        searcher = Searcher(windowId: windowId)
+    }
 
     var body: some View {
         #if os(macOS)
             NavigationStack {
-                Admin(model: model, windowId: windowId)
+                Admin(model: model, searcher: searcher)
             }
             .overlay {
                 ModelStateFeedback(model: model)
             }
         #elseif os(iOS)
             NavigationStack {
-                Admin(model: model, windowId: windowId)
+                Admin(model: model, searcher: searcher)
                     .background(Color.background)
                     .scrollDismissesKeyboard(.immediately)
             }

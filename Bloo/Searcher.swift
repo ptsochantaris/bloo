@@ -56,22 +56,22 @@ final class Searcher {
             self?.resetQuery()
         }
 
-        switch searchState {
-        case .none:
-            log("searcher init")
-
-        case let .top(string):
-            log("searcher init: \(string)")
-            searchQuery = string
-            resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
-
-        case let .full(string):
-            log("searcher init: \(string)")
-            searchQuery = string
-            resetQuery(expandIfNeeded: true, onlyIfChanged: false)
-        }
-
         Task {
+            switch searchState {
+            case .none:
+                log("searcher init")
+
+            case let .top(string):
+                log("searcher init: \(string)")
+                searchQuery = string
+                resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
+
+            case let .full(string):
+                log("searcher init: \(string)")
+                searchQuery = string
+                resetQuery(expandIfNeeded: true, onlyIfChanged: false)
+            }
+
             for await _ in NotificationCenter.default.notifications(named: .BlooClearSearches, object: nil).map(\.name) {
                 searchQuery = ""
             }
@@ -81,6 +81,7 @@ final class Searcher {
     var searchQuery = "" {
         didSet {
             if searchQuery != oldValue {
+                log("Search query changed: \(searchQuery)")
                 queryTimer.push()
             }
         }
