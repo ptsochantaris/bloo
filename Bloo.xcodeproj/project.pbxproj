@@ -30,6 +30,7 @@
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
 		16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */; };
 		16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 16E8A0F72AC1F9B500CCB10D /* SwiftSoup */; };
+		16FBCC112AD1D7C300A5A14E /* Robots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FBCC102AD1D7C300A5A14E /* Robots.swift */; };
 		16FD23352AC3A5A600751A85 /* Maintini in Frameworks */ = {isa = PBXBuildFile; productRef = 16FD23342AC3A5A600751A85 /* Maintini */; };
 		16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */ = {isa = PBXBuildFile; productRef = 16FD23372AC43D0F00751A85 /* PopTimer */; };
 		16FD233A2AC4867D00751A85 /* NSImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD23392AC4867D00751A85 /* NSImage+Extensions.swift */; };
@@ -61,6 +62,7 @@
 		16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		16E8A0F02AC1F96600CCB10D /* Bloo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Bloo.entitlements; sourceTree = "<group>"; };
 		16E8A0F92AC2161000CCB10D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		16FBCC102AD1D7C300A5A14E /* Robots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Robots.swift; sourceTree = "<group>"; };
 		16FD23392AC4867D00751A85 /* NSImage+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSImage+Extensions.swift"; sourceTree = "<group>"; };
 		16FD233B2AC5CD1600751A85 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
 		16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+Extensions.swift"; sourceTree = "<group>"; };
@@ -136,6 +138,7 @@
 				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
 				163C45F32ACF610C00103BEA /* Searcher.swift */,
 				16E3EF5A2AD0881D00CF9B80 /* Network.swift */,
+				16FBCC102AD1D7C300A5A14E /* Robots.swift */,
 			);
 			path = Bloo;
 			sourceTree = "<group>";
@@ -239,6 +242,7 @@
 				1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */,
 				16E3EF5B2AD0881D00CF9B80 /* Network.swift in Sources */,
 				165F10C62AC880DC00442892 /* DomainSection.swift in Sources */,
+				16FBCC112AD1D7C300A5A14E /* Robots.swift in Sources */,
 				1634CF972AC365D90022A8F6 /* Domain.swift in Sources */,
 				1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */,
 				16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */,
@@ -387,7 +391,7 @@
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = X727JSJUGJ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -421,7 +425,7 @@
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = X727JSJUGJ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;

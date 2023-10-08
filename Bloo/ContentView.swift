@@ -706,12 +706,6 @@ private struct Admin: View {
                 }
             }
         }
-        #if os(macOS)
-        .task {
-            await Task.yield()
-            searchFocused = true
-        }
-        #endif
     }
 }
 

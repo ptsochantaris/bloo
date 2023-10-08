@@ -104,6 +104,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
     private final actor Crawler {
         let id: String
         private let bootupEntry: IndexEntry
+        private var robots: Robots?
 
         private var pending: OrderedCollections.OrderedSet<IndexEntry>
         private var indexed: OrderedCollections.OrderedSet<IndexEntry>
@@ -212,6 +213,17 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
         private static let requestLock = Semalot(tickets: 1)
 
+        // TODO: Run update scans; use if-last-modified in HEAD requests, if available, and weed out the 304s
+
+        private func scanRobots() async {
+            // TODO:
+            if let url = URL(string: "https://\(id)/robots.txt"),
+               let data = try? await Network.getData(from: url).0,
+               let robotText = String(data: data, encoding: .utf8) {
+                robots = Robots.parse(robotText)
+            }
+        }
+
         private func go(signalStateChange: Bool) async {
             await Maintini.startMaintaining()
             defer {
@@ -220,9 +232,21 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
             }
 
+            if signalStateChange {
+                await signalState(.loading(pending.count))
+            }
+
+            await scanRobots()
+
             if indexed.isEmpty {
                 if let url = URL(string: "https://\(id)/sitemap.xml") {
                     pending.append(.pending(url: url, isSitemap: true))
+                }
+                if let providedSitemaps = robots?.sitemaps {
+                    let sitemapEntries = providedSitemaps
+                        .compactMap { URL(string: $0) }
+                        .map { IndexEntry.pending(url: $0, isSitemap: true) }
+                    pending.formUnion(sitemapEntries)
                 }
                 pending.append(bootupEntry)
             }
@@ -334,9 +358,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }()
 
         private func index(page entry: IndexEntry) async -> CSSearchableItem? {
-            // TODO: robots.txt
-            // TODO: Run update scans; use if-last-modified in HEAD requests, if available, and weed out the 304s
-
             let site = entry.url
             let link = site.absoluteString
 
@@ -409,7 +430,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             for link in links {
                 if let newUrl = try? URL.create(from: link, relativeTo: site, checkExtension: true),
                    newUrl.host()?.hasSuffix(id) == true,
-                   site != newUrl {
+                   site != newUrl,
+                   robots?.agent("Bloo", canProceedTo: newUrl) ?? true {
                     newUrls.insert(.pending(url: newUrl, isSitemap: false))
                 }
             }

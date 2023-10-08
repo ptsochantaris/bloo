@@ -16,9 +16,9 @@ extension URL {
             throw Blooper.malformedUrl
         }
 
-        if host.hasPrefix("ci.") || host.hasPrefix("api.") || host.hasPrefix("mastodon.") {
-            throw Blooper.blockedUrl
-        }
+        /* if host.hasPrefix("ci.") || host.hasPrefix("api.") || host.hasPrefix("mastodon.") {
+             throw Blooper.blockedUrl
+         } */
 
         let result: URL
         if relativeTo == nil {
