@@ -58,7 +58,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
     fileprivate(set) var state = DomainState.paused(0, 0, false, false) {
         didSet {
             if oldValue != state { // only report base enum changes
-                log("Domain \(id) state is now \(state.logText)")
+                Log.crawling(id, .default).log("Domain \(id) state is now \(state.logText)")
             }
         }
     }
@@ -168,7 +168,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             if await currentState.isActive {
                 return
             }
-            log("Resetting domain \(id)")
+            Log.crawling(id, .default).log("Resetting domain \(id)")
             pending.removeAll()
             indexed.removeAll()
             await BlooCore.shared.clearDomainSpotlight(for: id)
@@ -184,33 +184,37 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         deinit {
-            log("Domain deleted: \(id)")
+            Log.crawling(id, .default).log("Domain deleted: \(id)")
         }
 
         private func parseSitemap(at url: String) async {
             guard let xmlData = try? await Network.getData(from: url).0 else {
-                log("Failed to fetch sitemap data from \(url)")
+                Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
                 return
             }
-            log("Fetched sitemap from \(url)")
-            var (newUrls, newSitemaps) = await SitemapParser(data: xmlData).extract()
+            Log.crawling(id, .default).log("Fetched sitemap from \(url)")
+            do {
+                var (newUrls, newSitemaps) = try await SitemapParser(data: xmlData).extract()
+                Log.crawling(id, .default).log("Considering \(newSitemaps.count) further sitemap URLs")
+                newSitemaps.subtract(indexed)
+                newSitemaps.remove(.pending(url: url, isSitemap: true))
+                if newSitemaps.isPopulated {
+                    Log.crawling(id, .default).log("Adding \(newSitemaps.count) unindexed URLs from sitemap")
+                    pending.formUnion(newSitemaps)
+                }
 
-            log("\(id): Considering \(newSitemaps.count) further sitemap URLs")
-            newSitemaps.subtract(indexed)
-            newSitemaps.remove(.pending(url: url, isSitemap: true))
-            if newSitemaps.isPopulated {
-                log("\(id): Adding \(newSitemaps.count) unindexed URLs from sitemap")
-                pending.formUnion(newSitemaps)
+                Log.crawling(id, .default).log("Considering \(newUrls.count) potential URLs from sitemap")
+                newUrls.subtract(indexed)
+                if newUrls.isPopulated {
+                    Log.crawling(id, .default).log("Adding \(newUrls.count) unindexed URLs from sitemap")
+                    pending.formUnion(newUrls)
+                }
+
+                await signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
+
+            } catch {
+                Log.crawling(id, .error).log("XML Parser error in \(url)")
             }
-
-            log("\(id): Considering \(newUrls.count) potential URLs from sitemap")
-            newUrls.subtract(indexed)
-            if newUrls.isPopulated {
-                log("\(id): Adding \(newUrls.count) unindexed URLs from sitemap")
-                pending.formUnion(newUrls)
-            }
-
-            await signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
         }
 
         private static let requestLock = Semalot(tickets: 1)
@@ -218,8 +222,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         // TODO: Run update scans; use if-last-modified in HEAD requests, if available, and weed out the 304s
 
         private func scanRobots() async {
-            log("\(id) - Scanning robots.txt")
             let url = "https://\(id)/robots.txt"
+            Log.crawling(id, .default).log("\(id) - Scanning \(url)")
             if let data = try? await Network.getData(from: url).0,
                let robotText = String(data: data, encoding: .utf8) {
                 robots = Robots.parse(robotText)
@@ -266,7 +270,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 let setPriority = Settings.shared.indexingTaskPriority
                 if originalPriority != setPriority {
                     defer {
-                        log("Restarting crawler for \(id) becaues of priority change")
+                        Log.crawling(id, .default).log("Restarting crawler for \(id) becaues of priority change")
                         startGoTask(priority: setPriority, signalStateChange: false)
                     }
                     return
@@ -287,7 +291,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                         spotlightQueue.append(newItem)
                     }
                 case .visited:
-                    log("Warning: Already visited entry showed up in the `pending` list")
+                    Log.crawling(id, .error).log("Warning: Already visited entry showed up in the `pending` list")
                 }
 
                 // Detect stop
@@ -311,7 +315,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
                         await signalState(.paused(x, y, false, resumeOnLaunch))
                     }
-                    log("\(id): Stopping crawl because of app action")
+                    Log.crawling(id, .default).log("Stopping crawl because of app action")
                     await snapshot()
                     if willThrottle {
                         Self.requestLock.returnTicket()
@@ -320,14 +324,14 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
             }
 
-            log("\(id): Stopping crawl because of completion")
+            Log.crawling(id, .default).log("Stopping crawl because of completion")
             await signalState(.done(indexed.count))
             await snapshot()
         }
 
         private func snapshot() async {
             let state = await currentState
-            log("Snapshotting \(id) with state \(state)")
+            Log.storage(.default).log("Snapshotting \(id) with state \(state)")
             let item = Snapshot(id: id,
                                 state: state,
                                 items: spotlightQueue,
@@ -362,7 +366,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let link = entry.url
 
             guard let site = URL(string: link) else {
-                log("Malformed URL: \(link)")
+                Log.crawling(id, .error).log("Malformed URL: \(link)")
                 return nil
             }
 
@@ -372,32 +376,32 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             headRequest.httpMethod = "head"
 
             guard let response = try? await Network.getData(for: headRequest).1 else {
-                log("No HEAD response from \(link)")
+                Log.crawling(id, .error).log("No HEAD response from \(link)")
                 return nil
             }
 
             guard let mimeType = response.mimeType, mimeType.hasPrefix("text/html") else {
-                log("Not HTML in \(link)")
+                Log.crawling(id, .error).log("Not HTML in \(link)")
                 return nil
             }
 
             guard let contentResult = try? await Network.getData(from: site) else {
-                log("No content response from \(link)")
+                Log.crawling(id, .error).log("No content response from \(link)")
                 return nil
             }
 
             guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
-                log("Cannot decode text from \(link)")
+                Log.crawling(id, .error).log("Cannot decode text from \(link)")
                 return nil
             }
 
             guard let htmlDoc = try? SwiftSoup.parse(documentText, link) else {
-                log("Cannot parse HTML from \(link)")
+                Log.crawling(id, .error).log("Cannot parse HTML from \(link)")
                 return nil
             }
 
             guard let header = htmlDoc.head() else {
-                log("Cannot parse header from \(link)")
+                Log.crawling(id, .error).log("Cannot parse header from \(link)")
                 return nil
             }
 
@@ -407,12 +411,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             } else if let foundTitle = header.metaPropertyContent(for: "og:title") {
                 title = foundTitle
             } else {
-                log("No title located at \(link)")
+                Log.crawling(id, .error).log("No title located at \(link)")
                 return nil
             }
 
             guard let textContent = try? htmlDoc.body()?.text() else {
-                log("Cannot parse text in \(link)")
+                Log.crawling(id, .error).log("Cannot parse text in \(link)")
                 return nil
             }
 
@@ -445,7 +449,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     let rejectionCount = rejectionCache.count
                     if rejectionCount > 400 {
                         rejectionCache.elements.move(fromOffsets: IndexSet(integer: index), toOffset: rejectionCount)
-                        log("\(id) promoted rejected URL: \(newUrlString) - total: \(rejectionCount)")
+                        Log.crawling(id, .default).log("\(id) promoted rejected URL: \(newUrlString) - total: \(rejectionCount)")
                     }
                 } else {
                     if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrlString) ?? true {
@@ -456,7 +460,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                         // log("\(id) added rejected URL: \(newUrlString) - total: \(rejectionCount)")
                         if rejectionCount == 500 {
                             rejectionCache = OrderedSet(rejectionCache.suffix(300))
-                            log("\(id) Trimmed rejection cache: \(rejectionCache.count)")
+                            Log.crawling(id, .default).log("\(id) Trimmed rejection cache: \(rejectionCache.count)")
                         }
                     }
                 }
@@ -529,6 +533,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             indexed.append(.visited(url: link, lastModified: lastModified))
             pending.formUnion(newUrls.subtracting(indexed))
+
+            Log.crawling(id, .info).log("Indexed URL: \(link)")
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)
             attributes.keywords = keywords

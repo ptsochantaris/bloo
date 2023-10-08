@@ -59,15 +59,15 @@ final class Searcher {
         Task {
             switch searchState {
             case .none:
-                log("searcher init")
+                Log.search(.default).log("Initialised")
 
             case let .top(string):
-                log("searcher init: \(string)")
+                Log.search(.default).log("Initialised: \(string) - top results")
                 searchQuery = string
                 resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
 
             case let .full(string):
-                log("searcher init: \(string)")
+                Log.search(.default).log("Initialised: \(string) - full results")
                 searchQuery = string
                 resetQuery(expandIfNeeded: true, onlyIfChanged: false)
             }
@@ -81,7 +81,7 @@ final class Searcher {
     var searchQuery = "" {
         didSet {
             if searchQuery != oldValue {
-                log("Search query changed: \(searchQuery)")
+                Log.search(.default).log("Search query changed: \(searchQuery)")
                 queryTimer.push()
             }
         }
@@ -158,7 +158,7 @@ final class Searcher {
         searchState = newSearch
 
         if let q = currentQuery {
-            log("Stopping current query")
+            Log.search(.default).log("Stopping current query")
             q.cancel()
             currentQuery = nil
         }
@@ -177,7 +177,7 @@ final class Searcher {
             chunkSize = 1000
             searchText = text
         }
-        log("Starting new query: '\(searchText)'")
+        Log.search(.default).log("Starting new query: '\(searchText)'")
         let searchTerms = searchText.split(separator: " ").map { String($0) }
 
         switch resultState {

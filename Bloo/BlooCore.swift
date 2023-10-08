@@ -67,7 +67,7 @@ final class BlooCore {
             do {
                 try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [domainId])
             } catch {
-                log("Error clearing domain \(domainId): \(error.localizedDescription)")
+                Log.app(.error).log("Error clearing domain \(domainId): \(error.localizedDescription)")
             }
         }
     }
@@ -161,9 +161,9 @@ final class BlooCore {
                 }
             }
         }
-        log("All domains are shut down")
+        Log.app(.default).log("All domains are shut down")
         await snapshotter.shutdown()
-        log("Snapshots and model are now shut down")
+        Log.app(.default).log("Snapshots and model are now shut down")
         try? await Task.sleep(for: .milliseconds(300))
     }
 
@@ -176,25 +176,24 @@ final class BlooCore {
     }
 
     func addDomain(_ domain: String, startAfterAdding: Bool) async {
-        log("Adding domain: \(domain), willStart: \(startAfterAdding)")
         do {
             let newDomain = try await Domain(startingAt: domain)
             withAnimation {
                 domains.append(newDomain)
             }
-            log("Added domain: \(domain), willStart: \(startAfterAdding)")
+            Log.app(.default).log("Added domain: \(domain), willStart: \(startAfterAdding)")
             if startAfterAdding {
                 await newDomain.start()
             }
         } catch {
-            log("Error: \(error.localizedDescription)")
+            Log.app(.error).log("Error: \(error.localizedDescription)")
         }
     }
 
     init() {
         guard CSSearchableIndex.isIndexingAvailable() else {
             // TODO:
-            log("Spotlight not available")
+            Log.app(.error).log("Spotlight not available")
             return
         }
 

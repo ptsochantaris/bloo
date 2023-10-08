@@ -2,10 +2,9 @@ import Foundation
 
 final class SitemapParser: NSObject, XMLParserDelegate {
     private let parser: XMLParser
-    private let (locationHose, continuation) = AsyncStream<URL>.makeStream()
+    private let (locationHose, continuation) = AsyncThrowingStream<URL, Error>.makeStream()
 
     private var inLoc = false
-    private var running = false
 
     init(data: Data) {
         parser = XMLParser(data: data)
@@ -13,12 +12,11 @@ final class SitemapParser: NSObject, XMLParserDelegate {
         parser.delegate = self
     }
 
-    func extract() async -> (siteLocations: Set<IndexEntry>, xmlLocations: Set<IndexEntry>) {
-        running = true
+    func extract() async throws -> (siteLocations: Set<IndexEntry>, xmlLocations: Set<IndexEntry>) {
         parser.parse()
         var siteLocations = Set<IndexEntry>()
         var xmlUrls = Set<IndexEntry>()
-        for await url in locationHose {
+        for try await url in locationHose {
             if url.pathExtension.caseInsensitiveCompare("xml") == .orderedSame {
                 xmlUrls.insert(.pending(url: url.absoluteString, isSitemap: true))
             } else {
@@ -42,13 +40,10 @@ final class SitemapParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_: XMLParser, parseErrorOccurred parseError: Error) {
-        log("XML parser error: \(parseError.localizedDescription)")
-        running = false
-        continuation.finish()
+        continuation.finish(throwing: parseError)
     }
 
     func parserDidEndDocument(_: XMLParser) {
-        running = false
         continuation.finish()
     }
 }
