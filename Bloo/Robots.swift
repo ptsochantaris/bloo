@@ -178,7 +178,11 @@ struct Robots {
         return Robots(host: _host, sitemaps: _sitemaps, agents: _agents)
     }
 
-    func agent(_ agent: String, canProceedTo path: String) -> Bool {
+    func agent(_ agent: String, canProceedTo url: String) -> Bool {
+        guard let path = URL(string: url)?.path else {
+            return false
+        }
+
         if let thisAgent = agents[agent.lowercased()] {
             switch thisAgent.canProceedTo(to: path) {
             case .allowed:

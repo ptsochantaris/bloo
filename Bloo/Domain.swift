@@ -110,7 +110,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private var indexed: OrderedCollections.OrderedSet<IndexEntry>
         private var spotlightQueue = [CSSearchableItem]()
         private var goTask: Task<Void, Never>?
-        private var rejectionCache = Set<String>()
+
+        private var rejectionCache = OrderedCollections.OrderedSet<String>()
 
         @MainActor
         fileprivate weak var crawlerDelegate: CrawlerDelegate!
@@ -429,19 +430,33 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             let contentDescription = header.metaPropertyContent(for: "og:description")
 
-            let links = (try? htmlDoc.select("a[href]").compactMap { try? $0.attr("href") }) ?? []
             var newUrls = Set<IndexEntry>()
-            for newLink in links.map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }) {
-                if let newUrl = try? URL.create(from: newLink, relativeTo: site, checkExtension: true), newUrl.host()?.hasSuffix(id) == true {
-                    let newUrlString = newUrl.absoluteString
-                    if rejectionCache.contains(newUrlString) {
-                        // log("rejection cache hit: \(newUrlString)")
+
+            var uniqued = Set<String>()
+            let links = try? htmlDoc.select("a[href]")
+                .compactMap { try? $0.attr("href").trimmingCharacters(in: .whitespacesAndNewlines) }
+                .compactMap { try? URL.create(from: $0, relativeTo: site, checkExtension: true) }
+                .filter { $0.host()?.hasSuffix(id) == true }
+                .map(\.absoluteString)
+                .filter { uniqued.insert($0).inserted }
+
+            for newUrlString in links ?? [] {
+                if let index = rejectionCache.firstIndex(of: newUrlString) {
+                    let rejectionCount = rejectionCache.count
+                    if rejectionCount > 400 {
+                        rejectionCache.elements.move(fromOffsets: IndexSet(integer: index), toOffset: rejectionCount)
+                        log("\(id) promoted rejected URL: \(newUrlString) - total: \(rejectionCount)")
+                    }
+                } else {
+                    if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrlString) ?? true {
+                        newUrls.insert(.pending(url: newUrlString, isSitemap: false))
                     } else {
-                        if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrl.path) ?? true {
-                            newUrls.insert(.pending(url: newUrlString, isSitemap: false))
-                        } else {
-                            rejectionCache.insert(newUrlString)
-                            log("\(id) added rejected URL: \(newUrlString) - total: \(rejectionCache.count)")
+                        rejectionCache.append(newUrlString)
+                        let rejectionCount = rejectionCache.count
+                        // log("\(id) added rejected URL: \(newUrlString) - total: \(rejectionCount)")
+                        if rejectionCount == 500 {
+                            rejectionCache = OrderedSet(rejectionCache.suffix(300))
+                            log("\(id) Trimmed rejection cache: \(rejectionCache.count)")
                         }
                     }
                 }
