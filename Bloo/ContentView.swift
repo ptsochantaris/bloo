@@ -306,7 +306,7 @@ private struct AdditionRow: View {
 }
 
 private struct DomainHeader: View {
-    let section: DomainSection
+    let section: Domain.Section
     @State private var actioning = false
 
     var body: some View {
@@ -356,7 +356,7 @@ private struct DomainHeader: View {
 }
 
 private struct DomainGrid: View {
-    let section: DomainSection
+    let section: Domain.Section
 
     var body: some View {
         if section.domains.isPopulated {

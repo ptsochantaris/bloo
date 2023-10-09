@@ -47,7 +47,7 @@ final class Settings {
 
 @MainActor
 private protocol CrawlerDelegate: AnyObject {
-    var state: DomainState { get set }
+    var state: Domain.State { get set }
 }
 
 @MainActor
@@ -55,7 +55,7 @@ private protocol CrawlerDelegate: AnyObject {
 final class Domain: Identifiable, CrawlerDelegate, Sendable {
     let id: String
 
-    fileprivate(set) var state = DomainState.paused(0, 0, false, false) {
+    fileprivate(set) var state = State.paused(0, 0, false, false) {
         didSet {
             if oldValue != state { // only report base enum changes
                 Log.crawling(id, .default).log("Domain \(id) state is now \(state.logText)")
@@ -123,7 +123,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             self.pending = pending
         }
 
-        private func signalState(_ state: DomainState, onlyIfActive: Bool = false) async {
+        private func signalState(_ state: State, onlyIfActive: Bool = false) async {
             await MainActor.run {
                 if !onlyIfActive || crawlerDelegate.state.isActive {
                     if crawlerDelegate.state != state {
@@ -139,7 +139,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         @MainActor
-        private var currentState: DomainState {
+        private var currentState: State {
             crawlerDelegate.state
         }
 
@@ -156,7 +156,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func pause(resumable: Bool) async {
-            let newState = DomainState.paused(indexed.count, pending.count, true, resumable)
+            let newState = State.paused(indexed.count, pending.count, true, resumable)
             if let g = goTask {
                 await signalState(newState)
                 goTask = nil
@@ -332,11 +332,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private func snapshot() async {
             let state = await currentState
             Log.storage(.default).log("Snapshotting \(id) with state \(state)")
-            let item = Snapshot(id: id,
-                                state: state,
-                                items: spotlightQueue,
-                                pending: pending,
-                                indexed: indexed)
+            let item = Snapshotter.Snapshot(id: id,
+                                            state: state,
+                                            items: spotlightQueue,
+                                            pending: pending,
+                                            indexed: indexed)
             spotlightQueue.removeAll(keepingCapacity: true)
             await BlooCore.shared.queueSnapshot(item: item)
         }

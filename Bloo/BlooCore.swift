@@ -21,11 +21,11 @@ final class BlooCore {
 
     private var domains = [Domain]()
 
-    var domainSections: [DomainSection] {
+    var domainSections: [Domain.Section] {
         var disposableDomainPresent = false
-        let allCases = DomainState.allCases
+        let allCases = Domain.State.allCases
 
-        var buckets = [DomainState: Lista<Domain>](minimumCapacity: allCases.count)
+        var buckets = [Domain.State: Lista<Domain>](minimumCapacity: allCases.count)
         for domain in domains {
             if domain.state == .deleting {
                 disposableDomainPresent = true
@@ -40,9 +40,9 @@ final class BlooCore {
         if disposableDomainPresent {
             domains.removeAll { $0.shouldDispose }
         }
-        return DomainState.allCases.compactMap {
+        return Domain.State.allCases.compactMap {
             if let list = buckets[$0], list.count > 0 {
-                DomainSection(state: $0, domains: Array(list))
+                Domain.Section(state: $0, domains: Array(list))
             } else {
                 nil
             }
@@ -51,14 +51,14 @@ final class BlooCore {
 
     static let shared = BlooCore()
 
-    private var snapshotter = Snapshotter()
+    private let snapshotter = Snapshotter()
     private var initialisedViaLaunch = false
 
     private func clearSearches() {
         NotificationCenter.default.post(name: .BlooClearSearches, object: nil)
     }
 
-    func queueSnapshot(item: Snapshot) {
+    func queueSnapshot(item: Snapshotter.Snapshot) {
         snapshotter.queue(item)
     }
 
@@ -72,7 +72,7 @@ final class BlooCore {
         }
     }
 
-    func data(for id: String) async throws -> Snapshot {
+    func data(for id: String) async throws -> Snapshotter.Snapshot {
         try await snapshotter.data(for: id)
     }
 
