@@ -22,7 +22,7 @@ struct DomainSection: Identifiable {
 
     func resumeAll() async {
         await allDomains {
-            if case let .paused(_, _, _, resumable) = await $0.state, resumable {
+            if await $0.state.shouldResume {
                 await $0.start()
             }
         }

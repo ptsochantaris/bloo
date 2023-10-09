@@ -110,14 +110,6 @@ final class BlooCore {
         initialisedViaLaunch = true
         runState = .running
         snapshotter.start()
-
-        await withTaskGroup(of: Void.self) { group in
-            for section in domainSections where section.state.canStart {
-                group.addTask {
-                    await section.resumeAll()
-                }
-            }
-        }
     }
 
     var isRunningAndBusy: Bool {
@@ -175,14 +167,25 @@ final class BlooCore {
         }
     }
 
-    func addDomain(_ domain: String, startAfterAdding: Bool) async {
+    enum PostAddAction {
+        case none, start, resumeIfNeeded
+    }
+
+    func addDomain(_ domain: String, postAddAction: PostAddAction) async {
         do {
             let newDomain = try await Domain(startingAt: domain)
             withAnimation {
                 domains.append(newDomain)
             }
-            Log.app(.default).log("Added domain: \(domain), willStart: \(startAfterAdding)")
-            if startAfterAdding {
+            Log.app(.default).log("Added domain: \(domain), postAddAction: \(postAddAction)")
+            switch postAddAction {
+            case .none:
+                break
+            case .resumeIfNeeded:
+                if newDomain.state.shouldResume {
+                    await newDomain.start()
+                }
+            case .start:
                 await newDomain.start()
             }
         } catch {
@@ -197,20 +200,21 @@ final class BlooCore {
             return
         }
 
-        let directoryList = (try? FileManager.default.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
-        let entryPoints = directoryList
-            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
-            .map { "https://\($0.lastPathComponent)" }
-
         Task {
+            await start(fromInitialiser: true)
+
+            let directoryList = (try? FileManager.default.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+            let domainIds = directoryList
+                .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+                .map { "https://\($0.lastPathComponent)" }
+
             await withTaskGroup(of: Void.self) { group in
-                for domain in entryPoints {
+                for domainId in domainIds {
                     group.addTask {
-                        await self.addDomain(domain, startAfterAdding: false) // the start call will start these
+                        await self.addDomain(domainId, postAddAction: .resumeIfNeeded)
                     }
                 }
             }
-            await start(fromInitialiser: true)
         }
     }
 

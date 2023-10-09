@@ -41,6 +41,15 @@ enum DomainState: CaseIterable, Codable, Hashable {
         }
     }
 
+    var shouldResume: Bool {
+        switch self {
+        case let .paused(_, _, _, reusumable):
+            reusumable
+        case .deleting, .done, .indexing, .loading:
+            false
+        }
+    }
+
     var canRestart: Bool {
         switch self {
         case .done, .paused:

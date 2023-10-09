@@ -77,6 +77,8 @@ private struct Triangle: View {
 private struct DomainRow: View {
     let domain: Domain
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             switch domain.state {
@@ -190,6 +192,15 @@ private struct DomainRow: View {
                 } label: {
                     Text("Remove")
                 }
+            }
+            Button { [weak domain] in
+                Task { [weak domain] in
+                    if let domain, let url = URL(string: "https://\(domain.id)") {
+                        openURL(url)
+                    }
+                }
+            } label: {
+                Text("Open Site")
             }
         }
     }
@@ -562,10 +573,10 @@ private struct AdditionSection: View {
                     Task {
                         input = ""
                         if copy.count == 1, let first = copy.first {
-                            await model.addDomain(first, startAfterAdding: true)
+                            await model.addDomain(first, postAddAction: .start)
                         } else {
                             for result in copy {
-                                await model.addDomain(result, startAfterAdding: false)
+                                await model.addDomain(result, postAddAction: .none)
                             }
                         }
                     }
