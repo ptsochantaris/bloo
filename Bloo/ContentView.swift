@@ -692,6 +692,11 @@ private struct Admin: View {
             .padding()
             .frame(maxWidth: .infinity)
         }
+        .onAppear {
+            if model.domainSections.isEmpty {
+                showAddition = true
+            }
+        }
         .onChange(of: model.clearSearches) { _, _ in
             searcher.searchQuery = ""
         }
