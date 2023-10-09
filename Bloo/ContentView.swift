@@ -661,12 +661,17 @@ private struct ModelStateFeedback: View {
 
 @MainActor
 private struct Admin: View {
-    let model: BlooCore
-    @Bindable var searcher: Search.Engine
+    private let model: BlooCore
+    @Bindable private var searcher: Search.Engine
 
     @State private var showAddition = false
     @State private var searchFocused = false
     @FocusState private var additionFocused: Bool
+
+    init(model: BlooCore, windowId: UUID) {
+        self.model = model
+        searcher = Search.Engine(windowId: windowId)
+    }
 
     var body: some View {
         ScrollView {
@@ -686,6 +691,9 @@ private struct Admin: View {
             }
             .padding()
             .frame(maxWidth: .infinity)
+        }
+        .onChange(of: model.clearSearches) { _, _ in
+            searcher.searchQuery = ""
         }
         .navigationTitle(searcher.title)
         .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, prompt: "Search for keyword(s)")
@@ -717,32 +725,27 @@ private struct Admin: View {
 
 @MainActor
 struct ContentView: View {
-    private let model: BlooCore
-    private let searcher: Search.Engine
+    @Environment(\.windowId) private var windowId
 
-    init(model: BlooCore, windowId: UUID) {
+    private let model: BlooCore
+
+    init(model: BlooCore) {
         self.model = model
-        searcher = Search.Engine(windowId: windowId)
     }
 
     var body: some View {
-        #if os(macOS)
-            NavigationStack {
-                Admin(model: model, searcher: searcher)
-            }
-            .overlay {
-                ModelStateFeedback(model: model)
-            }
-        #elseif os(iOS)
-            NavigationStack {
-                Admin(model: model, searcher: searcher)
-                    .background(Color.background)
-                    .scrollDismissesKeyboard(.immediately)
-            }
-            .overlay {
-                ModelStateFeedback(model: model)
-            }
-            .preferredColorScheme(.dark)
+        NavigationStack {
+            Admin(model: model, windowId: windowId)
+            #if os(iOS)
+                .background(Color.background)
+                .scrollDismissesKeyboard(.immediately)
+            #endif
+        }
+        .overlay {
+            ModelStateFeedback(model: model)
+        }
+        #if os(iOS)
+        .preferredColorScheme(.dark)
         #endif
     }
 }

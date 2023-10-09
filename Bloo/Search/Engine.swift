@@ -22,23 +22,23 @@ extension Search {
             Task {
                 switch searchState {
                 case .none:
-                    Log.search(.default).log("Initialised")
+                    Log.search(.default).log("Initialised - windowId: \(windowId.uuidString)")
 
                 case let .top(string):
-                    Log.search(.default).log("Initialised: \(string) - top results")
+                    Log.search(.default).log("Initialised: \(string) - top results - windowId: \(windowId.uuidString)")
                     searchQuery = string
                     resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
 
                 case let .full(string):
-                    Log.search(.default).log("Initialised: \(string) - full results")
+                    Log.search(.default).log("Initialised: \(string) - full results - windowId: \(windowId.uuidString)")
                     searchQuery = string
                     resetQuery(expandIfNeeded: true, onlyIfChanged: false)
                 }
-
-                for await _ in NotificationCenter.default.notifications(named: .BlooClearSearches, object: nil).map(\.name) {
-                    searchQuery = ""
-                }
             }
+        }
+
+        deinit {
+            Log.search(.default).log("De-initialised - windowId: \(windowId.uuidString)")
         }
 
         var searchQuery = "" {

@@ -2,23 +2,15 @@ import Foundation
 
 extension URL {
     static func create(from text: String, relativeTo: URL?, checkExtension: Bool) throws -> URL {
-        guard text.isPopulated, text.isSaneLink else {
-            throw Blooper.malformedUrl
-        }
-
-        guard let url = URL(string: text, relativeTo: relativeTo),
+        guard text.isPopulated,
+              text.isSaneLink,
+              let url = URL(string: text, relativeTo: relativeTo),
               url.scheme == "https",
-              let host = url.host,
-              host.contains("."),
-              !checkExtension || !url.hasMediaExtension,
-              !url.hasBlockedPath
+              url.host?.contains(".") == true,
+              !checkExtension || !url.hasMediaExtension
         else {
             throw Blooper.malformedUrl
         }
-
-        /* if host.hasPrefix("ci.") || host.hasPrefix("api.") || host.hasPrefix("mastodon.") {
-             throw Blooper.blockedUrl
-         } */
 
         let result: URL
         if relativeTo == nil {
@@ -47,12 +39,6 @@ extension URL {
         default:
             false
         }
-    }
-
-    var hasBlockedPath: Bool {
-        let p = path()
-        return p.hasSuffix("/login")
-            || p.hasSuffix("wp-login.php")
     }
 }
 

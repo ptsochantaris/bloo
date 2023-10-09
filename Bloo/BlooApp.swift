@@ -58,14 +58,15 @@ struct BlooApp: App {
 
     #endif
 
-    private var model = BlooCore.shared
-    private var settings = Settings.shared
+    private let model = BlooCore.shared
+    private let settings = Settings.shared
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
     var body: some Scene {
         WindowGroup("Bloo", id: "search", for: UUID.self) { $uuid in
-            ContentView(model: model, windowId: uuid)
+            ContentView(model: model)
+                .environment(\.windowId, uuid)
             #if os(macOS)
                 .onChange(of: appDelegate.newSearch) {
                     if let newSearch = appDelegate.newSearch {

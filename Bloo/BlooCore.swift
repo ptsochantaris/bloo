@@ -6,18 +6,15 @@ import SwiftUI
     import BackgroundTasks
 #endif
 
-extension Notification.Name {
-    static let BlooClearSearches = Self("BlooClearSearches")
-}
-
 @MainActor
 @Observable
 final class BlooCore {
-    enum RunState {
+    enum State {
         case stopped, backgrounded, running
     }
 
-    var runState: RunState = .stopped
+    var runState: State = .stopped
+    var clearSearches = false
 
     private var domains = [Domain]()
 
@@ -54,10 +51,6 @@ final class BlooCore {
     private let snapshotter = Storage()
     private var initialisedViaLaunch = false
 
-    private func clearSearches() {
-        NotificationCenter.default.post(name: .BlooClearSearches, object: nil)
-    }
-
     func queueSnapshot(item: Storage.Snapshot) {
         snapshotter.queue(item)
     }
@@ -77,7 +70,7 @@ final class BlooCore {
     }
 
     func resetAll() async {
-        clearSearches()
+        clearSearches.toggle()
 
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections {
@@ -90,7 +83,7 @@ final class BlooCore {
     }
 
     func removeAll() async {
-        clearSearches()
+        clearSearches.toggle()
 
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections {

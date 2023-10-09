@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum Blooper: Error {
     case malformedUrl
@@ -10,4 +11,15 @@ let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userD
 
 func domainPath(for id: String) -> URL {
     documentsPath.appendingPathComponent(id, isDirectory: true)
+}
+
+struct WindowIdKey: EnvironmentKey {
+    static let defaultValue = UUID()
+}
+
+extension EnvironmentValues {
+    var windowId: UUID {
+        get { self[WindowIdKey.self] }
+        set { self[WindowIdKey.self] = newValue }
+    }
 }
