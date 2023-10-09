@@ -51,14 +51,14 @@ final class BlooCore {
 
     static let shared = BlooCore()
 
-    private let snapshotter = Snapshotter()
+    private let snapshotter = Storage()
     private var initialisedViaLaunch = false
 
     private func clearSearches() {
         NotificationCenter.default.post(name: .BlooClearSearches, object: nil)
     }
 
-    func queueSnapshot(item: Snapshotter.Snapshot) {
+    func queueSnapshot(item: Storage.Snapshot) {
         snapshotter.queue(item)
     }
 
@@ -72,7 +72,7 @@ final class BlooCore {
         }
     }
 
-    func data(for id: String) async throws -> Snapshotter.Snapshot {
+    func data(for id: String) async throws -> Storage.Snapshot {
         try await snapshotter.data(for: id)
     }
 
@@ -156,7 +156,7 @@ final class BlooCore {
         Log.app(.default).log("All domains are shut down")
         await snapshotter.shutdown()
         Log.app(.default).log("Snapshots and model are now shut down")
-        try? await Task.sleep(for: .milliseconds(300))
+        try? await Task.sleep(for: .milliseconds(200))
     }
 
     func contains(domain: String) -> Bool {

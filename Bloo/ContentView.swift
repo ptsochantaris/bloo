@@ -207,14 +207,14 @@ private struct DomainRow: View {
 }
 
 private struct ResultRow: View {
-    let result: SearchResult
+    let result: Search.Result
 
     @State var titleText: AttributedString?
     @State var descriptionText: AttributedString?
 
     @Environment(\.openURL) private var openURL
 
-    init(result: SearchResult) {
+    init(result: Search.Result) {
         self.result = result
     }
 
@@ -377,7 +377,7 @@ private struct DomainGrid: View {
 }
 
 private struct SearchResults: View {
-    let results: ResultState
+    let results: Search.Engine.State
 
     var body: some View {
         switch results {
@@ -409,7 +409,7 @@ private struct SearchResults: View {
 }
 
 private struct SearchSection: View {
-    private let searcher: Searcher
+    private let searcher: Search.Engine
     private let title: String
     private let ctaTitle: String?
     private let showProgress: Bool
@@ -417,7 +417,7 @@ private struct SearchSection: View {
     private let showResults: Bool
 
     @MainActor
-    init(searcher: Searcher) {
+    init(searcher: Search.Engine) {
         self.searcher = searcher
 
         switch searcher.resultState {
@@ -662,7 +662,7 @@ private struct ModelStateFeedback: View {
 @MainActor
 private struct Admin: View {
     let model: BlooCore
-    @Bindable var searcher: Searcher
+    @Bindable var searcher: Search.Engine
 
     @State private var showAddition = false
     @State private var searchFocused = false
@@ -718,11 +718,11 @@ private struct Admin: View {
 @MainActor
 struct ContentView: View {
     private let model: BlooCore
-    private let searcher: Searcher
+    private let searcher: Search.Engine
 
     init(model: BlooCore, windowId: UUID) {
         self.model = model
-        searcher = Searcher(windowId: windowId)
+        searcher = Search.Engine(windowId: windowId)
     }
 
     var body: some View {

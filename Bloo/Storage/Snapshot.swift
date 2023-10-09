@@ -2,7 +2,7 @@
 import Foundation
 @preconcurrency import OrderedCollections
 
-extension Snapshotter {
+extension Storage {
     final class Snapshot: Codable, Sendable {
         let id: String
         let state: Domain.State

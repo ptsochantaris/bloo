@@ -7,44 +7,6 @@ import Semalot
 import SwiftSoup
 import SwiftUI
 
-@propertyWrapper
-struct UserDefault<Value> {
-    let key: String
-    let defaultValue: Value
-
-    var wrappedValue: Value {
-        get {
-            UserDefaults.standard.object(forKey: key) as? Value ?? defaultValue
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: key)
-        }
-    }
-}
-
-@Observable
-final class Settings {
-    static let shared = Settings()
-
-    var indexingTaskPriority = TaskPriority(rawValue: Settings.indexingTaskPriorityRaw) {
-        didSet {
-            Settings.indexingTaskPriorityRaw = indexingTaskPriority.rawValue
-        }
-    }
-
-    var maxConcurrentIndexingOperations: UInt = Settings.maxConcurrentIndexingOperationsRaw {
-        didSet {
-            Settings.maxConcurrentIndexingOperationsRaw = maxConcurrentIndexingOperations
-        }
-    }
-
-    @UserDefault(key: "indexingTaskPriorityRaw", defaultValue: TaskPriority.medium.rawValue)
-    private static var indexingTaskPriorityRaw: UInt8
-
-    @UserDefault(key: "maxConcurrentIndexingOperations", defaultValue: 0)
-    private static var maxConcurrentIndexingOperationsRaw: UInt
-}
-
 @MainActor
 private protocol CrawlerDelegate: AnyObject {
     var state: Domain.State { get set }
@@ -332,11 +294,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private func snapshot() async {
             let state = await currentState
             Log.storage(.default).log("Snapshotting \(id) with state \(state)")
-            let item = Snapshotter.Snapshot(id: id,
-                                            state: state,
-                                            items: spotlightQueue,
-                                            pending: pending,
-                                            indexed: indexed)
+            let item = Storage.Snapshot(id: id,
+                                        state: state,
+                                        items: spotlightQueue,
+                                        pending: pending,
+                                        indexed: indexed)
             spotlightQueue.removeAll(keepingCapacity: true)
             await BlooCore.shared.queueSnapshot(item: item)
         }
