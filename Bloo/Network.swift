@@ -25,24 +25,18 @@ enum Network {
         return formatter
     }()
 
-    static func getData(from link: String, since date: Date? = nil) async throws -> (Data, HTTPURLResponse) {
+    static func getData(from link: String) async throws -> (Data, HTTPURLResponse) {
         guard let url = URL(string: link) else {
             throw Blooper.malformedUrl
         }
-        return try await getData(for: URLRequest(url: url), since: date)
+        return try await getData(for: URLRequest(url: url))
     }
 
-    static func getData(from url: URL, since date: Date? = nil) async throws -> (Data, HTTPURLResponse) {
-        try await getData(for: URLRequest(url: url), since: date)
+    static func getData(from url: URL) async throws -> (Data, HTTPURLResponse) {
+        try await getData(for: URLRequest(url: url))
     }
 
-    static func getData(for request: URLRequest, since date: Date? = nil) async throws -> (Data, HTTPURLResponse) {
-        var request = request
-        if let date {
-            let dateString = httpModifiedSinceFormatter.string(from: date)
-            request.setValue(dateString, forHTTPHeaderField: "If-Modified-Since")
-        }
-
+    static func getData(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let res = try await urlSession.data(for: request)
         return (res.0, res.1 as! HTTPURLResponse)
     }

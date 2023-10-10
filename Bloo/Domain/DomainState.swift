@@ -14,7 +14,11 @@ extension Domain {
         case loading(Int), paused(Int, Int, Bool, Bool), indexing(Int, Int, String), done(Int), deleting
 
         static var allCases: [Self] {
-            [.loading(0), .indexing(0, 0, ""), .paused(0, 0, false, false), .done(0)]
+            [.loading(0), .indexing(0, 0, ""), defaultState, .done(0)]
+        }
+
+        static var defaultState: Self {
+            .paused(0, 0, false, false)
         }
 
         @ViewBuilder

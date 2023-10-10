@@ -17,7 +17,7 @@ private protocol CrawlerDelegate: AnyObject {
 final class Domain: Identifiable, CrawlerDelegate, Sendable {
     let id: String
 
-    fileprivate(set) var state = State.paused(0, 0, false, false) {
+    fileprivate(set) var state = State.defaultState {
         didSet {
             if oldValue != state { // only report base enum changes
                 Log.crawling(id, .default).log("Domain \(id) state is now \(state.logText)")
@@ -43,8 +43,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         crawler.crawlerDelegate = self
     }
 
-    func restart() async {
-        await crawler.restart()
+    func restart(wipingExistingData: Bool) async {
+        await crawler.restart(wipingExistingData: wipingExistingData)
     }
 
     func pause(resumable: Bool) async {
@@ -63,6 +63,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         state == .deleting
     }
 
+    var weight: Int {
+        get async {
+            await crawler.weight
+        }
+    }
+
     private final actor Crawler {
         let id: String
         private let bootupEntry: IndexEntry
@@ -71,6 +77,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private var pending: OrderedCollections.OrderedSet<IndexEntry>
         private var indexed: OrderedCollections.OrderedSet<IndexEntry>
         private var spotlightQueue = [CSSearchableItem]()
+        private var spotlightInvalidationQueue = Set<String>()
         private var goTask: Task<Void, Never>?
 
         private var rejectionCache = OrderedCollections.OrderedSet<String>()
@@ -83,6 +90,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             bootupEntry = .pending(url: url, isSitemap: false)
             self.indexed = indexed
             self.pending = pending
+        }
+
+        fileprivate var weight: Int {
+            indexed.count + pending.count
         }
 
         private func signalState(_ state: State, onlyIfActive: Bool = false) async {
@@ -126,14 +137,19 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
         }
 
-        fileprivate func restart() async {
+        fileprivate func restart(wipingExistingData: Bool) async {
             if await currentState.isActive {
                 return
             }
             Log.crawling(id, .default).log("Resetting domain \(id)")
-            pending.removeAll()
-            indexed.removeAll()
-            await BlooCore.shared.clearDomainSpotlight(for: id)
+            if wipingExistingData {
+                pending.removeAll()
+                indexed.removeAll()
+                await BlooCore.shared.clearDomainSpotlight(for: id)
+            } else {
+                pending = indexed
+                indexed.removeAll()
+            }
             await start()
             await snapshot()
         }
@@ -149,10 +165,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             Log.crawling(id, .default).log("Domain deleted: \(id)")
         }
 
-        private func parseSitemap(at url: String) async {
+        private func parseSitemap(at url: String) async -> Set<IndexEntry>? {
             guard let xmlData = try? await Network.getData(from: url).0 else {
                 Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
-                return
+                return nil
             }
             Log.crawling(id, .default).log("Fetched sitemap from \(url)")
             do {
@@ -166,16 +182,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
 
                 Log.crawling(id, .default).log("Considering \(newUrls.count) potential URLs from sitemap")
-                newUrls.subtract(indexed)
-                if newUrls.isPopulated {
-                    Log.crawling(id, .default).log("Adding \(newUrls.count) unindexed URLs from sitemap")
-                    pending.formUnion(newUrls)
-                }
-
-                await signalState(.indexing(indexed.count, pending.count, url), onlyIfActive: true)
+                return newUrls
 
             } catch {
                 Log.crawling(id, .error).log("XML Parser error in \(url)")
+                return nil
             }
         }
 
@@ -245,16 +256,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
                 let next = pending.removeFirst()
                 let start = Date()
-                switch next {
-                case let .pending(nextUrl, isSitemap):
-                    if isSitemap {
-                        await parseSitemap(at: nextUrl)
-                    } else if let newItem = await index(page: next) {
-                        spotlightQueue.append(newItem)
-                    }
-                case .visited:
-                    Log.crawling(id, .error).log("Warning: Already visited entry showed up in the `pending` list")
-                }
+                await crawl(entry: next)
 
                 // Detect stop
                 let currentState = await currentState
@@ -291,15 +293,54 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             await snapshot()
         }
 
+        private func crawl(entry: IndexEntry) async {
+            var newEntries: Set<IndexEntry>?
+            let indexResult: IndexResponse
+
+            switch entry {
+            case let .pending(url, isSitemap):
+                if isSitemap {
+                    newEntries = await parseSitemap(at: url)
+                    indexResult = .noChange
+                } else {
+                    indexResult = await index(page: url, lastVisited: nil, lastEtag: nil)
+                }
+            case let .visited(url, lastVisited, etag):
+                indexResult = await index(page: url, lastVisited: lastVisited, lastEtag: etag)
+            }
+
+            switch indexResult {
+            case .error:
+                spotlightInvalidationQueue.insert(entry.url)
+
+            case .noChange:
+                break
+
+            case let .indexed(csEntry, newItems):
+                spotlightQueue.append(csEntry)
+                newEntries = newItems
+            }
+
+            if var newEntries, newEntries.isPopulated {
+                newEntries.subtract(indexed)
+                Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
+                pending.formUnion(newEntries)
+            }
+
+            await signalState(.indexing(indexed.count, pending.count, entry.url), onlyIfActive: true)
+        }
+
         private func snapshot() async {
             let state = await currentState
             Log.storage(.default).log("Snapshotting \(id) with state \(state)")
             let item = Storage.Snapshot(id: id,
                                         state: state,
                                         items: spotlightQueue,
+                                        removedItems: spotlightInvalidationQueue,
                                         pending: pending,
                                         indexed: indexed)
             spotlightQueue.removeAll(keepingCapacity: true)
+            spotlightInvalidationQueue.removeAll(keepingCapacity: true)
             await BlooCore.shared.queueSnapshot(item: item)
         }
 
@@ -324,12 +365,14 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             return formatter
         }()
 
-        private func index(page entry: IndexEntry) async -> CSSearchableItem? {
-            let link = entry.url
+        enum IndexResponse {
+            case noChange, error, indexed(CSSearchableItem, Set<IndexEntry>)
+        }
 
+        private func index(page link: String, lastVisited: Date?, lastEtag: String?) async -> IndexResponse {
             guard let site = URL(string: link) else {
                 Log.crawling(id, .error).log("Malformed URL: \(link)")
-                return nil
+                return .error
             }
 
             await signalState(.indexing(indexed.count, pending.count, link), onlyIfActive: true)
@@ -337,34 +380,62 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
 
-            guard let response = try? await Network.getData(for: headRequest).1 else {
+            guard let headResponse = try? await Network.getData(for: headRequest).1 else {
                 Log.crawling(id, .error).log("No HEAD response from \(link)")
-                return nil
+                return .error
             }
 
-            guard let mimeType = response.mimeType, mimeType.hasPrefix("text/html") else {
+            if headResponse.statusCode == 304 {
+                Log.crawling(id, .error).log("No change (304) in \(link)")
+                indexed.append(.visited(url: link, lastModified: lastVisited, etag: lastEtag))
+                return .noChange
+            }
+
+            let headers = headResponse.allHeaderFields
+
+            let etagFromHeaders = (headers["etag"] ?? headers["Etag"]) as? String
+
+            if lastEtag == etagFromHeaders {
+                Log.crawling(id, .error).log("No change (same etag) in \(link)")
+                indexed.append(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders))
+                return .noChange
+            }
+
+            let lastModifiedHeaderDate: Date?
+            if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
+                if let lastVisited, lastVisited >= lm {
+                    Log.crawling(id, .error).log("No change (same date) in \(link)")
+                    indexed.append(.visited(url: link, lastModified: lm, etag: etagFromHeaders))
+                    return .noChange
+                }
+                lastModifiedHeaderDate = lm
+            } else {
+                lastModifiedHeaderDate = nil
+            }
+
+            guard let mimeType = headResponse.mimeType, mimeType.hasPrefix("text/html") else {
                 Log.crawling(id, .error).log("Not HTML in \(link)")
-                return nil
+                return .error
             }
 
             guard let contentResult = try? await Network.getData(from: site) else {
                 Log.crawling(id, .error).log("No content response from \(link)")
-                return nil
+                return .error
             }
 
             guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
                 Log.crawling(id, .error).log("Cannot decode text from \(link)")
-                return nil
+                return .error
             }
 
             guard let htmlDoc = try? SwiftSoup.parse(documentText, link) else {
                 Log.crawling(id, .error).log("Cannot parse HTML from \(link)")
-                return nil
+                return .error
             }
 
             guard let header = htmlDoc.head() else {
                 Log.crawling(id, .error).log("Cannot parse header from \(link)")
-                return nil
+                return .error
             }
 
             let title: String
@@ -374,12 +445,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 title = foundTitle
             } else {
                 Log.crawling(id, .error).log("No title located at \(link)")
-                return nil
+                return .error
             }
 
             guard let textContent = try? htmlDoc.body()?.text() else {
                 Log.crawling(id, .error).log("Cannot parse text in \(link)")
-                return nil
+                return .error
             }
 
             let ogImage = header.metaPropertyContent(for: "og:image")
@@ -436,9 +507,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 ?? Self.generateKeywords(from: textContent)
 
             let lastModified: Date?
-            let headers = contentResult.1.allHeaderFields
-            if let lastModifiedHeader = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeader) {
-                lastModified = lm
+            if let lastModifiedHeaderDate {
+                lastModified = lastModifiedHeaderDate
             } else if let creationDate {
                 lastModified = creationDate
             } else {
@@ -493,8 +563,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
             }
 
-            indexed.append(.visited(url: link, lastModified: lastModified))
-            pending.formUnion(newUrls.subtracting(indexed))
+            indexed.append(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders))
 
             Log.crawling(id, .info).log("Indexed URL: \(link)")
 
@@ -505,7 +574,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             attributes.contentModificationDate = lastModified
             attributes.thumbnailURL = await imageFileUrl.value
             attributes.rankingHint = NSNumber(value: rankHint)
-            return CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes)
+            return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes),
+                            newUrls)
         }
 
         private static func storeImageData(_ data: Data, for id: String) -> URL {

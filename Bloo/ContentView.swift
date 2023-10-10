@@ -180,10 +180,10 @@ private struct DomainRow: View {
             } else if domain.state.canRestart {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        await domain?.restart()
+                        await domain?.restart(wipingExistingData: false)
                     }
                 } label: {
-                    Text("Re-Scan")
+                    Text("Refresh")
                 }
                 Button { [weak domain] in
                     Task { [weak domain] in
@@ -342,11 +342,11 @@ private struct DomainHeader: View {
                     Button {
                         actioning = true
                         Task {
-                            await section.restartAll()
+                            await section.restartAll(wipingExistingData: false)
                             actioning = false
                         }
                     } label: {
-                        Text("Re-Scan All")
+                        Text("Refresh All")
                     }
                 }
             }

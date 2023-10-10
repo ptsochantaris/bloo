@@ -12,10 +12,16 @@ extension Domain {
         }
 
         private func allDomains(_ block: @escaping @Sendable (Domain) async -> Void) async {
+            // Heaviest-first to take advantage of completing faster on multiple cores
             await withTaskGroup(of: Void.self) { group in
+                var tuples = [(domain: Domain, weight: Int)]()
                 for domain in domains {
+                    let weight = await domain.weight
+                    tuples.append((domain, weight))
+                }
+                for item in tuples.sorted(by: { $0.weight > $1.weight }) {
                     group.addTask { @MainActor in
-                        await block(domain)
+                        await block(item.domain)
                     }
                 }
             }
@@ -49,9 +55,9 @@ extension Domain {
             }
         }
 
-        func restartAll() async {
+        func restartAll(wipingExistingData: Bool) async {
             await allDomains {
-                await $0.restart()
+                await $0.restart(wipingExistingData: wipingExistingData)
             }
         }
     }

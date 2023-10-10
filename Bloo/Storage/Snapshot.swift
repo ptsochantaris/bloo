@@ -10,6 +10,7 @@ extension Storage {
         let indexed: OrderedSet<IndexEntry>
 
         let items: [CSSearchableItem]
+        let removedItems: Set<String>
 
         enum CodingKeys: CodingKey {
             case id, state, pending, indexed
@@ -22,6 +23,7 @@ extension Storage {
             pending = try container.decode(OrderedSet<IndexEntry>.self, forKey: .pending)
             indexed = try container.decode(OrderedSet<IndexEntry>.self, forKey: .indexed)
             items = []
+            removedItems = []
         }
 
         func encode(to encoder: Encoder) throws {
@@ -32,11 +34,12 @@ extension Storage {
             try container.encode(indexed, forKey: .indexed)
         }
 
-        init(id: String, state: Domain.State, items: [CSSearchableItem], pending: OrderedSet<IndexEntry>, indexed: OrderedSet<IndexEntry>) {
+        init(id: String, state: Domain.State, items: [CSSearchableItem] = [], removedItems: Set<String> = [], pending: OrderedSet<IndexEntry> = [], indexed: OrderedSet<IndexEntry> = []) {
             self.id = id
             self.items = items
             self.pending = pending
             self.indexed = indexed
+            self.removedItems = removedItems
 
             switch state {
             case .deleting, .done, .paused:

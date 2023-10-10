@@ -19,11 +19,11 @@ final class Storage {
                let snapshot = try? decoder.decode(Snapshot.self, from: data) {
                 return snapshot
             }
-            return Snapshot(id: id, state: .paused(0, 0, false, false), items: [], pending: [], indexed: [])
+            return Snapshot(id: id, state: Domain.State.defaultState)
         }.value
     }
 
-    private static func commitData(for item: Snapshot) {
+    private static func commitData(for item: Snapshot) async {
         let domainPath = domainPath(for: item.id)
 
         if item.state == .deleting {
@@ -36,8 +36,6 @@ final class Storage {
         }
 
         let start = Date()
-
-        CSSearchableIndex.default().indexSearchableItems(item.items)
 
         let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
         try! JSONEncoder().encode(item).write(to: path, options: .atomic)
@@ -54,8 +52,15 @@ final class Storage {
         queueContinuation = q.continuation
 
         loopTask = Task.detached {
-            for await item in q.stream {
-                Self.commitData(for: item)
+            await withDiscardingTaskGroup { group in
+                for await item in q.stream {
+                    group.addTask {
+                        let index = CSSearchableIndex.default()
+                        try? await index.deleteSearchableItems(withIdentifiers: Array(item.removedItems))
+                        try? await index.indexSearchableItems(item.items)
+                        await Self.commitData(for: item)
+                    }
+                }
             }
         }
     }

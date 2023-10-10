@@ -76,7 +76,7 @@ final class BlooCore {
             for section in domainSections {
                 group.addTask {
                     await section.pauseAll(resumable: false)
-                    await section.restartAll()
+                    await section.restartAll(wipingExistingData: true)
                 }
             }
         }
