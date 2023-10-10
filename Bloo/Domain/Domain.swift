@@ -174,6 +174,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             do {
                 var (newUrls, newSitemaps) = try await SitemapParser(data: xmlData).extract()
                 Log.crawling(id, .default).log("Considering \(newSitemaps.count) further sitemap URLs")
+                newSitemaps.subtract(pending)
                 newSitemaps.subtract(indexed)
                 newSitemaps.remove(.pending(url: url, isSitemap: true))
                 if newSitemaps.isPopulated {
@@ -191,8 +192,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         private static let requestLock = Semalot(tickets: 1)
-
-        // TODO: Run update scans; use if-last-modified in HEAD requests, if available, and weed out the 304s
 
         private func scanRobots() async {
             let url = "https://\(id)/robots.txt"
@@ -256,7 +255,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
                 let next = pending.removeFirst()
                 let start = Date()
-                await crawl(entry: next)
+                let handledContent = await crawl(entry: next)
 
                 // Detect stop
                 let currentState = await currentState
@@ -270,7 +269,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                         Self.requestLock.returnTicket()
                     }
 
-                    let duration = max(0, 1 + start.timeIntervalSinceNow)
+                    let maxWait = handledContent ? 1 : 0.5
+                    let duration = max(0, maxWait + start.timeIntervalSinceNow)
                     if duration > 0 {
                         try? await Task.sleep(for: .seconds(duration))
                     }
@@ -293,7 +293,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             await snapshot()
         }
 
-        private func crawl(entry: IndexEntry) async {
+        private func crawl(entry: IndexEntry) async -> Bool {
             var newEntries: Set<IndexEntry>?
             let indexResult: IndexResponse
 
@@ -309,25 +309,33 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 indexResult = await index(page: url, lastVisited: lastVisited, lastEtag: etag)
             }
 
+            let handledContent: Bool
+
             switch indexResult {
             case .error:
+                handledContent = true
                 spotlightInvalidationQueue.insert(entry.url)
 
             case .noChange:
-                break
+                handledContent = false
 
             case let .indexed(csEntry, newItems):
+                handledContent = true
                 spotlightQueue.append(csEntry)
                 newEntries = newItems
             }
 
             if var newEntries, newEntries.isPopulated {
+                newEntries.subtract(pending)
                 newEntries.subtract(indexed)
-                Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
-                pending.formUnion(newEntries)
+                if newEntries.isPopulated {
+                    Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
+                    pending.formUnion(newEntries)
+                }
             }
 
             await signalState(.indexing(indexed.count, pending.count, entry.url), onlyIfActive: true)
+            return handledContent
         }
 
         private func snapshot() async {
@@ -395,7 +403,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             let etagFromHeaders = (headers["etag"] ?? headers["Etag"]) as? String
 
-            if lastEtag == etagFromHeaders {
+            if let etagFromHeaders, lastEtag == etagFromHeaders {
                 Log.crawling(id, .info).log("No change (same etag) in \(link)")
                 indexed.append(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders))
                 return .noChange
