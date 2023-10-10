@@ -128,9 +128,9 @@ final class BlooCore {
                         request.requiresNetworkConnectivity = true
                         request.requiresExternalPower = true
                         try BGTaskScheduler.shared.submit(request)
-                        log("Registered for background wakeup")
+                        Log.app(.default).log("Registered for background wakeup")
                     } catch {
-                        log("Error submitting background processing task: \(error.localizedDescription)")
+                        Log.app(.fault).log("Error submitting background processing task: \(error.localizedDescription)")
                     }
                 }
             #endif
@@ -226,7 +226,7 @@ final class BlooCore {
                 if UIApplication.shared.applicationState == .background {
                     await shutdown(backgrounded: false)
                 }
-                log("Background task complete")
+                Log.app(.default).log("Background task complete")
                 task.setTaskCompleted(success: true)
             }
         }
