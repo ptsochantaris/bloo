@@ -380,7 +380,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
 
-            guard let headResponse = try? await Network.getData(for: headRequest).1 else {
+            guard let headResponse = try? await Network.getData(for: headRequest, lastVisited: lastVisited, lastEtag: lastEtag).1 else {
                 Log.crawling(id, .error).log("No HEAD response from \(link)")
                 return .error
             }

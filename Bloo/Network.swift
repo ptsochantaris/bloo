@@ -25,18 +25,29 @@ enum Network {
         return formatter
     }()
 
-    static func getData(from link: String) async throws -> (Data, HTTPURLResponse) {
+    static func getData(from link: String, lastVisited: Date? = nil, lastEtag: String? = nil) async throws -> (Data, HTTPURLResponse) {
         guard let url = URL(string: link) else {
             throw Blooper.malformedUrl
         }
-        return try await getData(for: URLRequest(url: url))
+        return try await getData(for: URLRequest(url: url), lastVisited: lastVisited, lastEtag: lastEtag)
     }
 
-    static func getData(from url: URL) async throws -> (Data, HTTPURLResponse) {
-        try await getData(for: URLRequest(url: url))
+    static func getData(from url: URL, lastVisited: Date? = nil, lastEtag: String? = nil) async throws -> (Data, HTTPURLResponse) {
+        try await getData(for: URLRequest(url: url), lastVisited: lastVisited, lastEtag: lastEtag)
     }
 
-    static func getData(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    static func getData(for request: URLRequest, lastVisited: Date? = nil, lastEtag: String? = nil) async throws -> (Data, HTTPURLResponse) {
+        var request = request
+
+        if let lastEtag {
+            request.setValue(lastEtag, forHTTPHeaderField: "If-None-Match")
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+        } else if let lastVisited {
+            let dateString = httpModifiedSinceFormatter.string(from: lastVisited)
+            request.setValue(dateString, forHTTPHeaderField: "If-Modified-Since")
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+        }
+
         let res = try await urlSession.data(for: request)
         return (res.0, res.1 as! HTTPURLResponse)
     }
