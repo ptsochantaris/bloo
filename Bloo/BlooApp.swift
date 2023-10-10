@@ -107,14 +107,14 @@ struct BlooApp: App {
             CommandGroup(after: .appInfo) {
                 Menu("All Items…") {
                     Menu("Clear all data") {
-                        Button("Confirm: Clear Everything") {
+                        Button("Confirm: Clear Everything!") {
                             Task {
                                 await model.removeAll()
                             }
                         }
                     }
-                    Menu("Re-index all domains") {
-                        Button("Confirm: Reset All Domains") {
+                    Menu("Wipe and Reindex All Domains") {
+                        Button("Confirm: Reset All Domains!") {
                             Task {
                                 await model.resetAll()
                             }

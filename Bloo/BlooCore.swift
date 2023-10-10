@@ -148,7 +148,7 @@ final class BlooCore {
         }
         Log.app(.default).log("All domains are shut down")
         await snapshotter.shutdown()
-        Log.app(.default).log("Snapshots and model are now shut down")
+        Log.app(.default).log("Storage now shut down")
         try? await Task.sleep(for: .milliseconds(200))
     }
 

@@ -386,7 +386,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             if headResponse.statusCode == 304 {
-                Log.crawling(id, .error).log("No change (304) in \(link)")
+                Log.crawling(id, .info).log("No change (304) in \(link)")
                 indexed.append(.visited(url: link, lastModified: lastVisited, etag: lastEtag))
                 return .noChange
             }
@@ -396,7 +396,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let etagFromHeaders = (headers["etag"] ?? headers["Etag"]) as? String
 
             if lastEtag == etagFromHeaders {
-                Log.crawling(id, .error).log("No change (same etag) in \(link)")
+                Log.crawling(id, .info).log("No change (same etag) in \(link)")
                 indexed.append(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders))
                 return .noChange
             }
@@ -404,7 +404,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let lastModifiedHeaderDate: Date?
             if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
                 if let lastVisited, lastVisited >= lm {
-                    Log.crawling(id, .error).log("No change (same date) in \(link)")
+                    Log.crawling(id, .info).log("No change (same date) in \(link)")
                     indexed.append(.visited(url: link, lastModified: lm, etag: etagFromHeaders))
                     return .noChange
                 }
