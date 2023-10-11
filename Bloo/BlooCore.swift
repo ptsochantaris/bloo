@@ -160,27 +160,13 @@ final class BlooCore {
         }
     }
 
-    enum PostAddAction {
-        case none, start, resumeIfNeeded
-    }
-
-    func addDomain(_ domain: String, postAddAction: PostAddAction) async {
+    func addDomain(_ domain: String, postAddAction: Domain.PostAddAction) async {
         do {
-            let newDomain = try await Domain(startingAt: domain)
+            let newDomain = try await Domain(startingAt: domain, postAddAction: postAddAction)
             withAnimation {
                 domains.append(newDomain)
             }
             Log.app(.default).log("Added domain: \(domain), postAddAction: \(postAddAction)")
-            switch postAddAction {
-            case .none:
-                break
-            case .resumeIfNeeded:
-                if newDomain.state.shouldResume {
-                    await newDomain.start()
-                }
-            case .start:
-                await newDomain.start()
-            }
         } catch {
             Log.app(.error).log("Error: \(error.localizedDescription)")
         }

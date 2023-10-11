@@ -2,7 +2,7 @@ import CoreSpotlight
 import Foundation
 import Maintini
 import NaturalLanguage
-@preconcurrency import OrderedCollections
+import OrderedCollections
 import Semalot
 import SwiftSoup
 import SwiftUI
@@ -27,7 +27,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
     private let crawler: Crawler
 
-    init(startingAt: String) async throws {
+    init(startingAt: String, postAddAction: PostAddAction) async throws {
         let url = try URL.create(from: startingAt, relativeTo: nil, checkExtension: true)
 
         guard let id = url.host() else {
@@ -36,11 +36,13 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
         self.id = id
 
-        let snapshot = try await BlooCore.shared.data(for: id)
-        state = snapshot.state
-        crawler = try await Crawler(id: id, url: url.absoluteString, pending: snapshot.pending, indexed: snapshot.indexed)
-
+        state = .loading(postAddAction)
+        crawler = try await Crawler(id: id, url: url.absoluteString)
         crawler.crawlerDelegate = self
+
+        Task.detached {
+            try await self.crawler.loadFromSnapshot(postAddAction: postAddAction)
+        }
     }
 
     func restart(wipingExistingData: Bool) async {
@@ -85,11 +87,29 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         @MainActor
         fileprivate weak var crawlerDelegate: CrawlerDelegate!
 
-        fileprivate init(id: String, url: String, pending: OrderedCollections.OrderedSet<IndexEntry>, indexed: OrderedCollections.OrderedSet<IndexEntry>) async throws {
+        fileprivate init(id: String, url: String) async throws {
             self.id = id
             bootupEntry = .pending(url: url, isSitemap: false)
-            self.indexed = indexed
-            self.pending = pending
+            pending = []
+            indexed = []
+        }
+
+        fileprivate func loadFromSnapshot(postAddAction: PostAddAction) async throws {
+            let snapshot = try await BlooCore.shared.data(for: id)
+            indexed = snapshot.indexed
+            pending = snapshot.pending
+            await signalState(snapshot.state)
+
+            switch postAddAction {
+            case .none:
+                break
+            case .resumeIfNeeded:
+                if snapshot.state.shouldResume {
+                    await start()
+                }
+            case .start:
+                await start()
+            }
         }
 
         fileprivate var weight: Int {
@@ -117,8 +137,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func start() async {
-            let count = pending.count
-            await signalState(.loading(count))
+            await signalState(.starting(indexed.count, pending.count))
             startGoTask(priority: Settings.shared.indexingTaskPriority, signalStateChange: true)
         }
 
@@ -211,7 +230,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             if signalStateChange {
-                await signalState(.loading(pending.count))
+                await signalState(.starting(indexed.count, pending.count))
             }
 
             await scanRobots()
@@ -233,7 +252,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             if signalStateChange {
-                await signalState(.loading(pending.count))
+                await signalState(.starting(indexed.count, pending.count))
             }
 
             var operationCount = 0
@@ -514,13 +533,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 ?? Self.generateKeywords(from: textContent)
 
-            let lastModified: Date?
-            if let lastModifiedHeaderDate {
-                lastModified = lastModifiedHeaderDate
+            let lastModified: Date? = if let lastModifiedHeaderDate {
+                lastModifiedHeaderDate
             } else if let creationDate {
-                lastModified = creationDate
+                creationDate
             } else {
-                lastModified = Self.generateDate(from: textContent)
+                Self.generateDate(from: textContent)
             }
 
             var rankHint = 0

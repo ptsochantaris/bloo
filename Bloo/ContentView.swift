@@ -80,16 +80,24 @@ private struct DomainRow: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading) {
             switch domain.state {
-            case let .loading(pending):
+            case .loading:
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
                 }
                 .frame(maxHeight: .infinity)
+
+            case let .starting(indexed, pending):
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    DomainTitle(domain: domain)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxHeight: .infinity)
+                ProgressView(value: Double(indexed) / max(1, Double(pending + indexed)))
                 if pending == 0 {
-                    FooterText(text: "Scanning sitemap(s)")
+                    FooterText(text: "Scanning sitemap")
                 }
 
             case let .indexing(indexed, pending, url):
@@ -106,6 +114,7 @@ private struct DomainRow: View {
                             .bold()
                     }
                 }
+                ProgressView(value: Double(indexed) / max(1, Double(pending + indexed)))
                 FooterText(text: url)
 
             case let .paused(indexed, pending, transitioning, _):
@@ -115,20 +124,19 @@ private struct DomainRow: View {
                     if transitioning {
                         Text("Pausing")
                             .font(.blooBody)
-                    } else {
-                        if indexed > 0 || pending > 0 {
-                            HStack(spacing: 2) {
-                                Text(pending, format: .number)
-                                    .font(.blooBody).bold()
-                                    .foregroundColor(.secondary)
-                                Triangle()
-                                Text(indexed, format: .number)
-                                    .font(.blooBody).bold()
-                                    .bold()
-                            }
+                    } else if indexed > 0 || pending > 0 {
+                        HStack(spacing: 2) {
+                            Text(pending, format: .number)
+                                .font(.blooBody).bold()
+                                .foregroundColor(.secondary)
+                            Triangle()
+                            Text(indexed, format: .number)
+                                .font(.blooBody).bold()
+                                .bold()
                         }
                     }
                 }
+                ProgressView(value: Double(indexed) / max(1, Double(pending + indexed)))
 
             case .deleting:
                 HStack(alignment: .firstTextBaseline, spacing: 4) {

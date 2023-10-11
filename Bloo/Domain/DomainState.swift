@@ -2,6 +2,10 @@ import Foundation
 import SwiftUI
 
 extension Domain {
+    enum PostAddAction: Codable {
+        case none, start, resumeIfNeeded
+    }
+
     enum State: CaseIterable, Codable, Hashable {
         static func == (lhs: Self, rhs: Self) -> Bool {
             lhs.title == rhs.title
@@ -11,10 +15,10 @@ extension Domain {
             hasher.combine(title)
         }
 
-        case loading(Int), paused(Int, Int, Bool, Bool), indexing(Int, Int, String), done(Int), deleting
+        case loading(PostAddAction), starting(Int, Int), paused(Int, Int, Bool, Bool), indexing(Int, Int, String), done(Int), deleting
 
         static var allCases: [Self] {
-            [.loading(0), .indexing(0, 0, ""), defaultState, .done(0)]
+            [.loading(.none), .starting(0, 0), .indexing(0, 0, ""), defaultState, .done(0)]
         }
 
         static var defaultState: Self {
@@ -26,6 +30,8 @@ extension Domain {
             switch self {
             case .loading:
                 StatusIcon(name: "gear", color: .yellow)
+            case .starting:
+                StatusIcon(name: "magnifyingglass", color: .yellow)
             case .deleting:
                 StatusIcon(name: "trash", color: .red)
             case .paused:
@@ -41,7 +47,7 @@ extension Domain {
             switch self {
             case .paused:
                 true
-            case .deleting, .done, .indexing, .loading:
+            case .deleting, .done, .indexing, .loading, .starting:
                 false
             }
         }
@@ -50,7 +56,7 @@ extension Domain {
             switch self {
             case let .paused(_, _, _, reusumable):
                 reusumable
-            case .deleting, .done, .indexing, .loading:
+            case .deleting, .done, .indexing, .loading, .starting:
                 false
             }
         }
@@ -59,14 +65,14 @@ extension Domain {
             switch self {
             case .done, .paused:
                 true
-            case .deleting, .indexing, .loading:
+            case .deleting, .indexing, .loading, .starting:
                 false
             }
         }
 
         var canStop: Bool {
             switch self {
-            case .deleting, .done, .loading, .paused:
+            case .deleting, .done, .loading, .paused, .starting:
                 false
             case .indexing:
                 true
@@ -75,9 +81,9 @@ extension Domain {
 
         var isActive: Bool {
             switch self {
-            case .deleting, .done, .paused:
+            case .done, .paused:
                 false
-            case .indexing, .loading:
+            case .deleting, .indexing, .loading, .starting:
                 true
             }
         }
@@ -86,16 +92,17 @@ extension Domain {
             switch self {
             case .done: "Done"
             case .indexing: "Indexing"
-            case .loading: "Starting"
+            case .starting: "Starting"
             case .paused: "Paused"
             case .deleting: "Deleting"
+            case .loading: "Loading"
             }
         }
 
         var logText: String {
             switch self {
             case let .done(count): "Completed, \(count) indexed items"
-            case .deleting, .indexing, .loading, .paused: title
+            case .deleting, .indexing, .loading, .paused, .starting: title
             }
         }
     }
