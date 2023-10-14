@@ -71,6 +71,13 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
     }
 
+    nonisolated func matchesFilter(_ text: String) -> Bool {
+        if text.isEmpty {
+            return true
+        }
+        return id.localizedCaseInsensitiveContains(text)
+    }
+
     private final actor Crawler {
         let id: String
         private let bootupEntry: IndexEntry

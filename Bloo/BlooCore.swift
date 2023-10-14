@@ -15,6 +15,7 @@ final class BlooCore {
 
     var runState: State = .stopped
     var clearSearches = false
+    var showAddition = false
 
     private var domains = [Domain]()
 
@@ -75,8 +76,8 @@ final class BlooCore {
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections {
                 group.addTask {
-                    await section.pauseAll(resumable: false)
-                    await section.restartAll(wipingExistingData: true)
+                    await section.pauseAll(resumable: false, matchingFilter: "")
+                    await section.restartAll(wipingExistingData: true, matchingFilter: "")
                 }
             }
         }
@@ -88,8 +89,8 @@ final class BlooCore {
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections {
                 group.addTask {
-                    await section.pauseAll(resumable: false)
-                    await section.removeAll()
+                    await section.pauseAll(resumable: false, matchingFilter: "")
+                    await section.removeAll(matchingFilter: "")
                 }
             }
         }
@@ -142,7 +143,7 @@ final class BlooCore {
         await withTaskGroup(of: Void.self) { group in
             for section in domainSections where section.state.canStop {
                 group.addTask {
-                    await section.pauseAll(resumable: true)
+                    await section.pauseAll(resumable: true, matchingFilter: "")
                 }
             }
         }
@@ -194,6 +195,8 @@ final class BlooCore {
                     }
                 }
             }
+
+            showAddition = domains.isEmpty
         }
     }
 

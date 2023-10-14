@@ -257,9 +257,9 @@ private struct ResultRow: View {
                                 .cornerRadius(22)
                                 .offset(x: 5, y: -5)
                         case .empty, .failure:
-                            Color.clear.hidden()
+                            EmptyView()
                         @unknown default:
-                            Color.clear.hidden()
+                            EmptyView()
                         }
                     }
                 }
@@ -315,6 +315,7 @@ private struct AdditionRow: View {
 
 private struct DomainHeader: View {
     let section: Domain.Section
+    @Binding var filter: String
     @State private var actioning = false
 
     var body: some View {
@@ -323,38 +324,45 @@ private struct DomainHeader: View {
                 .font(.blooTitle)
                 .foregroundStyle(.secondary)
 
-            if !actioning {
-                Spacer(minLength: 0)
+            Spacer(minLength: 0)
 
+            if section.domains.count > 1 {
+                TextField("Filter", text: $filter)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .frame(width: 100)
+                    .offset(y: -1)
+            }
+
+            if !actioning {
                 if section.state.canStart {
                     Button {
                         actioning = true
                         Task {
-                            await section.startAll()
+                            await section.startAll(matchingFilter: filter)
                             actioning = false
                         }
                     } label: {
-                        Text("Start All")
+                        Text(filter.isEmpty ? "Start All" : "Start")
                     }
                 } else if section.state.canStop {
                     Button {
                         actioning = true
                         Task {
-                            await section.pauseAll(resumable: false)
+                            await section.pauseAll(resumable: false, matchingFilter: filter)
                             actioning = false
                         }
                     } label: {
-                        Text("Pause All")
+                        Text(filter.isEmpty ? "Pause All" : "Pause")
                     }
                 } else if section.state.canRestart {
                     Button {
                         actioning = true
                         Task {
-                            await section.restartAll(wipingExistingData: false)
+                            await section.restartAll(wipingExistingData: false, matchingFilter: filter)
                             actioning = false
                         }
                     } label: {
-                        Text("Refresh All")
+                        Text(filter.isEmpty ? "Refresh All" : "Refresh")
                     }
                 }
             }
@@ -365,13 +373,14 @@ private struct DomainHeader: View {
 
 private struct DomainGrid: View {
     let section: Domain.Section
+    @State private var filter = ""
 
     var body: some View {
         if section.domains.isPopulated {
             VStack(alignment: .leading) {
-                DomainHeader(section: section)
+                DomainHeader(section: section, filter: $filter.animation())
                 LazyVGrid(columns: gridColumns) {
-                    ForEach(section.domains) { domain in
+                    ForEach(section.domains.filter { $0.matchesFilter(filter) }) { domain in
                         DomainRow(domain: domain)
                     }
                 }
@@ -672,7 +681,6 @@ private struct Admin: View {
     private let model: BlooCore
     @Bindable private var searcher: Search.Engine
 
-    @State private var showAddition = false
     @State private var searchFocused = false
     @FocusState private var additionFocused: Bool
 
@@ -684,7 +692,7 @@ private struct Admin: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                if showAddition {
+                if model.showAddition {
                     AdditionSection(model: model)
                         .focused($additionFocused)
                 }
@@ -700,11 +708,6 @@ private struct Admin: View {
             .padding()
             .frame(maxWidth: .infinity)
         }
-        .onAppear {
-            if model.domainSections.isEmpty {
-                showAddition = true
-            }
-        }
         .onChange(of: model.clearSearches) { _, _ in
             searcher.searchQuery = ""
         }
@@ -714,14 +717,14 @@ private struct Admin: View {
             ToolbarItem {
                 Button {
                     withAnimation {
-                        if showAddition {
+                        if model.showAddition {
                             additionFocused = false
                             #if os(macOS)
                                 searchFocused = true
                             #endif
                         }
-                        showAddition.toggle()
-                        if showAddition {
+                        model.showAddition.toggle()
+                        if model.showAddition {
                             additionFocused = true
                             #if os(macOS)
                                 searchFocused = false
@@ -729,7 +732,7 @@ private struct Admin: View {
                         }
                     }
                 } label: {
-                    Image(systemName: showAddition ? "arrow.down.and.line.horizontal.and.arrow.up" : "plus")
+                    Image(systemName: model.showAddition ? "arrow.down.and.line.horizontal.and.arrow.up" : "plus")
                 }
             }
         }
