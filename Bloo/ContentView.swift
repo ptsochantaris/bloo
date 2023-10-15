@@ -165,14 +165,14 @@ private struct DomainRow: View {
             if domain.state.canStart {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        await domain?.start()
+                        try await domain?.start()
                     }
                 } label: {
                     Text("Start")
                 }
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        await domain?.remove()
+                        try await domain?.remove()
                     }
                 } label: {
                     Text("Remove")
@@ -180,7 +180,7 @@ private struct DomainRow: View {
             } else if domain.state.canStop {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        await domain?.pause(resumable: false)
+                        try await domain?.pause(resumable: false)
                     }
                 } label: {
                     Text("Pause")
@@ -188,14 +188,14 @@ private struct DomainRow: View {
             } else if domain.state.canRestart {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        await domain?.restart(wipingExistingData: false)
+                        try await domain?.restart(wipingExistingData: false)
                     }
                 } label: {
                     Text("Refresh")
                 }
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        await domain?.remove()
+                        try await domain?.remove()
                     }
                 } label: {
                     Text("Remove")
@@ -338,7 +338,7 @@ private struct DomainHeader: View {
                     Button {
                         actioning = true
                         Task {
-                            await section.startAll(matchingFilter: filter)
+                            try await section.startAll(matchingFilter: filter)
                             actioning = false
                         }
                     } label: {
@@ -348,7 +348,7 @@ private struct DomainHeader: View {
                     Button {
                         actioning = true
                         Task {
-                            await section.pauseAll(resumable: false, matchingFilter: filter)
+                            try await section.pauseAll(resumable: false, matchingFilter: filter)
                             actioning = false
                         }
                     } label: {
@@ -358,7 +358,7 @@ private struct DomainHeader: View {
                     Button {
                         actioning = true
                         Task {
-                            await section.restartAll(wipingExistingData: false, matchingFilter: filter)
+                            try await section.restartAll(wipingExistingData: false, matchingFilter: filter)
                             actioning = false
                         }
                     } label: {

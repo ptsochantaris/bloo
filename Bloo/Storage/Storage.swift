@@ -40,7 +40,7 @@ final class Storage {
         let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
         try! JSONEncoder().encode(item).write(to: path, options: .atomic)
 
-        Log.storage(.default).log("Saved checkpoint for \(item.id), - \(item.pending.count) pending items, \(item.indexed.count) indexed items - \(-start.timeIntervalSinceNow) sec")
+        Log.storage(.default).log("Saved checkpoint for \(item.id) - \(-start.timeIntervalSinceNow) sec")
     }
 
     func start() {

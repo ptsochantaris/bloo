@@ -7,58 +7,54 @@ extension Domain {
         let domains: [Domain]
 
         init(state: State, domains: [Domain]) {
-            self.id = state.title
+            id = state.title
             self.state = state
             self.domains = domains
         }
 
-        private func allDomains(matchingFilter: String, _ block: @escaping @Sendable (Domain) async -> Void) async {
+        private func allDomains(matchingFilter: String, _ block: @escaping @Sendable (Domain) async throws -> Void) async throws {
             // Heaviest-first to take advantage of completing faster on multiple cores
-            await withTaskGroup(of: Void.self) { group in
-                var tuples = [(domain: Domain, weight: Int)]()
+            try await withThrowingTaskGroup(of: Void.self) { group in
                 for domain in domains.filter({ $0.matchesFilter(matchingFilter) }) {
-                    let weight = await domain.weight
-                    tuples.append((domain, weight))
-                }
-                for item in tuples.sorted(by: { $0.weight > $1.weight }) {
                     group.addTask { @MainActor in
-                        await block(item.domain)
+                        try await block(domain)
                     }
                 }
+                try await group.waitForAll()
             }
         }
 
-        func resumeAll(matchingFilter: String) async {
-            await allDomains(matchingFilter: matchingFilter) {
+        func resumeAll(matchingFilter: String) async throws {
+            try await allDomains(matchingFilter: matchingFilter) {
                 if await $0.state.shouldResume {
-                    await $0.start()
+                    try await $0.start()
                 }
             }
         }
 
-        func removeAll(matchingFilter: String) async {
-            await allDomains(matchingFilter: matchingFilter) {
+        func removeAll(matchingFilter: String) async throws {
+            try await allDomains(matchingFilter: matchingFilter) {
                 if case let .paused(_, _, _, resumable) = await $0.state, resumable {
-                    await $0.remove()
+                    try await $0.remove()
                 }
             }
         }
 
-        func startAll(matchingFilter: String) async {
-            await allDomains(matchingFilter: matchingFilter) {
-                await $0.start()
+        func startAll(matchingFilter: String) async throws {
+            try await allDomains(matchingFilter: matchingFilter) {
+                try await $0.start()
             }
         }
 
-        func pauseAll(resumable: Bool, matchingFilter: String) async {
-            await allDomains(matchingFilter: matchingFilter) {
-                await $0.pause(resumable: resumable)
+        func pauseAll(resumable: Bool, matchingFilter: String) async throws {
+            try await allDomains(matchingFilter: matchingFilter) {
+                try await $0.pause(resumable: resumable)
             }
         }
 
-        func restartAll(wipingExistingData: Bool, matchingFilter: String) async {
-            await allDomains(matchingFilter: matchingFilter) {
-                await $0.restart(wipingExistingData: wipingExistingData)
+        func restartAll(wipingExistingData: Bool, matchingFilter: String) async throws {
+            try await allDomains(matchingFilter: matchingFilter) {
+                try await $0.restart(wipingExistingData: wipingExistingData)
             }
         }
     }

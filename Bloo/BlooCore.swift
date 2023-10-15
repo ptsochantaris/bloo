@@ -70,29 +70,31 @@ final class BlooCore {
         try await snapshotter.data(for: id)
     }
 
-    func resetAll() async {
+    func resetAll() async throws {
         clearSearches.toggle()
 
-        await withTaskGroup(of: Void.self) { group in
+        try await withThrowingTaskGroup(of: Void.self) { group in
             for section in domainSections {
                 group.addTask {
-                    await section.pauseAll(resumable: false, matchingFilter: "")
-                    await section.restartAll(wipingExistingData: true, matchingFilter: "")
+                    try await section.pauseAll(resumable: false, matchingFilter: "")
+                    try await section.restartAll(wipingExistingData: true, matchingFilter: "")
                 }
             }
+            try await group.waitForAll()
         }
     }
 
-    func removeAll() async {
+    func removeAll() async throws {
         clearSearches.toggle()
 
-        await withTaskGroup(of: Void.self) { group in
+        try await withThrowingTaskGroup(of: Void.self) { group in
             for section in domainSections {
                 group.addTask {
-                    await section.pauseAll(resumable: false, matchingFilter: "")
-                    await section.removeAll(matchingFilter: "")
+                    try await section.pauseAll(resumable: false, matchingFilter: "")
+                    try await section.removeAll(matchingFilter: "")
                 }
             }
+            try await group.waitForAll()
         }
     }
 
@@ -116,7 +118,7 @@ final class BlooCore {
         }
     }
 
-    func shutdown(backgrounded: Bool) async {
+    func shutdown(backgrounded: Bool) async throws {
         guard runState == .running else {
             return
         }
@@ -140,12 +142,13 @@ final class BlooCore {
             runState = .stopped
         }
 
-        await withTaskGroup(of: Void.self) { group in
+        try await withThrowingTaskGroup(of: Void.self) { group in
             for section in domainSections where section.state.canStop {
                 group.addTask {
-                    await section.pauseAll(resumable: true, matchingFilter: "")
+                    try await section.pauseAll(resumable: true, matchingFilter: "")
                 }
             }
+            try await group.waitForAll()
         }
         Log.app(.default).log("All domains are shut down")
         await snapshotter.shutdown()

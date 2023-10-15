@@ -15,7 +15,7 @@ struct BlooApp: App {
             func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
                 if BlooCore.shared.runState == .running {
                     Task {
-                        await BlooCore.shared.shutdown(backgrounded: false)
+                        try await BlooCore.shared.shutdown(backgrounded: false)
                         try? await Task.sleep(for: .milliseconds(100))
                         NSApp.terminate(nil)
                     }
@@ -109,14 +109,14 @@ struct BlooApp: App {
                     Menu("Clear all data") {
                         Button("Confirm: Clear Everything!") {
                             Task {
-                                await model.removeAll()
+                                try await model.removeAll()
                             }
                         }
                     }
                     Menu("Wipe and Reindex All Domains") {
                         Button("Confirm: Reset All Domains!") {
                             Task {
-                                await model.resetAll()
+                                try await model.resetAll()
                             }
                         }
                     }

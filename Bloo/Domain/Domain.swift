@@ -45,30 +45,24 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
     }
 
-    func restart(wipingExistingData: Bool) async {
-        await crawler.restart(wipingExistingData: wipingExistingData)
+    func restart(wipingExistingData: Bool) async throws {
+        try await crawler.restart(wipingExistingData: wipingExistingData)
     }
 
-    func pause(resumable: Bool) async {
-        await crawler.pause(resumable: resumable)
+    func pause(resumable: Bool) async throws {
+        try await crawler.pause(resumable: resumable)
     }
 
-    func start() async {
-        await crawler.start()
+    func start() async throws {
+        try await crawler.start()
     }
 
-    func remove() async {
-        await crawler.remove()
+    func remove() async throws {
+        try await crawler.remove()
     }
 
     var shouldDispose: Bool {
         state == .deleting
-    }
-
-    var weight: Int {
-        get async {
-            await crawler.weight
-        }
     }
 
     nonisolated func matchesFilter(_ text: String) -> Bool {
@@ -83,11 +77,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private let bootupEntry: IndexEntry
         private var robots: Robots?
 
-        private var pending: OrderedCollections.OrderedSet<IndexEntry>
-        private var indexed: OrderedCollections.OrderedSet<IndexEntry>
         private var spotlightQueue = [CSSearchableItem]()
         private var spotlightInvalidationQueue = Set<String>()
-        private var goTask: Task<Void, Never>?
+        private var goTask: Task<Void, Error>?
+        private let storage: CrawlerStorage
 
         private var rejectionCache = OrderedCollections.OrderedSet<String>()
 
@@ -97,14 +90,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         fileprivate init(id: String, url: String) async throws {
             self.id = id
             bootupEntry = .pending(url: url, isSitemap: false)
-            pending = []
-            indexed = []
+            storage = try CrawlerStorage(in: domainPath(for: id))
         }
 
         fileprivate func loadFromSnapshot(postAddAction: PostAddAction) async throws {
             let snapshot = try await BlooCore.shared.data(for: id)
-            indexed = snapshot.indexed
-            pending = snapshot.pending
             await signalState(snapshot.state)
 
             switch postAddAction {
@@ -112,15 +102,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 break
             case .resumeIfNeeded:
                 if snapshot.state.shouldResume {
-                    await start()
+                    try await start()
                 }
             case .start:
-                await start()
+                try await start()
             }
-        }
-
-        fileprivate var weight: Int {
-            indexed.count + pending.count
         }
 
         private func signalState(_ state: State, onlyIfActive: Bool = false) async {
@@ -143,46 +129,50 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             crawlerDelegate.state
         }
 
-        fileprivate func start() async {
-            await signalState(.starting(indexed.count, pending.count))
+        fileprivate func start() async throws {
+            try await signalState(.starting(storage.indexedCount, storage.pendingCount))
             startGoTask(priority: Settings.shared.indexingTaskPriority, signalStateChange: true)
         }
 
         private func startGoTask(priority: TaskPriority, signalStateChange: Bool) {
             goTask = Task(priority: priority) {
-                await go(signalStateChange: signalStateChange)
+                Log.crawling(id, .info).log("Starting main loop")
+                do {
+                    try await go(signalStateChange: signalStateChange)
+                } catch {
+                    Log.crawling(id, .error).log("Failed in main loop: \(error.localizedDescription)")
+                }
             }
         }
 
-        fileprivate func pause(resumable: Bool) async {
-            let newState = State.paused(indexed.count, pending.count, true, resumable)
+        fileprivate func pause(resumable: Bool) async throws {
+            Log.crawling(id, .info).log("Pausing")
+            let newState = try State.paused(storage.indexedCount, storage.pendingCount, true, resumable)
             if let g = goTask {
                 await signalState(newState)
                 goTask = nil
-                await g.value
+                try await g.value
+                Log.crawling(id, .info).log("Paused")
             }
         }
 
-        fileprivate func restart(wipingExistingData: Bool) async {
+        fileprivate func restart(wipingExistingData: Bool) async throws {
             if await currentState.isActive {
                 return
             }
             Log.crawling(id, .default).log("Resetting domain \(id)")
             if wipingExistingData {
-                pending.removeAll()
-                indexed.removeAll()
+                try storage.removeAll()
                 await BlooCore.shared.clearDomainSpotlight(for: id)
             } else {
-                pending = indexed
-                indexed.removeAll()
+                try storage.prepareForRefresh()
             }
-            await start()
+            try await start()
             await snapshot()
         }
 
-        fileprivate func remove() async {
-            pending.removeAll()
-            indexed.removeAll()
+        fileprivate func remove() async throws {
+            try storage.removeAll()
             await signalState(.deleting)
             await snapshot()
         }
@@ -200,12 +190,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             do {
                 var (newUrls, newSitemaps) = try await SitemapParser(data: xmlData).extract()
                 Log.crawling(id, .default).log("Considering \(newSitemaps.count) further sitemap URLs")
-                newSitemaps.subtract(pending)
-                newSitemaps.subtract(indexed)
+                try storage.subtractPending(from: &newSitemaps)
+                try storage.subtractIndexed(from: &newSitemaps)
                 newSitemaps.remove(.pending(url: url, isSitemap: true))
                 if newSitemaps.isPopulated {
                     Log.crawling(id, .default).log("Adding \(newSitemaps.count) unindexed URLs from sitemap")
-                    pending.formUnion(newSitemaps)
+                    try storage.appendPending(newSitemaps)
                 }
 
                 Log.crawling(id, .default).log("Considering \(newUrls.count) potential URLs from sitemap")
@@ -228,7 +218,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
         }
 
-        private func go(signalStateChange: Bool) async {
+        private func go(signalStateChange: Bool) async throws {
             await Maintini.startMaintaining()
             defer {
                 Task {
@@ -237,34 +227,38 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             if signalStateChange {
-                await signalState(.starting(indexed.count, pending.count))
+                try await signalState(.starting(storage.indexedCount, storage.pendingCount))
             }
 
             await scanRobots()
 
-            if indexed.isEmpty {
+            if try storage.noIndexed {
                 let url = "https://\(id)/sitemap.xml"
-                pending.append(.pending(url: url, isSitemap: true))
+                try storage.appendPending(.pending(url: url, isSitemap: true))
+
 
                 if let providedSitemaps = robots?.sitemaps {
                     let sitemapEntries = providedSitemaps
                         .map { IndexEntry.pending(url: $0, isSitemap: true) }
-                    pending.formUnion(sitemapEntries)
+
+                    try storage.appendPending(sitemapEntries)
                 }
-                pending.append(bootupEntry)
+
+                try storage.appendPending(bootupEntry)
             }
-            pending.subtract(indexed)
-            if pending.isEmpty {
-                pending.append(bootupEntry)
+
+            try storage.substractIndexedFromPending()
+            if try storage.noPending {
+                try storage.appendPending(bootupEntry)
             }
 
             if signalStateChange {
-                await signalState(.starting(indexed.count, pending.count))
+                try await signalState(.starting(storage.indexedCount, storage.pendingCount))
             }
 
             var operationCount = 0
             let originalPriority = Settings.shared.indexingTaskPriority
-            while pending.isPopulated {
+            while !(try storage.noPending) {
                 let setPriority = Settings.shared.indexingTaskPriority
                 if originalPriority != setPriority {
                     defer {
@@ -279,9 +273,9 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     await Self.requestLock.takeTicket()
                 }
 
-                let next = pending.removeFirst()
+                let next = try storage.nextPending()!
                 let start = Date()
-                let handledContent = await crawl(entry: next)
+                let handledContent = try await crawl(entry: next)
 
                 // Detect stop
                 let currentState = await currentState
@@ -315,11 +309,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             Log.crawling(id, .default).log("Stopping crawl because of completion")
-            await signalState(.done(indexed.count))
+            try await signalState(.done(storage.indexedCount))
             await snapshot()
         }
 
-        private func crawl(entry: IndexEntry) async -> Bool {
+        private func crawl(entry: IndexEntry) async throws -> Bool {
             var newEntries: Set<IndexEntry>?
             let indexResult: IndexResponse
 
@@ -329,10 +323,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     newEntries = await parseSitemap(at: url)
                     indexResult = .noChange
                 } else {
-                    indexResult = await index(page: url, lastVisited: nil, lastEtag: nil)
+                    indexResult = try await index(page: url, lastVisited: nil, lastEtag: nil)
                 }
             case let .visited(url, lastVisited, etag):
-                indexResult = await index(page: url, lastVisited: lastVisited, lastEtag: etag)
+                indexResult = try await index(page: url, lastVisited: lastVisited, lastEtag: etag)
             }
 
             let handledContent: Bool
@@ -352,15 +346,15 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             if var newEntries, newEntries.isPopulated {
-                newEntries.subtract(pending)
-                newEntries.subtract(indexed)
+                try storage.subtractPending(from: &newEntries)
+                try storage.subtractIndexed(from: &newEntries)
                 if newEntries.isPopulated {
                     Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
-                    pending.formUnion(newEntries)
+                    try storage.appendPending(newEntries)
                 }
             }
 
-            await signalState(.indexing(indexed.count, pending.count, entry.url), onlyIfActive: true)
+            try await signalState(.indexing(storage.indexedCount, storage.pendingCount, entry.url), onlyIfActive: true)
             return handledContent
         }
 
@@ -370,9 +364,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let item = Storage.Snapshot(id: id,
                                         state: state,
                                         items: spotlightQueue,
-                                        removedItems: spotlightInvalidationQueue,
-                                        pending: pending,
-                                        indexed: indexed)
+                                        removedItems: spotlightInvalidationQueue)
             spotlightQueue.removeAll(keepingCapacity: true)
             spotlightInvalidationQueue.removeAll(keepingCapacity: true)
             await BlooCore.shared.queueSnapshot(item: item)
@@ -403,13 +395,13 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             case noChange, error, indexed(CSSearchableItem, Set<IndexEntry>)
         }
 
-        private func index(page link: String, lastVisited: Date?, lastEtag: String?) async -> IndexResponse {
+        private func index(page link: String, lastVisited: Date?, lastEtag: String?) async throws -> IndexResponse {
             guard let site = URL(string: link) else {
                 Log.crawling(id, .error).log("Malformed URL: \(link)")
                 return .error
             }
 
-            await signalState(.indexing(indexed.count, pending.count, link), onlyIfActive: true)
+            try await signalState(.indexing(storage.indexedCount, storage.pendingCount, link), onlyIfActive: true)
 
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
@@ -421,7 +413,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if headResponse.statusCode == 304 {
                 Log.crawling(id, .info).log("No change (304) in \(link)")
-                indexed.append(.visited(url: link, lastModified: lastVisited, etag: lastEtag))
+                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: lastEtag))
                 return .noChange
             }
 
@@ -431,7 +423,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if let etagFromHeaders, lastEtag == etagFromHeaders {
                 Log.crawling(id, .info).log("No change (same etag) in \(link)")
-                indexed.append(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders))
+                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders))
                 return .noChange
             }
 
@@ -439,7 +431,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
                 if let lastVisited, lastVisited >= lm {
                     Log.crawling(id, .info).log("No change (same date) in \(link)")
-                    indexed.append(.visited(url: link, lastModified: lm, etag: etagFromHeaders))
+                    try storage.appendIndexed(.visited(url: link, lastModified: lm, etag: etagFromHeaders))
                     return .noChange
                 }
                 lastModifiedHeaderDate = lm
@@ -596,7 +588,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
             }
 
-            indexed.append(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders))
+            try storage.appendIndexed(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders))
 
             Log.crawling(id, .info).log("Indexed URL: \(link)")
 

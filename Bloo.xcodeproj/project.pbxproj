@@ -42,6 +42,8 @@
 		16FD233C2AC5CD1600751A85 /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD233B2AC5CD1600751A85 /* String+Extensions.swift */; };
 		16FD233E2AC5CD3600751A85 /* URL+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */; };
 		16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */; };
+		16FDB0FF2ADB450B003A4BBD /* CrawlerStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */; };
+		16FDB1022ADB47A8003A4BBD /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 16FDB1012ADB47A8003A4BBD /* SQLite */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -77,6 +79,7 @@
 		16FD233B2AC5CD1600751A85 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
 		16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+Extensions.swift"; sourceTree = "<group>"; };
 		16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSoup+Extensions.swift"; sourceTree = "<group>"; };
+		16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrawlerStorage.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,6 +91,7 @@
 				16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */,
 				1697539D2ACA2F9600C2281D /* OrderedCollections in Frameworks */,
 				16FD23352AC3A5A600751A85 /* Maintini in Frameworks */,
+				16FDB1022ADB47A8003A4BBD /* SQLite in Frameworks */,
 				1634CF912AC34D780022A8F6 /* Lista in Frameworks */,
 				16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */,
 			);
@@ -108,6 +112,7 @@
 			children = (
 				1697539E2ACA350B00C2281D /* Snapshot.swift */,
 				1634CF942AC365800022A8F6 /* Storage.swift */,
+				16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -213,6 +218,7 @@
 				16FD23372AC43D0F00751A85 /* PopTimer */,
 				1697539C2ACA2F9600C2281D /* OrderedCollections */,
 				16E3EF5C2AD088A800CF9B80 /* Semalot */,
+				16FDB1012ADB47A8003A4BBD /* SQLite */,
 			);
 			productName = Nibbel;
 			productReference = 16E8A0E42AC1F96500CCB10D /* Bloo.app */;
@@ -249,6 +255,7 @@
 				16FD23362AC43D0F00751A85 /* XCRemoteSwiftPackageReference "pop-timer" */,
 				1697539B2ACA2F9600C2281D /* XCRemoteSwiftPackageReference "swift-collections" */,
 				16E3EF592AD0876900CF9B80 /* XCRemoteSwiftPackageReference "semalot" */,
+				16FDB1002ADB47A8003A4BBD /* XCRemoteSwiftPackageReference "SQLite.swift" */,
 			);
 			productRefGroup = 16E8A0E52AC1F96500CCB10D /* Products */;
 			projectDirPath = "";
@@ -301,6 +308,7 @@
 				16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */,
 				16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */,
 				1634CF952AC365800022A8F6 /* Storage.swift in Sources */,
+				16FDB0FF2ADB450B003A4BBD /* CrawlerStorage.swift in Sources */,
 				165F10C22AC8802400442892 /* IndexEntry.swift in Sources */,
 				1634CF9D2AC367760022A8F6 /* BlooCore.swift in Sources */,
 			);
@@ -574,6 +582,14 @@
 				kind = branch;
 			};
 		};
+		16FDB1002ADB47A8003A4BBD /* XCRemoteSwiftPackageReference "SQLite.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stephencelis/SQLite.swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.14.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -606,6 +622,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 16FD23362AC43D0F00751A85 /* XCRemoteSwiftPackageReference "pop-timer" */;
 			productName = PopTimer;
+		};
+		16FDB1012ADB47A8003A4BBD /* SQLite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 16FDB1002ADB47A8003A4BBD /* XCRemoteSwiftPackageReference "SQLite.swift" */;
+			productName = SQLite;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

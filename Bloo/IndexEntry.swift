@@ -1,4 +1,5 @@
 import Foundation
+import SQLite
 
 enum IndexEntry: Codable, Hashable, Sendable {
     case pending(url: String, isSitemap: Bool), visited(url: String, lastModified: Date?, etag: String?)
