@@ -90,7 +90,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         fileprivate init(id: String, url: String) async throws {
             self.id = id
             bootupEntry = .pending(url: url, isSitemap: false)
-            storage = try CrawlerStorage(in: domainPath(for: id))
+            storage = try CrawlerStorage(id: id)
         }
 
         fileprivate func loadFromSnapshot(postAddAction: PostAddAction) async throws {
@@ -162,7 +162,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
             Log.crawling(id, .default).log("Resetting domain \(id)")
             if wipingExistingData {
-                try storage.removeAll()
+                try storage.removeAll(purge: false)
                 await BlooCore.shared.clearDomainSpotlight(for: id)
             } else {
                 try storage.prepareForRefresh()
@@ -172,7 +172,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func remove() async throws {
-            try storage.shutdown()
+            try storage.removeAll(purge: true)
             await signalState(.deleting)
             await snapshot()
         }
@@ -236,7 +236,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 let url = "https://\(id)/sitemap.xml"
                 try storage.appendPending(.pending(url: url, isSitemap: true))
 
-
                 if let providedSitemaps = robots?.sitemaps {
                     let sitemapEntries = providedSitemaps
                         .map { IndexEntry.pending(url: $0, isSitemap: true) }
@@ -259,7 +258,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             var operationCount = 0
             let originalPriority = Settings.shared.indexingTaskPriority
             while let next = try storage.nextPending() {
-
                 let setPriority = Settings.shared.indexingTaskPriority
                 if originalPriority != setPriority {
                     defer {

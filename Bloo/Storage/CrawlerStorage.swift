@@ -2,28 +2,29 @@ import Foundation
 import SQLite
 
 struct CrawlerStorage {
-    private let db: Connection
-    private let pendingTable = Table("pending")
-    private let visitedTable = Table("visited")
-    private let urlRow = Expression<String>("url")
-    private let isSitemapRow = Expression<Bool?>("isSitemap")
-    private let lastModifiedRow = Expression<Date?>("lastModified")
-    private let etagRow = Expression<String?>("etag")
-
-    init(in path: URL) throws {
-        if !FileManager.default.fileExists(atPath: path.path) {
-            try! FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
-        }
-        let file = path.appending(path: "db.sqlite3", directoryHint: .notDirectory)
-        db = try Connection()
-        try db.attach(.uri(file.path, parameters: []), as: "db")
-
-        try db.run("""
+    private static let db = {
+        let file = documentsPath.appending(path: "db.sqlite3", directoryHint: .notDirectory)
+        let c = try! Connection(file.path)
+        try! c.run("""
                     pragma synchronous = off;
                     pragma temp_store = memory;
+                    pragma journal_mode = WAL;
         """)
+        return c
+    }()
 
-        try db.vacuum()
+    private static let urlRow = Expression<String>("url")
+    private static let isSitemapRow = Expression<Bool?>("isSitemap")
+    private static let lastModifiedRow = Expression<Date?>("lastModified")
+    private static let etagRow = Expression<String?>("etag")
+
+    private let pendingTable: Table
+    private let visitedTable: Table
+
+    init(id: String) throws {
+        let tableId = id.replacingOccurrences(of: ".", with: "_")
+        pendingTable = Table("pending_\(tableId)")
+        visitedTable = Table("visited_\(tableId)")
 
         try createPendingTable()
 
@@ -31,47 +32,48 @@ struct CrawlerStorage {
     }
 
     private func createPendingTable() throws {
-        try db.run(pendingTable.create(ifNotExists: true) {
-            $0.column(urlRow, primaryKey: true)
-            $0.column(isSitemapRow)
-            $0.column(lastModifiedRow)
-            $0.column(etagRow)
+        try Self.db.run(pendingTable.create(ifNotExists: true) {
+            $0.column(Self.urlRow, primaryKey: true)
+            $0.column(Self.isSitemapRow)
+            $0.column(Self.lastModifiedRow)
+            $0.column(Self.etagRow)
         })
     }
 
     private func createIndexedTable() throws {
-        try db.run(visitedTable.create(ifNotExists: true) {
-            $0.column(urlRow, primaryKey: true)
-            $0.column(isSitemapRow)
-            $0.column(lastModifiedRow)
-            $0.column(etagRow)
+        try Self.db.run(visitedTable.create(ifNotExists: true) {
+            $0.column(Self.urlRow, primaryKey: true)
+            $0.column(Self.isSitemapRow)
+            $0.column(Self.lastModifiedRow)
+            $0.column(Self.etagRow)
         })
     }
 
-    func shutdown() throws {
-        try db.detach("db")
-    }
-
-    func removeAll() throws {
-        try db.run(visitedTable.delete())
-        try db.run(pendingTable.delete())
+    func removeAll(purge: Bool) throws {
+        if purge {
+            try Self.db.run(visitedTable.drop(ifExists: true))
+            try Self.db.run(pendingTable.drop(ifExists: true))
+        } else {
+            try Self.db.run(visitedTable.delete())
+            try Self.db.run(pendingTable.delete())
+        }
     }
 
     var indexedCount: Int {
         get throws {
-            try db.scalar(visitedTable.count)
+            try Self.db.scalar(visitedTable.count)
         }
     }
 
     var pendingCount: Int {
         get throws {
-            try db.scalar(pendingTable.count)
+            try Self.db.scalar(pendingTable.count)
         }
     }
 
     func prepareForRefresh() throws {
-        try db.run(pendingTable.drop(ifExists: true))
-        try db.run(visitedTable.rename(pendingTable))
+        try Self.db.run(pendingTable.drop(ifExists: true))
+        try Self.db.run(visitedTable.rename(pendingTable))
         try createIndexedTable()
     }
 
@@ -88,14 +90,14 @@ struct CrawlerStorage {
     }
 
     func nextPending() throws -> IndexEntry? {
-        guard let res = try db.pluck(pendingTable) else {
+        guard let res = try Self.db.pluck(pendingTable) else {
             return nil
         }
-        let url = res[urlRow]
-        let isSitemap = res[isSitemapRow] ?? false
+        let url = res[Self.urlRow]
+        let isSitemap = res[Self.isSitemapRow] ?? false
         let result: IndexEntry
-        let lastModified = res[lastModifiedRow]
-        let etag = res[etagRow]
+        let lastModified = res[Self.lastModifiedRow]
+        let etag = res[Self.etagRow]
         if let etag {
             result = .visited(url: url, lastModified: lastModified, etag: etag)
         } else if let lastModified {
@@ -109,14 +111,14 @@ struct CrawlerStorage {
     private func append(item: IndexEntry, to table: Table) throws {
         switch item {
         case let .pending(url, isSitemap):
-            try db.run(table.insert(or: .replace, urlRow <- url, isSitemapRow <- isSitemap))
+            try Self.db.run(table.insert(or: .replace, Self.urlRow <- url, Self.isSitemapRow <- isSitemap))
         case let .visited(url, lastModified, etag):
-            try db.run(table.insert(or: .replace, urlRow <- url, lastModifiedRow <- lastModified, etagRow <- etag))
+            try Self.db.run(table.insert(or: .replace, Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag))
         }
     }
 
     private func delete(item: IndexEntry, from table: Table) throws {
-        try db.run(table.filter(urlRow == item.url).delete())
+        try Self.db.run(table.filter(Self.urlRow == item.url).delete())
     }
 
     func deletePending(_ item: IndexEntry) throws {
@@ -141,18 +143,18 @@ struct CrawlerStorage {
         let setters = items.map {
             switch $0 {
             case let .pending(url, isSitemap):
-                return [urlRow <- url, isSitemapRow <- isSitemap]
+                [Self.urlRow <- url, Self.isSitemapRow <- isSitemap]
             case let .visited(url, lastModified, etag):
-                return [urlRow <- url, lastModifiedRow <- lastModified, etagRow <- etag]
+                [Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag]
             }
         }
-        try db.run(pendingTable.insertMany(or: .replace, setters))
+        try Self.db.run(pendingTable.insertMany(or: .replace, setters))
     }
 
     private func subtract(from items: inout Set<IndexEntry>, in table: Table) throws {
-        let array = items.map { $0.url }
+        let array = items.map(\.url)
         if array.isPopulated {
-            let itemsToSubtract = try db.prepare(table.filter(array.contains(urlRow))).map { IndexEntry.pending(url: $0[urlRow], isSitemap: false) }
+            let itemsToSubtract = try Self.db.prepare(table.filter(array.contains(Self.urlRow))).map { IndexEntry.pending(url: $0[Self.urlRow], isSitemap: false) }
             items.subtract(itemsToSubtract)
         }
     }
@@ -166,10 +168,10 @@ struct CrawlerStorage {
     }
 
     func substractIndexedFromPending() throws {
-        let urlsToSubtract = try db.prepare(visitedTable).map { $0[urlRow] }
+        let urlsToSubtract = try Self.db.prepare(visitedTable).map { $0[Self.urlRow] }
         if urlsToSubtract.isPopulated {
-            let pendingWithUrl = pendingTable.filter(urlsToSubtract.contains(urlRow))
-            try db.run(pendingWithUrl.delete())
+            let pendingWithUrl = pendingTable.filter(urlsToSubtract.contains(Self.urlRow))
+            try Self.db.run(pendingWithUrl.delete())
         }
     }
 }
