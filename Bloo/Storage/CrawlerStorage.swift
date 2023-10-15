@@ -15,7 +15,13 @@ struct CrawlerStorage {
             try! FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
         }
         let file = path.appending(path: "db.sqlite3", directoryHint: .notDirectory)
-        db = try Connection(file.path)
+        db = try Connection()
+        try db.attach(.uri(file.path, parameters: []), as: "db")
+
+        try db.run("""
+                    pragma synchronous = off;
+                    pragma temp_store = memory;
+        """)
 
         try db.vacuum()
 
@@ -40,6 +46,10 @@ struct CrawlerStorage {
             $0.column(lastModifiedRow)
             $0.column(etagRow)
         })
+    }
+
+    func shutdown() throws {
+        try db.detach("db")
     }
 
     func removeAll() throws {
@@ -93,7 +103,6 @@ struct CrawlerStorage {
         } else {
             result = .pending(url: url, isSitemap: isSitemap)
         }
-        try db.run(pendingTable.filter(urlRow == url).delete())
         return result
     }
 
@@ -106,12 +115,22 @@ struct CrawlerStorage {
         }
     }
 
+    private func delete(item: IndexEntry, from table: Table) throws {
+        try db.run(table.filter(urlRow == item.url).delete())
+    }
+
+    func deletePending(_ item: IndexEntry) throws {
+        try delete(item: item, from: pendingTable)
+    }
+
     func appendIndexed(_ item: IndexEntry) throws {
         try append(item: item, to: visitedTable)
+        try delete(item: item, from: pendingTable)
     }
 
     func appendPending(_ item: IndexEntry) throws {
         try append(item: item, to: pendingTable)
+        try delete(item: item, from: visitedTable)
     }
 
     func appendPending(_ items: any Collection<IndexEntry>) throws {

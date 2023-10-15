@@ -172,7 +172,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func remove() async throws {
-            try storage.removeAll()
+            try storage.shutdown()
             await signalState(.deleting)
             await snapshot()
         }
@@ -258,7 +258,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             var operationCount = 0
             let originalPriority = Settings.shared.indexingTaskPriority
-            while !(try storage.noPending) {
+            while let next = try storage.nextPending() {
+
                 let setPriority = Settings.shared.indexingTaskPriority
                 if originalPriority != setPriority {
                     defer {
@@ -273,9 +274,9 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     await Self.requestLock.takeTicket()
                 }
 
-                let next = try storage.nextPending()!
                 let start = Date()
                 let handledContent = try await crawl(entry: next)
+                try storage.deletePending(next)
 
                 // Detect stop
                 let currentState = await currentState

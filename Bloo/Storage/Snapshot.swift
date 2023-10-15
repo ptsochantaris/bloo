@@ -1,6 +1,5 @@
 @preconcurrency import CoreSpotlight
 import Foundation
-import OrderedCollections
 
 extension Storage {
     final class Snapshot: Codable, Sendable {
