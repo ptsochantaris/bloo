@@ -13,7 +13,6 @@ extension Domain {
         }
 
         private func allDomains(matchingFilter: String, _ block: @escaping @Sendable (Domain) async throws -> Void) async throws {
-            // Heaviest-first to take advantage of completing faster on multiple cores
             try await withThrowingTaskGroup(of: Void.self) { group in
                 for domain in domains.filter({ $0.matchesFilter(matchingFilter) }) {
                     group.addTask { @MainActor in
@@ -22,6 +21,7 @@ extension Domain {
                 }
                 try await group.waitForAll()
             }
+            Log.crawling(id, .info).log("Action for all domains complete")
         }
 
         func resumeAll(matchingFilter: String) async throws {
@@ -34,7 +34,7 @@ extension Domain {
 
         func removeAll(matchingFilter: String) async throws {
             try await allDomains(matchingFilter: matchingFilter) {
-                if case let .paused(_, _, _, resumable) = await $0.state, resumable {
+                if case .paused(_, _, _, _) = await $0.state {
                     try await $0.remove()
                 }
             }

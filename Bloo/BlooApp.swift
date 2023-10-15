@@ -134,7 +134,7 @@ struct BlooApp: App {
             case .background:
                 Maintini.startMaintaining()
                 Task {
-                    await model.shutdown(backgrounded: true)
+                    try await model.shutdown(backgrounded: true)
                     Maintini.endMaintaining()
                 }
 

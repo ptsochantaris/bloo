@@ -3,7 +3,11 @@ import SQLite
 
 struct CrawlerStorage {
     private static let db = {
-        let file = documentsPath.appending(path: "db.sqlite3", directoryHint: .notDirectory)
+        let file = documentsPath.appending(path: "content.sqlite3", directoryHint: .notDirectory)
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: documentsPath.path) {
+            try! fm.createDirectory(atPath: documentsPath.path, withIntermediateDirectories: true)
+        }
         let c = try! Connection(file.path)
         try! c.run("""
                     pragma synchronous = off;
@@ -17,6 +21,8 @@ struct CrawlerStorage {
     private static let isSitemapRow = Expression<Bool?>("isSitemap")
     private static let lastModifiedRow = Expression<Date?>("lastModified")
     private static let etagRow = Expression<String?>("etag")
+    private static let contentRow = Expression<String?>("content")
+    private static let descriptionRow = Expression<String?>("description")
 
     private let pendingTable: Table
     private let visitedTable: Table
@@ -37,6 +43,8 @@ struct CrawlerStorage {
             $0.column(Self.isSitemapRow)
             $0.column(Self.lastModifiedRow)
             $0.column(Self.etagRow)
+            $0.column(Self.descriptionRow)
+            $0.column(Self.contentRow)
         })
     }
 
@@ -46,6 +54,8 @@ struct CrawlerStorage {
             $0.column(Self.isSitemapRow)
             $0.column(Self.lastModifiedRow)
             $0.column(Self.etagRow)
+            $0.column(Self.descriptionRow)
+            $0.column(Self.contentRow)
         })
     }
 
@@ -98,10 +108,10 @@ struct CrawlerStorage {
         let result: IndexEntry
         let lastModified = res[Self.lastModifiedRow]
         let etag = res[Self.etagRow]
-        if let etag {
-            result = .visited(url: url, lastModified: lastModified, etag: etag)
-        } else if let lastModified {
-            result = .visited(url: url, lastModified: lastModified, etag: etag)
+        let desc = res[Self.descriptionRow]
+        let content = res[Self.contentRow]
+        if etag != nil || lastModified != nil || desc != nil || content != nil {
+            result = .visited(url: url, lastModified: lastModified, etag: etag, description: desc, content: content)
         } else {
             result = .pending(url: url, isSitemap: isSitemap)
         }
@@ -112,8 +122,8 @@ struct CrawlerStorage {
         switch item {
         case let .pending(url, isSitemap):
             try Self.db.run(table.insert(or: .replace, Self.urlRow <- url, Self.isSitemapRow <- isSitemap))
-        case let .visited(url, lastModified, etag):
-            try Self.db.run(table.insert(or: .replace, Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag))
+        case let .visited(url, lastModified, etag, desc, content):
+            try Self.db.run(table.insert(or: .replace, Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag, Self.descriptionRow <- desc, Self.contentRow <- content))
         }
     }
 
@@ -144,8 +154,8 @@ struct CrawlerStorage {
             switch $0 {
             case let .pending(url, isSitemap):
                 [Self.urlRow <- url, Self.isSitemapRow <- isSitemap]
-            case let .visited(url, lastModified, etag):
-                [Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag]
+            case let .visited(url, lastModified, etag, desc, content):
+                [Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag, Self.descriptionRow <- desc, Self.contentRow <- content]
             }
         }
         try Self.db.run(pendingTable.insertMany(or: .replace, setters))

@@ -96,6 +96,7 @@ final class BlooCore {
             }
             try await group.waitForAll()
         }
+        domains.removeAll()
     }
 
     func start(fromInitialiser: Bool = false) async {
@@ -208,7 +209,7 @@ final class BlooCore {
             task.expirationHandler = {
                 Task { [weak self] in
                     guard let self else { return }
-                    await shutdown(backgrounded: true)
+                    try await shutdown(backgrounded: true)
                 }
             }
             Task { [weak self] in
@@ -216,7 +217,7 @@ final class BlooCore {
                 await start()
                 await waitForIndexingToEnd()
                 if UIApplication.shared.applicationState == .background {
-                    await shutdown(backgrounded: false)
+                    try await shutdown(backgrounded: false)
                 }
                 Log.app(.default).log("Background task complete")
                 task.setTaskCompleted(success: true)

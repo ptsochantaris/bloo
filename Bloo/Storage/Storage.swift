@@ -27,6 +27,7 @@ final class Storage {
         let domainPath = domainPath(for: item.id)
 
         if item.state == .deleting {
+            Log.storage(.default).log("Removing domain \(item.id)")
             let fm = FileManager.default
             if fm.fileExists(atPath: domainPath.path) {
                 try! fm.removeItem(at: domainPath)
@@ -35,12 +36,10 @@ final class Storage {
             return
         }
 
-        let start = Date()
-
         let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
         try! JSONEncoder().encode(item).write(to: path, options: .atomic)
 
-        Log.storage(.default).log("Saved checkpoint for \(item.id) - \(-start.timeIntervalSinceNow) sec")
+        Log.storage(.default).log("Saved checkpoint for \(item.id)")
     }
 
     func start() {

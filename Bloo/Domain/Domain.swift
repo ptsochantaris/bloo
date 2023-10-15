@@ -146,14 +146,14 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func pause(resumable: Bool) async throws {
-            Log.crawling(id, .info).log("Pausing")
-            let newState = try State.paused(storage.indexedCount, storage.pendingCount, true, resumable)
             if let g = goTask {
+                Log.crawling(id, .info).log("Pausing")
+                let newState = try State.paused(storage.indexedCount, storage.pendingCount, true, resumable)
                 await signalState(newState)
                 goTask = nil
                 try await g.value
-                Log.crawling(id, .info).log("Paused")
             }
+            Log.crawling(id, .info).log("Paused")
         }
 
         fileprivate func restart(wipingExistingData: Bool) async throws {
@@ -322,10 +322,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     newEntries = await parseSitemap(at: url)
                     indexResult = .noChange
                 } else {
-                    indexResult = try await index(page: url, lastVisited: nil, lastEtag: nil)
+                    indexResult = try await index(page: url, lastVisited: nil, lastEtag: nil, lastDesc: nil, lastContent: nil)
                 }
-            case let .visited(url, lastVisited, etag):
-                indexResult = try await index(page: url, lastVisited: lastVisited, lastEtag: etag)
+            case let .visited(url, lastVisited, etag, lastDesc, lastContent):
+                indexResult = try await index(page: url, lastVisited: lastVisited, lastEtag: etag, lastDesc: lastDesc, lastContent: lastContent)
             }
 
             let handledContent: Bool
@@ -394,7 +394,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             case noChange, error, indexed(CSSearchableItem, Set<IndexEntry>)
         }
 
-        private func index(page link: String, lastVisited: Date?, lastEtag: String?) async throws -> IndexResponse {
+        private func index(page link: String, lastVisited: Date?, lastEtag: String?, lastDesc: String?, lastContent: String?) async throws -> IndexResponse {
             guard let site = URL(string: link) else {
                 Log.crawling(id, .error).log("Malformed URL: \(link)")
                 return .error
@@ -412,7 +412,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if headResponse.statusCode == 304 {
                 Log.crawling(id, .info).log("No change (304) in \(link)")
-                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: lastEtag))
+                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: lastEtag, description: lastDesc, content: lastContent))
                 return .noChange
             }
 
@@ -422,7 +422,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if let etagFromHeaders, lastEtag == etagFromHeaders {
                 Log.crawling(id, .info).log("No change (same etag) in \(link)")
-                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders))
+                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders, description: lastDesc, content: lastContent))
                 return .noChange
             }
 
@@ -430,7 +430,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
                 if let lastVisited, lastVisited >= lm {
                     Log.crawling(id, .info).log("No change (same date) in \(link)")
-                    try storage.appendIndexed(.visited(url: link, lastModified: lm, etag: etagFromHeaders))
+                    try storage.appendIndexed(.visited(url: link, lastModified: lm, etag: etagFromHeaders, description: lastDesc, content: lastContent))
                     return .noChange
                 }
                 lastModifiedHeaderDate = lm
@@ -490,7 +490,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 return nil
             }
 
-            let contentDescription = header.metaPropertyContent(for: "og:description")
+            let summaryContent = header.metaPropertyContent(for: "og:description") ?? ""
 
             var newUrls = Set<IndexEntry>()
 
@@ -529,7 +529,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let keywords = header
                 .metaNameContent(for: "keywords")?.split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                ?? Self.generateKeywords(from: textContent)
+            ?? Self.generateKeywords(from: textContent)
 
             let lastModified: Date? = if let lastModifiedHeaderDate {
                 lastModifiedHeaderDate
@@ -540,32 +540,31 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             var rankHint = 0
-            let descriptionInfo = (contentDescription ?? "").isEmpty ? textContent : contentDescription
-            let descriptionTokens = Set((descriptionInfo ?? "").split(separator: " "))
-            if descriptionTokens.isPopulated, keywords.isPopulated {
-                if let lastModified {
-                    let time = lastModified.timeIntervalSinceNow
-                    if time > -(3600 * 24) {
-                        rankHint += 4
-                    } else if time > -(3600 * 24 * 7) {
-                        rankHint += 3
-                    } else if time > -(3600 * 24 * 30) {
-                        rankHint += 2
-                    } else if time > -(3600 * 24 * 265) {
-                        rankHint += 1
-                    }
-                }
 
-                var numberOfKeywordsInTitle = 0
-                var numberOfKeywordsInDescription = 0
-                let titleTokens = Set(title.split(separator: " "))
-                for keyword in keywords {
-                    if titleTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
-                        numberOfKeywordsInTitle += 1
-                    }
-                    if descriptionTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
-                        numberOfKeywordsInDescription += 1
-                    }
+            if let lastModified {
+                let time = lastModified.timeIntervalSinceNow
+                if time > -(3600 * 24) {
+                    rankHint += 4
+                } else if time > -(3600 * 24 * 7) {
+                    rankHint += 3
+                } else if time > -(3600 * 24 * 30) {
+                    rankHint += 2
+                } else if time > -(3600 * 24 * 265) {
+                    rankHint += 1
+                }
+            }
+
+            var numberOfKeywordsInTitle = 0
+            var numberOfKeywordsInDescription = 0
+            var numberOfKeywordsInContent = 0
+
+            let titleTokens = Set(title.split(separator: " "))
+            let summaryTokens = Set(summaryContent.split(separator: " "))
+            let contentTokens = Set(textContent.split(separator: " "))
+
+            for keyword in keywords {
+                if titleTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                    numberOfKeywordsInTitle += 1
                 }
 
                 switch numberOfKeywordsInTitle {
@@ -575,8 +574,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 default: break
                 }
 
-                if numberOfKeywordsInTitle > 0, numberOfKeywordsInDescription > 0 {
-                    rankHint += 1
+                if summaryTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                    numberOfKeywordsInDescription += 1
                 }
 
                 switch numberOfKeywordsInDescription {
@@ -585,16 +584,33 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 case 1: rankHint += 1
                 default: break
                 }
+
+                if contentTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                    numberOfKeywordsInContent += 1
+                }
+
+                switch numberOfKeywordsInContent {
+                case 3...: rankHint += 3
+                case 2: rankHint += 2
+                case 1: rankHint += 1
+                default: break
+                }
+
+                if numberOfKeywordsInTitle > 0, numberOfKeywordsInDescription > 0, numberOfKeywordsInContent > 0 {
+                    rankHint += 1
+                }
+
             }
 
-            try storage.appendIndexed(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders))
+            try storage.appendIndexed(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, description: summaryContent, content: textContent))
 
             Log.crawling(id, .info).log("Indexed URL: \(link)")
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)
             attributes.keywords = keywords
-            attributes.contentDescription = descriptionInfo
             attributes.title = title
+            attributes.contentDescription = summaryContent
+            attributes.textContent = textContent
             attributes.contentModificationDate = lastModified
             attributes.thumbnailURL = await imageFileUrl.value
             attributes.rankingHint = NSNumber(value: rankHint)
