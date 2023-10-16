@@ -412,7 +412,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if headResponse.statusCode == 304 {
                 Log.crawling(id, .info).log("No change (304) in \(link)")
-                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: lastEtag, description: lastDesc, content: lastContent))
                 return .noChange
             }
 
@@ -422,7 +421,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if let etagFromHeaders, lastEtag == etagFromHeaders {
                 Log.crawling(id, .info).log("No change (same etag) in \(link)")
-                try storage.appendIndexed(.visited(url: link, lastModified: lastVisited, etag: etagFromHeaders, description: lastDesc, content: lastContent))
                 return .noChange
             }
 
@@ -430,7 +428,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
                 if let lastVisited, lastVisited >= lm {
                     Log.crawling(id, .info).log("No change (same date) in \(link)")
-                    try storage.appendIndexed(.visited(url: link, lastModified: lm, etag: etagFromHeaders, description: lastDesc, content: lastContent))
                     return .noChange
                 }
                 lastModifiedHeaderDate = lm
@@ -539,67 +536,24 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 Self.generateDate(from: textContent)
             }
 
-            var rankHint = 0
-
-            if let lastModified {
-                let time = lastModified.timeIntervalSinceNow
-                if time > -(3600 * 24) {
-                    rankHint += 4
-                } else if time > -(3600 * 24 * 7) {
-                    rankHint += 3
-                } else if time > -(3600 * 24 * 30) {
-                    rankHint += 2
-                } else if time > -(3600 * 24 * 265) {
-                    rankHint += 1
-                }
-            }
-
             var numberOfKeywordsInTitle = 0
+
             var numberOfKeywordsInDescription = 0
+
             var numberOfKeywordsInContent = 0
 
-            let titleTokens = Set(title.split(separator: " "))
-            let summaryTokens = Set(summaryContent.split(separator: " "))
-            let contentTokens = Set(textContent.split(separator: " "))
-
             for keyword in keywords {
-                if titleTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                if title.localizedCaseInsensitiveContains(keyword) {
                     numberOfKeywordsInTitle += 1
                 }
 
-                switch numberOfKeywordsInTitle {
-                case 3...: rankHint += 3
-                case 2: rankHint += 2
-                case 1: rankHint += 1
-                default: break
-                }
-
-                if summaryTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                if summaryContent.localizedCaseInsensitiveContains(keyword) {
                     numberOfKeywordsInDescription += 1
                 }
 
-                switch numberOfKeywordsInDescription {
-                case 3...: rankHint += 3
-                case 2: rankHint += 2
-                case 1: rankHint += 1
-                default: break
-                }
-
-                if contentTokens.contains(where: { $0.localizedCaseInsensitiveCompare(keyword) == .orderedSame }) {
+                if textContent.localizedCaseInsensitiveContains(keyword) {
                     numberOfKeywordsInContent += 1
                 }
-
-                switch numberOfKeywordsInContent {
-                case 3...: rankHint += 3
-                case 2: rankHint += 2
-                case 1: rankHint += 1
-                default: break
-                }
-
-                if numberOfKeywordsInTitle > 0, numberOfKeywordsInDescription > 0, numberOfKeywordsInContent > 0 {
-                    rankHint += 1
-                }
-
             }
 
             try storage.appendIndexed(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, description: summaryContent, content: textContent))
@@ -613,7 +567,6 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             attributes.textContent = textContent
             attributes.contentModificationDate = lastModified
             attributes.thumbnailURL = await imageFileUrl.value
-            attributes.rankingHint = NSNumber(value: rankHint)
             return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes),
                             newUrls)
         }

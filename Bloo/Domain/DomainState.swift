@@ -61,6 +61,15 @@ extension Domain {
             }
         }
 
+        var canRemove: Bool {
+            switch self {
+            case .done, .paused:
+                true
+            case .deleting, .indexing, .loading, .starting:
+                false
+            }
+        }
+
         var canRestart: Bool {
             switch self {
             case .done, .paused:

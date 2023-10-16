@@ -9,7 +9,7 @@ extension Domain {
         init(state: State, domains: [Domain]) {
             id = state.title
             self.state = state
-            self.domains = domains
+            self.domains = domains.sorted { $0.id < $1.id }
         }
 
         private func allDomains(matchingFilter: String, _ block: @escaping @Sendable (Domain) async throws -> Void) async throws {
@@ -34,7 +34,7 @@ extension Domain {
 
         func removeAll(matchingFilter: String) async throws {
             try await allDomains(matchingFilter: matchingFilter) {
-                if case .paused(_, _, _, _) = await $0.state {
+                if await $0.state.canRemove {
                     try await $0.remove()
                 }
             }

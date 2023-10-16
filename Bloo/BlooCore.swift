@@ -96,7 +96,11 @@ final class BlooCore {
             }
             try await group.waitForAll()
         }
+
         domains.removeAll()
+        Task {
+            try? await CSSearchableIndex.default().deleteAllSearchableItems()
+        }
     }
 
     func start(fromInitialiser: Bool = false) async {

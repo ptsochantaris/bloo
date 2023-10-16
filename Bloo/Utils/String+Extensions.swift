@@ -14,6 +14,10 @@ extension String {
     }
 
     func wordRanges(of substring: String, options: CompareOptions = []) -> [Range<Index>] {
+        if substring.localizedCaseInsensitiveCompare(self) == .orderedSame {
+            return [startIndex ..< endIndex]
+        }
+
         var ranges: [Range<Index>] = []
         let word = " \(substring) "
         while let range = range(of: word, options: options, range: (ranges.last?.upperBound ?? startIndex) ..< endIndex) {

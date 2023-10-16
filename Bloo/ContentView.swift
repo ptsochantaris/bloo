@@ -697,7 +697,9 @@ private struct Admin: View {
                         .focused($additionFocused)
                 }
 
-                if searcher.resultState.results != nil {
+                if case .noSearch = searcher.resultState {
+                    EmptyView()
+                } else {
                     SearchSection(searcher: searcher)
                 }
 
