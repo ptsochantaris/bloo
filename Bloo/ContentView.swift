@@ -265,8 +265,8 @@ private struct ResultRow: View {
                 }
             }
 
-            Text(descriptionText ?? AttributedString(result.descriptionText))
-                .lineLimit(14)
+            Text(descriptionText ?? "")
+                .lineLimit(4, reservesSpace: true)
                 .font(.blooBody)
                 .foregroundStyle(.secondary)
                 .task {

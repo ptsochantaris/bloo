@@ -36,8 +36,9 @@ extension String {
         return ranges
     }
 
-    func highlightedAttributedStirng(_ terms: [String]) -> AttributedString {
+    func highlightedAttributedString(_ terms: [String]) -> (text: AttributedString, firstMatchRange: Range<AttributedString.Index>?) {
         var attributedString = AttributedString(self)
+        var firstMatchRange: Range<AttributedString.Index>?
         for term in terms {
             let ranges = wordRanges(of: term, options: [.caseInsensitive, .diacriticInsensitive])
             for range in ranges {
@@ -45,9 +46,29 @@ extension String {
                 let plainLength = distance(from: range.lowerBound, to: range.upperBound)
                 let attributedStart = attributedString.index(attributedString.startIndex, offsetByCharacters: plainStart)
                 let attributedEnd = attributedString.index(attributedStart, offsetByCharacters: plainLength)
-                attributedString[attributedStart ..< attributedEnd].foregroundColor = .accent
+                let newRange = attributedStart ..< attributedEnd
+                attributedString[newRange].foregroundColor = .accent
+                if firstMatchRange == nil {
+                    firstMatchRange = newRange
+                }
             }
         }
-        return attributedString
+        return (text: attributedString, firstMatchRange: firstMatchRange)
+    }
+}
+
+extension AttributedString {
+    func clippedAround(_ range: Range<AttributedString.Index>) -> AttributedString {
+        let padding = 128
+
+        let leadingDistance = characters.distance(from: startIndex, to: range.lowerBound)
+        if leadingDistance <= padding {
+            return self
+        }
+
+        let finalRangeLower = index(range.lowerBound, offsetByCharacters: -padding)
+        var clipped = AttributedString(self[finalRangeLower ..< endIndex])
+        clipped.insert(AttributedString("..."), at: clipped.startIndex)
+        return clipped
     }
 }

@@ -6,7 +6,8 @@ extension Search {
         let id: String
         let title: String
         let url: URL
-        let descriptionText: String
+        private let descriptionText: String
+        private let contentText: String?
         let displayDate: Date?
         let thumbnailUrl: URL?
         let keywords: [String]
@@ -24,17 +25,31 @@ extension Search {
             url = sourceUrl
             title = sourceTitle
             descriptionText = contentDescription
+            contentText = attributes.textContent
             displayDate = attributes.contentModificationDate
             thumbnailUrl = attributes.thumbnailURL
             keywords = attributes.keywords ?? []
         }
 
         var attributedTitle: AttributedString {
-            title.highlightedAttributedStirng(terms)
+            title.highlightedAttributedString(terms).text
         }
 
         var attributedDescription: AttributedString {
-            descriptionText.highlightedAttributedStirng(terms)
+            let contentRes = contentText?.highlightedAttributedString(terms)
+            if let contentRes, let firstMatch = contentRes.firstMatchRange {
+                return contentRes.text.clippedAround(firstMatch)
+            }
+            
+            let descRes = descriptionText.highlightedAttributedString(terms)
+            if let firstMatch = descRes.firstMatchRange {
+                return descRes.text.clippedAround(firstMatch)
+            }
+            
+            if let contentRes, descRes.text.characters.count < contentRes.text.characters.count {
+                return contentRes.text
+            }
+            return descRes.text
         }
 
         var matchedKeywords: String? {
