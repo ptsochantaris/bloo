@@ -328,9 +328,19 @@ private struct DomainHeader: View {
 
             if section.domains.count > 1 {
                 TextField("Filter", text: $filter)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .textFieldStyle(PlainTextFieldStyle())
                     .frame(width: 100)
-                    .offset(y: -1)
+                    .padding(.top, 2)
+                    .padding(.bottom, 2.5)
+                    .padding(.horizontal, 6)
+                    .background {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(.fill.tertiary)
+                    }
+                #if canImport(UIKit)
+                    .offset(x: 0, y: -2)
+                    .font(.callout)
+                #endif
             }
 
             if !actioning {
