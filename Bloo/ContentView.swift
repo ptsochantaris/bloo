@@ -281,14 +281,16 @@ private struct ResultRow: View {
                         .font(.blooCaption2)
                 }
 
-                Text(result.url.absoluteString)
+                Text(result.id)
                     .lineLimit(2)
                     .font(.blooCaption2)
                     .foregroundStyle(.accent)
             }
         }
         .onTapGesture {
-            openURL(result.url)
+            if let url = result.url {
+                openURL(url)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()

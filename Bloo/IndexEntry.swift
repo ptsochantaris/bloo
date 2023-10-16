@@ -1,19 +1,32 @@
 import Foundation
 import SQLite
 
-enum IndexEntry: Codable, Hashable, Sendable {
-    case pending(url: String, isSitemap: Bool), visited(url: String, lastModified: Date?, etag: String?, description: String?, content: String?)
+enum IndexEntry: Hashable, Sendable {
+    struct Content {
+        let title: String?
+        let description: String?
+        let content: String?
+        let keywords: String?
+        let thumbnailUrl: String?
+        let lastModified: Date?
+
+        var hasItems: Bool {
+            title != nil || description != nil || content != nil || keywords != nil
+        }
+    }
+
+    case pending(url: String, isSitemap: Bool), visited(url: String, lastModified: Date?, etag: String?, content: Content)
 
     func hash(into hasher: inout Hasher) {
         switch self {
-        case let .pending(url, _), let .visited(url, _, _, _, _):
+        case let .pending(url, _), let .visited(url, _, _, _):
             hasher.combine(url)
         }
     }
 
     var url: String {
         switch self {
-        case let .pending(url, _), let .visited(url, _, _, _, _):
+        case let .pending(url, _), let .visited(url, _, _, _):
             url
         }
     }

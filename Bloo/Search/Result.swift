@@ -5,51 +5,26 @@ extension Search {
     struct Result: Identifiable {
         let id: String
         let title: String
-        let url: URL
-        private let descriptionText: String
-        private let contentText: String?
+        let descriptionText: String
+        let contentText: String?
         let displayDate: Date?
         let thumbnailUrl: URL?
         let keywords: [String]
         let terms: [String]
 
-        init?(_ item: CSSearchableItem, searchTerms: [String]) {
-            id = item.uniqueIdentifier
-            terms = searchTerms
-
-            let attributes = item.attributeSet
-            guard let sourceUrl = URL(string: id), let sourceTitle = attributes.title, let contentDescription = attributes.contentDescription else {
-                return nil
-            }
-
-            url = sourceUrl
-            title = sourceTitle
-            descriptionText = contentDescription
-            contentText = attributes.textContent
-            displayDate = attributes.contentModificationDate
-            thumbnailUrl = attributes.thumbnailURL
-            keywords = attributes.keywords ?? []
-        }
-
         var attributedTitle: AttributedString {
-            title.highlightedAttributedString(terms).text
+            title.highlightedAttributedString()
         }
 
         var attributedDescription: AttributedString {
-            let contentRes = contentText?.highlightedAttributedString(terms)
-            if let contentRes, let firstMatch = contentRes.firstMatchRange {
-                return contentRes.text.clippedAround(firstMatch)
+            if let contentRes = contentText?.highlightedAttributedString() {
+                return contentRes
             }
-            
-            let descRes = descriptionText.highlightedAttributedString(terms)
-            if let firstMatch = descRes.firstMatchRange {
-                return descRes.text.clippedAround(firstMatch)
-            }
-            
-            if let contentRes, descRes.text.characters.count < contentRes.text.characters.count {
-                return contentRes.text
-            }
-            return descRes.text
+            return descriptionText.highlightedAttributedString()
+        }
+
+        var url: URL? {
+            URL(string: id)
         }
 
         var matchedKeywords: String? {

@@ -322,10 +322,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     newEntries = await parseSitemap(at: url)
                     indexResult = .noChange
                 } else {
-                    indexResult = try await index(page: url, lastVisited: nil, lastEtag: nil, lastDesc: nil, lastContent: nil)
+                    indexResult = try await index(page: url, lastModified: nil, lastEtag: nil, lastContent: nil)
                 }
-            case let .visited(url, lastVisited, etag, lastDesc, lastContent):
-                indexResult = try await index(page: url, lastVisited: lastVisited, lastEtag: etag, lastDesc: lastDesc, lastContent: lastContent)
+            case let .visited(url, lastModified, etag, lastContent):
+                indexResult = try await index(page: url, lastModified: lastModified, lastEtag: etag, lastContent: lastContent)
             }
 
             let handledContent: Bool
@@ -394,7 +394,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             case noChange, error, indexed(CSSearchableItem, Set<IndexEntry>)
         }
 
-        private func index(page link: String, lastVisited: Date?, lastEtag: String?, lastDesc: String?, lastContent: String?) async throws -> IndexResponse {
+        private func index(page link: String, lastModified: Date?, lastEtag: String?, lastContent _: IndexEntry.Content?) async throws -> IndexResponse {
             guard let site = URL(string: link) else {
                 Log.crawling(id, .error).log("Malformed URL: \(link)")
                 return .error
@@ -405,7 +405,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
 
-            guard let headResponse = try? await Network.getData(for: headRequest, lastVisited: lastVisited, lastEtag: lastEtag).1 else {
+            guard let headResponse = try? await Network.getData(for: headRequest, lastVisited: lastModified, lastEtag: lastEtag).1 else {
                 Log.crawling(id, .error).log("No HEAD response from \(link)")
                 return .error
             }
@@ -426,7 +426,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             let lastModifiedHeaderDate: Date?
             if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
-                if let lastVisited, lastVisited >= lm {
+                if let lastModified, lastModified >= lm {
                     Log.crawling(id, .info).log("No change (same date) in \(link)")
                     return .noChange
                 }
@@ -526,7 +526,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let keywords = header
                 .metaNameContent(for: "keywords")?.split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            ?? Self.generateKeywords(from: textContent)
+                ?? Self.generateKeywords(from: textContent)
 
             let lastModified: Date? = if let lastModifiedHeaderDate {
                 lastModifiedHeaderDate
@@ -556,19 +556,20 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
             }
 
-            try storage.appendIndexed(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, description: summaryContent, content: textContent))
+            let thumbnailUrl = await imageFileUrl.value
+            let newContent = IndexEntry.Content(title: title, description: summaryContent, content: textContent, keywords: keywords.joined(separator: ", "), thumbnailUrl: thumbnailUrl?.absoluteString, lastModified: lastModified)
+            try storage.appendIndexed(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, content: newContent))
 
             Log.crawling(id, .info).log("Indexed URL: \(link)")
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)
             attributes.keywords = keywords
-            attributes.title = title
-            attributes.contentDescription = summaryContent
-            attributes.textContent = textContent
-            attributes.contentModificationDate = lastModified
-            attributes.thumbnailURL = await imageFileUrl.value
-            return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes),
-                            newUrls)
+            attributes.title = newContent.title
+            attributes.contentDescription = newContent.description
+            attributes.textContent = newContent.content
+            attributes.contentModificationDate = newContent.lastModified
+            attributes.thumbnailURL = thumbnailUrl
+            return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newUrls)
         }
 
         private static func storeImageData(_ data: Data, for id: String) -> URL {

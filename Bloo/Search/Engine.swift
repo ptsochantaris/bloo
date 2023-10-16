@@ -1,4 +1,3 @@
-@preconcurrency import CoreSpotlight
 import Foundation
 import Lista
 import PopTimer
@@ -10,7 +9,6 @@ extension Search {
     final class Engine {
         private var lastSearchKey = ""
         private var queryTimer: PopTimer!
-        private var currentQuery: CSUserQuery?
         private let windowId: UUID
 
         init(windowId: UUID) {
@@ -120,12 +118,6 @@ extension Search {
             }
             searchState = newSearch
 
-            if let q = currentQuery {
-                Log.search(.default).log("Stopping current query")
-                q.cancel()
-                currentQuery = nil
-            }
-
             let smallChunkSize = 10
             let chunkSize: Int
             let searchText: String
@@ -141,7 +133,6 @@ extension Search {
                 searchText = text
             }
             Log.search(.default).log("Starting new query: '\(searchText)'")
-            let searchTerms = searchText.split(separator: " ").map { String($0) }
 
             switch resultState {
             case .noResults, .noSearch:
@@ -152,35 +143,12 @@ extension Search {
                 break
             }
 
-            let context = CSUserQueryContext()
-            context.fetchAttributes = ["title", "contentDescription", "keywords", "thumbnailURL", "contentModificationDate", "rankingHint"]
-            // context.enableRankedResults = true
-            context.maxResultCount = chunkSize
-            let q = CSUserQuery(userQueryString: searchText, userQueryContext: context)
-            currentQuery = q
-            q.start()
-
             Task.detached { [weak self] in
                 guard let self else { return }
 
-                var dedup = Set<String>()
-                dedup.reserveCapacity(chunkSize)
+                let results = (try? CrawlerStorage.textQuery(searchText, limit: chunkSize)) ?? []
 
-                let chunk = Lista<CSSearchableItem>()
-
-                for try await result in q.results {
-                    let item = result.item
-                    if dedup.insert(item.uniqueIdentifier).inserted {
-                        chunk.append(item)
-                    }
-                }
-
-                let results = chunk.compactMap {
-                    Result($0, searchTerms: searchTerms)
-                }
-
-                let count = results.count
-                switch count {
+                switch results.count {
                 case 0:
                     await updateResultState(.noResults)
                 case 1 ..< smallChunkSize:
