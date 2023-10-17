@@ -1,45 +1,78 @@
 import Foundation
 import SQLite
 
-struct CrawlerStorage {
-    private static let db = {
-        let file = documentsPath.appending(path: "data.sqlite3", directoryHint: .notDirectory)
+private let urlRow = Expression<String>("url")
+private let isSitemapRow = Expression<Bool?>("isSitemap")
+private let lastModifiedRow = Expression<Date?>("lastModified")
+private let etagRow = Expression<String?>("etag")
+private let thumbnailUrlRow = Expression<String?>("thumbnailUrl")
+
+private let titleRow = Expression<String?>("title")
+private let descriptionRow = Expression<String?>("description")
+private let contentRow = Expression<String?>("content")
+private let keywordRow = Expression<String?>("keywords")
+private let domainRow = Expression<String>("domain")
+
+private let pragmas = """
+                        pragma synchronous = off;
+                        pragma temp_store = memory;
+                        pragma journal_mode = WAL;
+                        pragma locking_mode = exclusive;
+                        """
+
+enum SearchDB {
+    private static let textTable = VirtualTable("text_search")
+
+    private static let indexDb = {
+        let file = documentsPath.appending(path: "index.sqlite3", directoryHint: .notDirectory)
         let fm = FileManager.default
         if !fm.fileExists(atPath: documentsPath.path) {
             try! fm.createDirectory(atPath: documentsPath.path, withIntermediateDirectories: true)
         }
         let c = try! Connection(file.path)
-        try! c.run("""
-                    pragma synchronous = off;
-                    pragma temp_store = memory;
-                    pragma journal_mode = WAL;
-        """)
+        try! c.run(pragmas)
+
+        let fts5Config = FTS5Config()
+        fts5Config.column(domainRow, [.unindexed])
+        fts5Config.column(urlRow, [.unindexed])
+        fts5Config.column(titleRow)
+        fts5Config.column(descriptionRow)
+        fts5Config.column(contentRow)
+        fts5Config.column(keywordRow)
+        fts5Config.column(thumbnailUrlRow, [.unindexed])
+        fts5Config.column(lastModifiedRow, [.unindexed])
+        try! c.run(textTable.create(.FTS5(fts5Config), ifNotExists: true))
+
         return c
     }()
 
-    private static let urlRow = Expression<String>("url")
-    private static let isSitemapRow = Expression<Bool?>("isSitemap")
-    private static let lastModifiedRow = Expression<Date?>("lastModified")
-    private static let etagRow = Expression<String?>("etag")
-    private static let thumbnailUrlRow = Expression<String?>("thumbnailUrl")
+    static func insert(id: String, url: String, content: IndexEntry.Content) throws {
+        try indexDb.run(textTable.insert(or: .replace,
+                                         domainRow <- id,
+                                         urlRow <- url,
+                                         titleRow <- content.title,
+                                         descriptionRow <- content.description,
+                                         contentRow <- content.content,
+                                         keywordRow <- content.keywords,
+                                         thumbnailUrlRow <- content.thumbnailUrl,
+                                         lastModifiedRow <- content.lastModified))
+    }
 
-    private static let titleRow = Expression<String?>("title")
-    private static let descriptionRow = Expression<String?>("description")
-    private static let contentRow = Expression<String?>("content")
-    private static let keywordRow = Expression<String?>("keywords")
-    private static let domainRow = Expression<String>("domain")
+    static func entry(for url: String) throws -> Row? {
+        let tq = textTable.filter(urlRow == url)
+        return try indexDb.pluck(tq)
+    }
 
-    private let id: String
-    private let pendingTable: Table
-    private let visitedTable: Table
-    private static let textTable = VirtualTable("text_search")
+    static func purgeDomain(id: String) throws {
+        try indexDb.run(textTable.filter(domainRow == id).delete())
+    }
 
     static func textQuery(_ text: String, limit: Int) throws -> [Search.Result] {
         let searchTerms = text.split(separator: " ").map { String($0) }
         let terms = searchTerms.map { $0.lowercased().sqlSafe }.joined(separator: " AND ")
-        let resultSequence = try db.prepareRowIterator(
+        let resultSequence = try indexDb.prepareRowIterator(
             """
-            select 
+            select
             url,
             snippet(text_search, 2, '#[BLU', 'ULB]#', '...', 64) as title,
             snippet(text_search, 3, '#[BLU', 'ULB]#', '...', 64) as description,
@@ -58,122 +91,134 @@ struct CrawlerStorage {
             """)
         var res = [Search.Result]()
         while let item = resultSequence.next() {
-            let r = Search.Result(id: item[Self.urlRow],
-                                  title: item[Self.titleRow] ?? "",
-                                  descriptionText: item[Self.descriptionRow] ?? "",
-                                  contentText: item[Self.contentRow],
-                                  displayDate: item[Self.lastModifiedRow],
-                                  thumbnailUrl: URL(string: item[Self.thumbnailUrlRow] ?? ""),
-                                  keywords: (item[Self.keywordRow]?.split(separator: ", ").map { String($0) }) ?? [],
+            let r = Search.Result(id: item[urlRow],
+                                  title: item[titleRow] ?? "",
+                                  descriptionText: item[descriptionRow] ?? "",
+                                  contentText: item[contentRow],
+                                  displayDate: item[lastModifiedRow],
+                                  thumbnailUrl: URL(string: item[thumbnailUrlRow] ?? ""),
+                                  keywords: (item[keywordRow]?.split(separator: ", ").map { String($0) }) ?? [],
                                   terms: searchTerms)
             res.append(r)
         }
         return res
     }
+}
+
+final class CrawlerStorage {
+    private let id: String
+    private let pendingTable: Table
+    private let visitedTable: Table
+    private let db: Connection
+
+    private static func createDomainConnection(id: String) -> Connection {
+        let path = domainPath(for: id)
+        let file = path.appending(path: "crawler.sqlite3", directoryHint: .notDirectory)
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: path.path) {
+            try! fm.createDirectory(atPath: path.path, withIntermediateDirectories: true)
+        }
+        let c = try! Connection(file.path)
+        try! c.run(pragmas)
+        return c
+    }
 
     init(id: String) throws {
         self.id = id
 
+        self.db = Self.createDomainConnection(id: id)
+
         let tableId = id.replacingOccurrences(of: ".", with: "_")
+
         pendingTable = Table("pending_\(tableId)")
         visitedTable = Table("visited_\(tableId)")
 
         try createPendingTable()
-
         try createIndexedTable()
+    }
 
-        try createTextTable()
+    private var cachedIndexedCount: Int?
+    private var cachedPendingCount: Int?
+    var counts: (indexed: Int, pending: Int) {
+        get throws {
+            let indexedCount: Int
+            if let cachedIndexedCount {
+                indexedCount = cachedIndexedCount
+            } else {
+                indexedCount = try db.scalar(visitedTable.count)
+                cachedIndexedCount = indexedCount
+            }
+            let pendingCount: Int
+            if let cachedPendingCount {
+                pendingCount = cachedPendingCount
+            } else {
+                pendingCount = try db.scalar(pendingTable.count)
+                cachedPendingCount = pendingCount
+            }
+            return (indexedCount, pendingCount)
+        }
     }
 
     private func createPendingTable() throws {
-        try Self.db.run(pendingTable.create(ifNotExists: true) {
-            $0.column(Self.urlRow, primaryKey: true)
-            $0.column(Self.isSitemapRow)
-            $0.column(Self.lastModifiedRow)
-            $0.column(Self.etagRow)
+        try db.run(pendingTable.create(ifNotExists: true) {
+            $0.column(urlRow, primaryKey: true)
+            $0.column(isSitemapRow)
+            $0.column(lastModifiedRow)
+            $0.column(etagRow)
         })
+        try db.run(pendingTable.createIndex(urlRow, unique: true, ifNotExists: true))
     }
 
     private func createIndexedTable() throws {
-        try Self.db.run(visitedTable.create(ifNotExists: true) {
-            $0.column(Self.urlRow, primaryKey: true)
-            $0.column(Self.isSitemapRow)
-            $0.column(Self.lastModifiedRow)
-            $0.column(Self.etagRow)
+        try db.run(visitedTable.create(ifNotExists: true) {
+            $0.column(urlRow, primaryKey: true)
+            $0.column(isSitemapRow)
+            $0.column(lastModifiedRow)
+            $0.column(etagRow)
         })
-    }
-
-    private func createTextTable() throws {
-        let fts5Config = FTS5Config()
-        fts5Config.column(Self.domainRow, [.unindexed])
-        fts5Config.column(Self.urlRow, [.unindexed])
-        fts5Config.column(Self.titleRow)
-        fts5Config.column(Self.descriptionRow)
-        fts5Config.column(Self.contentRow)
-        fts5Config.column(Self.keywordRow)
-        fts5Config.column(Self.thumbnailUrlRow, [.unindexed])
-        fts5Config.column(Self.lastModifiedRow, [.unindexed])
-        try Self.db.run(Self.textTable.create(.FTS5(fts5Config), ifNotExists: true))
+        try db.run(visitedTable.createIndex(urlRow, unique: true, ifNotExists: true))
     }
 
     func removeAll(purge: Bool) throws {
         if purge {
-            try Self.db.run(visitedTable.drop(ifExists: true))
-            try Self.db.run(pendingTable.drop(ifExists: true))
+            try db.run(visitedTable.drop(ifExists: true))
+            try db.run(pendingTable.drop(ifExists: true))
         } else {
-            try Self.db.run(visitedTable.delete())
-            try Self.db.run(pendingTable.delete())
+            try db.run(visitedTable.delete())
+            try db.run(pendingTable.delete())
         }
-        try Self.db.run(Self.textTable.filter(Self.domainRow == id).delete())
-    }
-
-    var indexedCount: Int {
-        get throws {
-            try Self.db.scalar(visitedTable.count)
-        }
-    }
-
-    var pendingCount: Int {
-        get throws {
-            try Self.db.scalar(pendingTable.count)
-        }
+        try SearchDB.purgeDomain(id: id)
+        invalidateCounts()
     }
 
     func prepareForRefresh() throws {
-        try Self.db.run(pendingTable.drop(ifExists: true))
-        try Self.db.run(visitedTable.rename(pendingTable))
+        try db.run(pendingTable.drop(ifExists: true))
+        try db.run(visitedTable.rename(pendingTable))
         try createIndexedTable()
+        invalidateCounts()
     }
 
-    var noPending: Bool {
-        get throws {
-            try pendingCount == 0
-        }
-    }
-
-    var noIndexed: Bool {
-        get throws {
-            try indexedCount == 0
-        }
+    private func invalidateCounts() {
+        cachedIndexedCount = nil
+        cachedPendingCount =  nil
     }
 
     func nextPending() throws -> IndexEntry? {
-        guard let res = try Self.db.pluck(pendingTable) else {
+        guard let res = try db.pluck(pendingTable) else {
             return nil
         }
-        let url = res[Self.urlRow]
-        let isSitemap = res[Self.isSitemapRow] ?? false
-        let etag = res[Self.etagRow]
-        let lastModified = res[Self.lastModifiedRow]
+        let url = res[urlRow]
+        let isSitemap = res[isSitemapRow] ?? false
+        let etag = res[etagRow]
+        let lastModified = res[lastModifiedRow]
 
-        let tq = Self.textTable.filter(Self.urlRow == url)
-        let textRes = try Self.db.pluck(tq)
-        let content = IndexEntry.Content(title: textRes?[Self.titleRow],
-                                         description: textRes?[Self.descriptionRow],
-                                         content: textRes?[Self.contentRow],
-                                         keywords: textRes?[Self.keywordRow],
-                                         thumbnailUrl: textRes?[Self.thumbnailUrlRow],
-                                         lastModified: textRes?[Self.lastModifiedRow])
+        let textRes = try SearchDB.entry(for: url)
+        let content = IndexEntry.Content(title: textRes?[titleRow],
+                                         description: textRes?[descriptionRow],
+                                         content: textRes?[contentRow],
+                                         keywords: textRes?[keywordRow],
+                                         thumbnailUrl: textRes?[thumbnailUrlRow],
+                                         lastModified: textRes?[lastModifiedRow])
 
         let result: IndexEntry = if etag != nil || lastModified != nil || content.hasItems {
             .visited(url: url, lastModified: lastModified, etag: etag, content: content)
@@ -186,32 +231,45 @@ struct CrawlerStorage {
     private func append(item: IndexEntry, to table: Table) throws {
         switch item {
         case let .pending(url, isSitemap):
-            try Self.db.run(table.insert(or: .replace, Self.urlRow <- url, Self.isSitemapRow <- isSitemap))
+            try db.run(table.insert(or: .replace, urlRow <- url, isSitemapRow <- isSitemap))
         case let .visited(url, lastModified, etag, content):
-            try Self.db.run(table.insert(or: .replace, Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag))
-            try Self.db.run(Self.textTable.insert(or: .replace, Self.domainRow <- id, Self.urlRow <- url, Self.titleRow <- content.title, Self.descriptionRow <- content.description, Self.contentRow <- content.content, Self.keywordRow <- content.keywords, Self.thumbnailUrlRow <- content.thumbnailUrl, Self.lastModifiedRow <- content.lastModified))
+            try db.run(table.insert(or: .replace, urlRow <- url, lastModifiedRow <- lastModified, etagRow <- etag))
+            try SearchDB.insert(id: id, url: url, content: content)
         }
     }
 
     private func delete(item: IndexEntry, from table: Table) throws {
-        try Self.db.run(table.filter(Self.urlRow == item.url).delete())
+        try db.run(table.filter(urlRow == item.url).delete())
     }
 
-    func deletePending(_ item: IndexEntry) throws {
-        try delete(item: item, from: pendingTable)
-    }
+    func handleCrawlCompletion(newItem: IndexEntry?, previousItem: IndexEntry, newEntries: Set<IndexEntry>?) throws {
+        // let start = Date.now
+        try delete(item: previousItem, from: pendingTable)
+        cachedPendingCount = nil
 
-    func appendIndexed(_ item: IndexEntry) throws {
-        try append(item: item, to: visitedTable)
-        try delete(item: item, from: pendingTable)
+        if let newItem {
+            try append(item: newItem, to: visitedTable)
+            cachedIndexedCount = nil
+            Log.crawling(id, .info).log("Indexed URL: \(newItem.url)")
+        }
+
+        if var newEntries, newEntries.isPopulated {
+            try subtract(from: &newEntries, in: visitedTable)
+            if newEntries.isPopulated {
+                Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
+                try appendPending(items: newEntries)
+            }
+        }
+        // print("crawl completion handling: \(-start.timeIntervalSinceNow * 1000)")
     }
 
     func appendPending(_ item: IndexEntry) throws {
         try append(item: item, to: pendingTable)
         try delete(item: item, from: visitedTable)
+        invalidateCounts()
     }
 
-    func appendPending(_ items: any Collection<IndexEntry>) throws {
+    func appendPending(items: any Collection<IndexEntry>) throws {
         guard items.isPopulated else {
             return
         }
@@ -219,35 +277,45 @@ struct CrawlerStorage {
         let setters = items.map {
             switch $0 {
             case let .pending(url, isSitemap):
-                [Self.urlRow <- url, Self.isSitemapRow <- isSitemap]
+                [urlRow <- url, isSitemapRow <- isSitemap]
             case let .visited(url, lastModified, etag, _):
-                [Self.urlRow <- url, Self.lastModifiedRow <- lastModified, Self.etagRow <- etag]
+                [urlRow <- url, lastModifiedRow <- lastModified, etagRow <- etag]
             }
         }
-        try Self.db.run(pendingTable.insertMany(or: .replace, setters))
+        try db.run(pendingTable.insertMany(or: .ignore, setters))
+        cachedPendingCount = nil
     }
 
     private func subtract(from items: inout Set<IndexEntry>, in table: Table) throws {
         let array = items.map(\.url)
         if array.isPopulated {
-            let itemsToSubtract = try Self.db.prepare(table.filter(array.contains(Self.urlRow))).map { IndexEntry.pending(url: $0[Self.urlRow], isSitemap: false) }
+            let itemsToSubtract = try db.prepare(table.select([urlRow]).filter(array.contains(urlRow))).map { IndexEntry.pending(url: $0[urlRow], isSitemap: false) }
             items.subtract(itemsToSubtract)
         }
     }
 
-    func subtractIndexed(from items: inout Set<IndexEntry>) throws {
-        try subtract(from: &items, in: visitedTable)
-    }
+    func handleSitemapEntries(from entry: IndexEntry, newSitemaps: Set<IndexEntry>) throws {
+        try delete(item: entry, from: pendingTable)
 
-    func subtractPending(from items: inout Set<IndexEntry>) throws {
-        try subtract(from: &items, in: pendingTable)
+        var newSitemaps = newSitemaps
+
+        if newSitemaps.isPopulated {
+            newSitemaps.remove(entry)
+            try subtract(from: &newSitemaps, in: visitedTable)
+        }
+
+        if newSitemaps.isPopulated {
+            Log.crawling(id, .default).log("Adding \(newSitemaps.count) unindexed URLs from sitemap")
+            try appendPending(items: newSitemaps)
+        }
     }
 
     func substractIndexedFromPending() throws {
-        let urlsToSubtract = try Self.db.prepare(visitedTable).map { $0[Self.urlRow] }
+        let urlsToSubtract = try db.prepare(visitedTable).map { $0[urlRow] }
         if urlsToSubtract.isPopulated {
-            let pendingWithUrl = pendingTable.filter(urlsToSubtract.contains(Self.urlRow))
-            try Self.db.run(pendingWithUrl.delete())
+            let pendingWithUrl = pendingTable.filter(urlsToSubtract.contains(urlRow))
+            try db.run(pendingWithUrl.delete())
+            cachedPendingCount = nil
         }
     }
 }

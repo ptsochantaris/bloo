@@ -315,6 +315,27 @@ private struct AdditionRow: View {
     }
 }
 
+private struct FilterField: View {
+    @Binding var filter: String
+
+    var body: some View {
+        TextField("Filter", text: $filter)
+            .textFieldStyle(PlainTextFieldStyle())
+            .frame(width: 100)
+            .padding(.top, 2)
+            .padding(.bottom, 2.5)
+            .padding(.horizontal, 6)
+            .background {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(.fill.tertiary)
+            }
+        #if canImport(UIKit)
+            .offset(x: 0, y: -2)
+            .font(.callout)
+        #endif
+    }
+}
+
 private struct DomainHeader: View {
     let section: Domain.Section
     @Binding var filter: String
@@ -329,20 +350,7 @@ private struct DomainHeader: View {
             Spacer(minLength: 0)
 
             if section.domains.count > 1 {
-                TextField("Filter", text: $filter)
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .frame(width: 100)
-                    .padding(.top, 2)
-                    .padding(.bottom, 2.5)
-                    .padding(.horizontal, 6)
-                    .background {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(.fill.tertiary)
-                    }
-                #if canImport(UIKit)
-                    .offset(x: 0, y: -2)
-                    .font(.callout)
-                #endif
+                FilterField(filter: $filter)
             }
 
             if !actioning {
@@ -407,6 +415,7 @@ private struct DomainGrid: View {
 
 private struct SearchResults: View {
     let results: Search.Engine.State
+    let filter: String
 
     var body: some View {
         switch results {
@@ -418,7 +427,8 @@ private struct SearchResults: View {
             switch mode {
             case .all:
                 LazyVGrid(columns: gridColumns) {
-                    ForEach(items) {
+                    let filtered = filter.isEmpty ? items : items.filter { $0.matchesFilter(filter) }
+                    ForEach(filtered) {
                         ResultRow(result: $0)
                     }
                 }
@@ -444,6 +454,9 @@ private struct SearchSection: View {
     private let showProgress: Bool
     private let prefersLargeView: Bool
     private let showResults: Bool
+    private let showFilter: Bool
+
+    @State private var filter = ""
 
     @MainActor
     init(searcher: Search.Engine) {
@@ -456,6 +469,7 @@ private struct SearchSection: View {
             ctaTitle = nil
             prefersLargeView = false
             showResults = false
+            showFilter = false
 
         case .searching:
             title = "Searching"
@@ -463,6 +477,7 @@ private struct SearchSection: View {
             ctaTitle = nil
             prefersLargeView = false
             showResults = false
+            showFilter = false
 
         case let .updating(resultType, _):
             title = "Searching"
@@ -478,6 +493,7 @@ private struct SearchSection: View {
                 prefersLargeView = true
             }
             showResults = true
+            showFilter = false
 
         case let .results(resultType, results):
             switch resultType {
@@ -488,6 +504,7 @@ private struct SearchSection: View {
                 ctaTitle = "Top Results"
                 prefersLargeView = false
                 showResults = true
+                showFilter = true
             case .limited:
                 let c = results.count
                 title = c > 1 ? " \(c) Results" : "1 Result"
@@ -495,12 +512,14 @@ private struct SearchSection: View {
                 ctaTitle = nil
                 prefersLargeView = false
                 showResults = true
+                showFilter = false
             case .top:
                 title = "Top Results"
                 showProgress = false
                 ctaTitle = "Show More"
                 prefersLargeView = true
                 showResults = true
+                showFilter = false
             }
 
         case .noResults:
@@ -509,6 +528,7 @@ private struct SearchSection: View {
             ctaTitle = nil
             prefersLargeView = false
             showResults = false
+            showFilter = false
         }
     }
 
@@ -526,17 +546,23 @@ private struct SearchSection: View {
                         .frame(width: 20, height: 20)
                         .scaleEffect(CGSize(width: 0.8, height: 0.8))
 
-                } else if let ctaTitle {
-                    Button {
-                        searcher.resetQuery(expandIfNeeded: prefersLargeView, collapseIfNeeded: !prefersLargeView)
-                    } label: {
-                        Text(ctaTitle)
+                } else {
+                    if showFilter {
+                        FilterField(filter: $filter)
+                    }
+
+                    if let ctaTitle {
+                        Button {
+                            searcher.resetQuery(expandIfNeeded: prefersLargeView, collapseIfNeeded: !prefersLargeView)
+                        } label: {
+                            Text(ctaTitle)
+                        }
                     }
                 }
             }
 
             if showResults {
-                SearchResults(results: searcher.resultState)
+                SearchResults(results: searcher.resultState, filter: filter)
             }
         }
         .frame(maxWidth: .infinity)

@@ -34,7 +34,7 @@ extension URL {
 
     var hasMediaExtension: Bool {
         switch pathExtension {
-        case "aac", "avi", "bmp", "doc", "exe", "gif", "gz", "jpeg", "jpg", "js", "json", "mid", "mp3", "mp4", "mpg", "pdf", "pkg", "png", "raw", "rss", "sig", "svg", "txt", "wav", "webp", "xhtml", "xls", "xml", "zip":
+        case "aac", "avi", "bmp", "doc", "exe", "gif", "gz", "jpeg", "jpg", "js", "json", "mid", "mp3", "mp4", "mpg", "pdf", "pkg", "png", "raw", "rss", "sig", "svg", "txt", "wav", "webp", "xhtml", "xls", "xml", "zip", "dmg", "7z":
             true
         default:
             false

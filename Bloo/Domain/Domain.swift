@@ -130,7 +130,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func start() async throws {
-            try await signalState(.starting(storage.indexedCount, storage.pendingCount))
+            let counts = try storage.counts
+            await signalState(.starting(counts.indexed, counts.pending))
             startGoTask(priority: Settings.shared.indexingTaskPriority, signalStateChange: true)
         }
 
@@ -148,7 +149,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         fileprivate func pause(resumable: Bool) async throws {
             if let g = goTask {
                 Log.crawling(id, .info).log("Pausing")
-                let newState = try State.paused(storage.indexedCount, storage.pendingCount, true, resumable)
+                let counts = try storage.counts
+                let newState = State.paused(counts.indexed, counts.pending, true, resumable)
                 await signalState(newState)
                 goTask = nil
                 try await g.value
@@ -181,28 +183,23 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             Log.crawling(id, .default).log("Domain deleted: \(id)")
         }
 
-        private func parseSitemap(at url: String) async -> Set<IndexEntry>? {
-            guard let xmlData = try? await Network.getData(from: url).0 else {
-                Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
+        private func parseSitemap(at entry: IndexEntry) async -> Set<IndexEntry>? {
+            guard let xmlData = try? await Network.getData(from: entry.url).0 else {
+                Log.crawling(id, .error).log("Failed to fetch sitemap data from \(entry.url)")
                 return nil
             }
-            Log.crawling(id, .default).log("Fetched sitemap from \(url)")
+            Log.crawling(id, .default).log("Fetched sitemap from \(entry.url)")
             do {
-                var (newUrls, newSitemaps) = try await SitemapParser(data: xmlData).extract()
+                let (newUrls, newSitemaps) = try await SitemapParser(data: xmlData).extract()
                 Log.crawling(id, .default).log("Considering \(newSitemaps.count) further sitemap URLs")
-                try storage.subtractPending(from: &newSitemaps)
-                try storage.subtractIndexed(from: &newSitemaps)
-                newSitemaps.remove(.pending(url: url, isSitemap: true))
-                if newSitemaps.isPopulated {
-                    Log.crawling(id, .default).log("Adding \(newSitemaps.count) unindexed URLs from sitemap")
-                    try storage.appendPending(newSitemaps)
-                }
+                try storage.handleSitemapEntries(from: entry, newSitemaps: newSitemaps)
 
                 Log.crawling(id, .default).log("Considering \(newUrls.count) potential URLs from sitemap")
                 return newUrls
 
             } catch {
-                Log.crawling(id, .error).log("XML Parser error in \(url)")
+                Log.crawling(id, .error).log("XML Parser error in \(entry.url) - \(error.localizedDescription)")
+                try? storage.handleSitemapEntries(from: entry, newSitemaps: [])
                 return nil
             }
         }
@@ -227,12 +224,13 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             if signalStateChange {
-                try await signalState(.starting(storage.indexedCount, storage.pendingCount))
+                let counts = try storage.counts
+                await signalState(.starting(counts.indexed, counts.pending))
             }
 
             await scanRobots()
 
-            if try storage.noIndexed {
+            if try storage.counts.indexed == 0 {
                 let url = "https://\(id)/sitemap.xml"
                 try storage.appendPending(.pending(url: url, isSitemap: true))
 
@@ -240,19 +238,20 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     let sitemapEntries = providedSitemaps
                         .map { IndexEntry.pending(url: $0, isSitemap: true) }
 
-                    try storage.appendPending(sitemapEntries)
+                    try storage.appendPending(items: sitemapEntries)
                 }
 
                 try storage.appendPending(bootupEntry)
             }
 
             try storage.substractIndexedFromPending()
-            if try storage.noPending {
+            if try storage.counts.pending == 0 {
                 try storage.appendPending(bootupEntry)
             }
 
             if signalStateChange {
-                try await signalState(.starting(storage.indexedCount, storage.pendingCount))
+                let counts = try storage.counts
+                await signalState(.starting(counts.indexed, counts.pending))
             }
 
             var operationCount = 0
@@ -273,8 +272,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
 
                 let start = Date()
-                let handledContent = try await crawl(entry: next)
-                try storage.deletePending(next)
+                let (handledContent, newItem, newEntries) = try await crawl(entry: next)
+                try storage.handleCrawlCompletion(newItem: newItem, previousItem: next, newEntries: newEntries)
+                let counts = try storage.counts
+                await signalState(.indexing(counts.indexed, counts.pending, next.url), onlyIfActive: true)
 
                 // Detect stop
                 let currentState = await currentState
@@ -308,18 +309,19 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             Log.crawling(id, .default).log("Stopping crawl because of completion")
-            try await signalState(.done(storage.indexedCount))
+            let counts = try storage.counts
+            await signalState(.done(counts.indexed))
             await snapshot()
         }
 
-        private func crawl(entry: IndexEntry) async throws -> Bool {
+        private func crawl(entry: IndexEntry) async throws -> (Bool, IndexEntry?, Set<IndexEntry>?) {
             var newEntries: Set<IndexEntry>?
             let indexResult: IndexResponse
 
             switch entry {
             case let .pending(url, isSitemap):
                 if isSitemap {
-                    newEntries = await parseSitemap(at: url)
+                    newEntries = await parseSitemap(at: entry)
                     indexResult = .noChange
                 } else {
                     indexResult = try await index(page: url, lastModified: nil, lastEtag: nil, lastContent: nil)
@@ -329,32 +331,25 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             let handledContent: Bool
+            let newItem: IndexEntry?
 
             switch indexResult {
             case .error:
                 handledContent = true
                 spotlightInvalidationQueue.insert(entry.url)
+                newItem = nil
 
             case .noChange:
                 handledContent = false
+                newItem = nil
 
-            case let .indexed(csEntry, newItems):
+            case let .indexed(csEntry, createdItem, newPendingItems):
                 handledContent = true
                 spotlightQueue.append(csEntry)
-                newEntries = newItems
+                newEntries = newPendingItems
+                newItem = createdItem
             }
-
-            if var newEntries, newEntries.isPopulated {
-                try storage.subtractPending(from: &newEntries)
-                try storage.subtractIndexed(from: &newEntries)
-                if newEntries.isPopulated {
-                    Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
-                    try storage.appendPending(newEntries)
-                }
-            }
-
-            try await signalState(.indexing(storage.indexedCount, storage.pendingCount, entry.url), onlyIfActive: true)
-            return handledContent
+            return (handledContent, newItem, newEntries)
         }
 
         private func snapshot() async {
@@ -391,7 +386,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }()
 
         enum IndexResponse {
-            case noChange, error, indexed(CSSearchableItem, Set<IndexEntry>)
+            case noChange, error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>)
         }
 
         private func index(page link: String, lastModified: Date?, lastEtag: String?, lastContent _: IndexEntry.Content?) async throws -> IndexResponse {
@@ -400,7 +395,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 return .error
             }
 
-            try await signalState(.indexing(storage.indexedCount, storage.pendingCount, link), onlyIfActive: true)
+            let counts = try storage.counts
+            await signalState(.indexing(counts.indexed, counts.pending, link), onlyIfActive: true)
 
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
@@ -558,9 +554,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             let thumbnailUrl = await imageFileUrl.value
             let newContent = IndexEntry.Content(title: title, description: summaryContent, content: textContent, keywords: keywords.joined(separator: ", "), thumbnailUrl: thumbnailUrl?.absoluteString, lastModified: lastModified)
-            try storage.appendIndexed(.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, content: newContent))
-
-            Log.crawling(id, .info).log("Indexed URL: \(link)")
+            let indexed = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, content: newContent)
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)
             attributes.keywords = keywords
@@ -569,7 +563,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             attributes.textContent = newContent.content
             attributes.contentModificationDate = newContent.lastModified
             attributes.thumbnailURL = thumbnailUrl
-            return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newUrls)
+            return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), indexed, newUrls)
         }
 
         private static func storeImageData(_ data: Data, for id: String) -> URL {

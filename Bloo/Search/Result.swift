@@ -36,5 +36,9 @@ extension Search {
             }
             return res.isEmpty ? nil : res.joined(separator: ", ")
         }
+
+        func matchesFilter(_ filter: String) -> Bool {
+            title.localizedCaseInsensitiveContains(filter) || descriptionText.localizedCaseInsensitiveContains(filter) || (contentText ?? "").localizedCaseInsensitiveContains(filter)
+        }
     }
 }
