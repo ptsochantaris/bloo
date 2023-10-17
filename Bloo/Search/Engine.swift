@@ -146,7 +146,7 @@ extension Search {
             Task.detached { [weak self] in
                 guard let self else { return }
 
-                let results = (try? SearchDB.textQuery(searchText, limit: chunkSize)) ?? []
+                let results = await (try? SearchDB.shared.textQuery(searchText, limit: chunkSize)) ?? []
 
                 switch results.count {
                 case 0:

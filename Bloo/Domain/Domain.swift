@@ -164,7 +164,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
             Log.crawling(id, .default).log("Resetting domain \(id)")
             if wipingExistingData {
-                try storage.removeAll(purge: false)
+                try await storage.removeAll(purge: false)
                 await BlooCore.shared.clearDomainSpotlight(for: id)
             } else {
                 try storage.prepareForRefresh()
@@ -174,7 +174,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func remove() async throws {
-            try storage.removeAll(purge: true)
+            try await storage.removeAll(purge: true)
             await signalState(.deleting)
             await snapshot()
         }
@@ -183,23 +183,23 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             Log.crawling(id, .default).log("Domain deleted: \(id)")
         }
 
-        private func parseSitemap(at entry: IndexEntry) async -> Set<IndexEntry>? {
-            guard let xmlData = try? await Network.getData(from: entry.url).0 else {
-                Log.crawling(id, .error).log("Failed to fetch sitemap data from \(entry.url)")
+        private func parseSitemap(at url: String) async -> Set<IndexEntry>? {
+            guard let xmlData = try? await Network.getData(from: url).0 else {
+                Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
                 return nil
             }
-            Log.crawling(id, .default).log("Fetched sitemap from \(entry.url)")
+            Log.crawling(id, .default).log("Fetched sitemap from \(url)")
             do {
                 let (newUrls, newSitemaps) = try await SitemapParser(data: xmlData).extract()
                 Log.crawling(id, .default).log("Considering \(newSitemaps.count) further sitemap URLs")
-                try storage.handleSitemapEntries(from: entry, newSitemaps: newSitemaps)
+                try storage.handleSitemapEntries(from: url, newSitemaps: newSitemaps)
 
                 Log.crawling(id, .default).log("Considering \(newUrls.count) potential URLs from sitemap")
                 return newUrls
 
             } catch {
-                Log.crawling(id, .error).log("XML Parser error in \(entry.url) - \(error.localizedDescription)")
-                try? storage.handleSitemapEntries(from: entry, newSitemaps: [])
+                Log.crawling(id, .error).log("XML Parser error in \(url) - \(error.localizedDescription)")
+                try? storage.handleSitemapEntries(from: url, newSitemaps: [])
                 return nil
             }
         }
@@ -232,7 +232,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if try storage.counts.indexed == 0 {
                 let url = "https://\(id)/sitemap.xml"
-                try storage.appendPending(.pending(url: url, isSitemap: true))
+                try await storage.appendPending(.pending(url: url, isSitemap: true))
 
                 if let providedSitemaps = robots?.sitemaps {
                     let sitemapEntries = providedSitemaps
@@ -241,12 +241,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     try storage.appendPending(items: sitemapEntries)
                 }
 
-                try storage.appendPending(bootupEntry)
+                try await storage.appendPending(bootupEntry)
             }
 
             try storage.substractIndexedFromPending()
             if try storage.counts.pending == 0 {
-                try storage.appendPending(bootupEntry)
+                try await storage.appendPending(bootupEntry)
             }
 
             if signalStateChange {
@@ -256,7 +256,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             var operationCount = 0
             let originalPriority = Settings.shared.indexingTaskPriority
-            while let next = try storage.nextPending() {
+            while let next = try await storage.nextPending() {
                 let setPriority = Settings.shared.indexingTaskPriority
                 if originalPriority != setPriority {
                     defer {
@@ -272,8 +272,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 }
 
                 let start = Date()
-                let (handledContent, newItem, newEntries) = try await crawl(entry: next)
-                try storage.handleCrawlCompletion(newItem: newItem, previousItem: next, newEntries: newEntries)
+                let createdContent = try await crawl(entry: next)
                 let counts = try storage.counts
                 await signalState(.indexing(counts.indexed, counts.pending, next.url), onlyIfActive: true)
 
@@ -289,7 +288,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                         Self.requestLock.returnTicket()
                     }
 
-                    let maxWait = handledContent ? 1 : 0.5
+                    let maxWait = createdContent ? 1 : 0.5
                     let duration = max(0, maxWait + start.timeIntervalSinceNow)
                     if duration > 0 {
                         try? await Task.sleep(for: .seconds(duration))
@@ -314,42 +313,44 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             await snapshot()
         }
 
-        private func crawl(entry: IndexEntry) async throws -> (Bool, IndexEntry?, Set<IndexEntry>?) {
+        private func crawl(entry: IndexEntry) async throws -> Bool {
             var newEntries: Set<IndexEntry>?
             let indexResult: IndexResponse
 
             switch entry {
             case let .pending(url, isSitemap):
                 if isSitemap {
-                    newEntries = await parseSitemap(at: entry)
+                    newEntries = await parseSitemap(at: url)
                     indexResult = .noChange
                 } else {
-                    indexResult = try await index(page: url, lastModified: nil, lastEtag: nil, lastContent: nil)
+                    indexResult = try await index(page: url, lastModified: nil, lastEtag: nil)
                 }
-            case let .visited(url, lastModified, etag, lastContent):
-                indexResult = try await index(page: url, lastModified: lastModified, lastEtag: etag, lastContent: lastContent)
+            case let .visited(url, lastModified, etag):
+                indexResult = try await index(page: url, lastModified: lastModified, lastEtag: etag)
             }
 
-            let handledContent: Bool
             let newItem: IndexEntry?
+            let newContent: IndexEntry.Content?
 
             switch indexResult {
             case .error:
-                handledContent = true
+                newContent = nil
                 spotlightInvalidationQueue.insert(entry.url)
                 newItem = nil
 
             case .noChange:
-                handledContent = false
+                newContent = nil
                 newItem = nil
 
-            case let .indexed(csEntry, createdItem, newPendingItems):
-                handledContent = true
+            case let .indexed(csEntry, createdItem, newPendingItems, content):
+                newContent = content
                 spotlightQueue.append(csEntry)
                 newEntries = newPendingItems
                 newItem = createdItem
             }
-            return (handledContent, newItem, newEntries)
+
+            try await storage.handleCrawlCompletion(newItem: newItem, url: entry.url, content: newContent, newEntries: newEntries)
+            return newContent != nil
         }
 
         private func snapshot() async {
@@ -386,10 +387,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }()
 
         enum IndexResponse {
-            case noChange, error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>)
+            case noChange, error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content)
         }
 
-        private func index(page link: String, lastModified: Date?, lastEtag: String?, lastContent _: IndexEntry.Content?) async throws -> IndexResponse {
+        private func index(page link: String, lastModified: Date?, lastEtag: String?) async throws -> IndexResponse {
             guard let site = URL(string: link) else {
                 Log.crawling(id, .error).log("Malformed URL: \(link)")
                 return .error
@@ -554,7 +555,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             let thumbnailUrl = await imageFileUrl.value
             let newContent = IndexEntry.Content(title: title, description: summaryContent, content: textContent, keywords: keywords.joined(separator: ", "), thumbnailUrl: thumbnailUrl?.absoluteString, lastModified: lastModified)
-            let indexed = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, content: newContent)
+            let indexed = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders)
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)
             attributes.keywords = keywords
@@ -563,7 +564,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             attributes.textContent = newContent.content
             attributes.contentModificationDate = newContent.lastModified
             attributes.thumbnailURL = thumbnailUrl
-            return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), indexed, newUrls)
+            return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), indexed, newUrls, newContent)
         }
 
         private static func storeImageData(_ data: Data, for id: String) -> URL {
