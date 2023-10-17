@@ -57,6 +57,7 @@ final class BlooCore {
     }
 
     func clearDomainSpotlight(for domainId: String) {
+        guard CSSearchableIndex.isIndexingAvailable() else { return }
         Task {
             do {
                 try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [domainId])
@@ -98,8 +99,10 @@ final class BlooCore {
         }
 
         domains.removeAll()
-        Task {
-            try? await CSSearchableIndex.default().deleteAllSearchableItems()
+        if CSSearchableIndex.isIndexingAvailable() {
+            Task {
+                try? await CSSearchableIndex.default().deleteAllSearchableItems()
+            }
         }
     }
 
@@ -111,6 +114,10 @@ final class BlooCore {
         initialisedViaLaunch = true
         runState = .running
         snapshotter.start()
+
+        for domain in domains where domain.state.shouldResume {
+            try? await domain.start()
+        }
     }
 
     var isRunningAndBusy: Bool {
@@ -119,7 +126,7 @@ final class BlooCore {
 
     func waitForIndexingToEnd() async {
         while isRunningAndBusy {
-            try? await Task.sleep(for: .seconds(0.5))
+            try? await Task.sleep(for: .seconds(1.0))
         }
     }
 
@@ -182,12 +189,6 @@ final class BlooCore {
     }
 
     init() {
-        guard CSSearchableIndex.isIndexingAvailable() else {
-            // TODO:
-            Log.app(.error).log("Spotlight not available")
-            return
-        }
-
         Task {
             await start(fromInitialiser: true)
 

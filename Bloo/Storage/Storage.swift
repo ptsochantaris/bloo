@@ -54,9 +54,11 @@ final class Storage {
             await withDiscardingTaskGroup { group in
                 for await item in q.stream {
                     group.addTask {
-                        let index = CSSearchableIndex.default()
-                        try? await index.deleteSearchableItems(withIdentifiers: Array(item.removedItems))
-                        try? await index.indexSearchableItems(item.items)
+                        if CSSearchableIndex.isIndexingAvailable() {
+                            let index = CSSearchableIndex.default()
+                            try? await index.deleteSearchableItems(withIdentifiers: Array(item.removedItems))
+                            try? await index.indexSearchableItems(item.items)
+                        }
                         await Self.commitData(for: item)
                     }
                 }
