@@ -15,9 +15,6 @@ private let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 640))]
         static let blooBody = Font.body
     }
 
-    private let backgroundOpacity = 0.4
-    private let cellOpacity = 0.5
-    private let resultOpacity = 0.6
     private let hspacing: CGFloat = 17
     private let titleInset: CGFloat = 4
 
@@ -31,9 +28,6 @@ private let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 640))]
         static let blooBody = Font.body
     }
 
-    private let backgroundOpacity = 0.5
-    private let cellOpacity = 0.6
-    private let resultOpacity = 0.7
     private let hspacing: CGFloat = 12
     private let titleInset: CGFloat = 0
 
@@ -159,7 +153,7 @@ private struct DomainRow: View {
         .padding()
         .frame(maxHeight: .infinity)
         .lineLimit(1)
-        .background(.fill.opacity(cellOpacity))
+        .background(.fill.tertiary)
         .cornerRadius(narrowCorner)
         .contextMenu {
             if domain.state.canStart {
@@ -294,7 +288,7 @@ private struct ResultRow: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
-        .background(.fill.opacity(resultOpacity))
+        .background(.fill.tertiary)
         .cornerRadius(narrowCorner)
     }
 }
@@ -310,7 +304,7 @@ private struct AdditionRow: View {
             Spacer(minLength: 0)
         }
         .padding()
-        .background(.fill.opacity(cellOpacity))
+        .background(.fill.tertiary)
         .cornerRadius(narrowCorner)
     }
 }
@@ -407,7 +401,7 @@ private struct DomainGrid: View {
                 .frame(maxWidth: .infinity)
             }
             .padding()
-            .background(.fill.opacity(backgroundOpacity))
+            .background(.fill.tertiary)
             .cornerRadius(wideCorner)
         }
     }
@@ -567,7 +561,7 @@ private struct SearchSection: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(.fill.opacity(backgroundOpacity))
+        .background(.fill.tertiary)
         .cornerRadius(wideCorner)
     }
 }
@@ -617,7 +611,7 @@ private struct AdditionSection: View {
                     .autocapitalization(.none)
                     .padding(8)
                     .submitLabel(.done)
-                    .background(.fill.opacity(backgroundOpacity))
+                    .background(.fill.quinary)
                     .cornerRadius(8)
                 #else
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -650,7 +644,7 @@ private struct AdditionSection: View {
             }
         }
         .padding()
-        .background(.fill.opacity(backgroundOpacity))
+        .background(.fill.tertiary)
         .cornerRadius(wideCorner)
         .onChange(of: input) { _, newValue in
             Task { @MainActor in

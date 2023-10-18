@@ -479,7 +479,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                    let data = try? await Network.getData(from: thumbnailUrl).0,
                    let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
                    let dataToSave = image.jpegData {
-                    return Self.storeImageData(dataToSave, for: id)
+                    return Self.storeImageData(dataToSave, for: id, sourceUrl: ogImage)
                 }
                 return nil
             }
@@ -567,10 +567,11 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), indexed, newUrls, newContent)
         }
 
-        private static func storeImageData(_ data: Data, for id: String) -> URL {
-            let uuid = UUID().uuidString
-            let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 1)])
-            let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 2) ... uuid.index(uuid.startIndex, offsetBy: 3)])
+        private static func storeImageData(_ data: Data, for id: String, sourceUrl: String) -> URL {
+            let uuid = sourceUrl.hashString
+            let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 2)])
+            let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 3) ... uuid.index(uuid.startIndex, offsetBy: 5)])
+            let third = String(uuid.dropFirst(6))
 
             let domainPath = domainPath(for: id)
             let location = domainPath.appendingPathComponent("thumbnails", isDirectory: true)
@@ -581,7 +582,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             if !fm.fileExists(atPath: location.path(percentEncoded: false)) {
                 try! fm.createDirectory(at: location, withIntermediateDirectories: true)
             }
-            let fileUrl = location.appendingPathComponent(uuid + ".jpg", isDirectory: false)
+            let fileUrl = location.appendingPathComponent(third + ".jpg", isDirectory: false)
             try! data.write(to: fileUrl)
             return fileUrl
         }
