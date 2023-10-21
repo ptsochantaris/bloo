@@ -1,15 +1,14 @@
 import Foundation
 
 enum Network {
-
     private static let urlCache = {
         let meg = 1000 * 1000
         let gig = 1000 * meg
-#if os(iOS)
-        return URLCache(memoryCapacity: 40 * meg, diskCapacity: 4 * gig)
-#elseif os(macOS)
-        return URLCache(memoryCapacity: 1000 * meg, diskCapacity: 10 * gig)
-#endif
+        #if os(iOS)
+            return URLCache(memoryCapacity: 40 * meg, diskCapacity: 4 * gig)
+        #elseif os(macOS)
+            return URLCache(memoryCapacity: 1000 * meg, diskCapacity: 10 * gig)
+        #endif
     }()
 
     private static let urlSession: URLSession = {

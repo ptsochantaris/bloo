@@ -13,6 +13,11 @@
 		1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9A2AC366D90022A8F6 /* Globals.swift */; };
 		1634CF9D2AC367760022A8F6 /* BlooCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9C2AC367760022A8F6 /* BlooCore.swift */; };
 		163C45F42ACF610C00103BEA /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163C45F32ACF610C00103BEA /* Engine.swift */; };
+		1657AAC32AE41BED00503669 /* MemoryMappedCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1657AAC22AE41BED00503669 /* MemoryMappedCollection.swift */; };
+		1657AAC62AE41C0700503669 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 1657AAC52AE41C0700503669 /* Algorithms */; };
+		1657AAC82AE428B200503669 /* Vector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1657AAC72AE428B200503669 /* Vector.swift */; };
+		1657AACA2AE4298500503669 /* DB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1657AAC92AE4298500503669 /* DB.swift */; };
+		1657AACC2AE4299D00503669 /* SearchDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1657AACB2AE4299D00503669 /* SearchDB.swift */; };
 		165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10BF2AC87C4600442892 /* SitemapParser.swift */; };
 		165F10C22AC8802400442892 /* IndexEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C12AC8802400442892 /* IndexEntry.swift */; };
 		165F10C42AC8803C00442892 /* Result.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C32AC8803C00442892 /* Result.swift */; };
@@ -52,6 +57,10 @@
 		1634CF9A2AC366D90022A8F6 /* Globals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Globals.swift; sourceTree = "<group>"; };
 		1634CF9C2AC367760022A8F6 /* BlooCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlooCore.swift; sourceTree = "<group>"; };
 		163C45F32ACF610C00103BEA /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engine.swift; sourceTree = "<group>"; };
+		1657AAC22AE41BED00503669 /* MemoryMappedCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryMappedCollection.swift; sourceTree = "<group>"; };
+		1657AAC72AE428B200503669 /* Vector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Vector.swift; sourceTree = "<group>"; };
+		1657AAC92AE4298500503669 /* DB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DB.swift; sourceTree = "<group>"; };
+		1657AACB2AE4299D00503669 /* SearchDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchDB.swift; sourceTree = "<group>"; };
 		165F10BF2AC87C4600442892 /* SitemapParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitemapParser.swift; sourceTree = "<group>"; };
 		165F10C12AC8802400442892 /* IndexEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexEntry.swift; sourceTree = "<group>"; };
 		165F10C32AC8803C00442892 /* Result.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Result.swift; sourceTree = "<group>"; };
@@ -91,6 +100,7 @@
 				16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */,
 				1697539D2ACA2F9600C2281D /* OrderedCollections in Frameworks */,
 				16FD23352AC3A5A600751A85 /* Maintini in Frameworks */,
+				1657AAC62AE41C0700503669 /* Algorithms in Frameworks */,
 				16FDB1022ADB47A8003A4BBD /* SQLite in Frameworks */,
 				1634CF912AC34D780022A8F6 /* Lista in Frameworks */,
 				16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */,
@@ -113,6 +123,10 @@
 				1697539E2ACA350B00C2281D /* Snapshot.swift */,
 				1634CF942AC365800022A8F6 /* Storage.swift */,
 				16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */,
+				1657AAC22AE41BED00503669 /* MemoryMappedCollection.swift */,
+				1657AAC72AE428B200503669 /* Vector.swift */,
+				1657AAC92AE4298500503669 /* DB.swift */,
+				1657AACB2AE4299D00503669 /* SearchDB.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -219,6 +233,7 @@
 				1697539C2ACA2F9600C2281D /* OrderedCollections */,
 				16E3EF5C2AD088A800CF9B80 /* Semalot */,
 				16FDB1012ADB47A8003A4BBD /* SQLite */,
+				1657AAC52AE41C0700503669 /* Algorithms */,
 			);
 			productName = Nibbel;
 			productReference = 16E8A0E42AC1F96500CCB10D /* Bloo.app */;
@@ -256,6 +271,7 @@
 				1697539B2ACA2F9600C2281D /* XCRemoteSwiftPackageReference "swift-collections" */,
 				16E3EF592AD0876900CF9B80 /* XCRemoteSwiftPackageReference "semalot" */,
 				16FDB1002ADB47A8003A4BBD /* XCRemoteSwiftPackageReference "SQLite.swift" */,
+				1657AAC42AE41C0700503669 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 			);
 			productRefGroup = 16E8A0E52AC1F96500CCB10D /* Products */;
 			projectDirPath = "";
@@ -287,6 +303,7 @@
 				16FD233E2AC5CD3600751A85 /* URL+Extensions.swift in Sources */,
 				16FD233C2AC5CD1600751A85 /* String+Extensions.swift in Sources */,
 				16B43D2E2AC8D8ED00EB4815 /* DomainState.swift in Sources */,
+				1657AACC2AE4299D00503669 /* SearchDB.swift in Sources */,
 				16B67CF22AD4227800366266 /* UserDefault.swift in Sources */,
 				163C45F42ACF610C00103BEA /* Engine.swift in Sources */,
 				165F10C42AC8803C00442892 /* Result.swift in Sources */,
@@ -303,10 +320,13 @@
 				1634CF972AC365D90022A8F6 /* Domain.swift in Sources */,
 				1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */,
 				16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */,
+				1657AAC82AE428B200503669 /* Vector.swift in Sources */,
 				16B67CF82AD422F300366266 /* Collection.swift in Sources */,
 				16B67CF42AD4229400366266 /* Settings.swift in Sources */,
 				16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */,
+				1657AACA2AE4298500503669 /* DB.swift in Sources */,
 				16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */,
+				1657AAC32AE41BED00503669 /* MemoryMappedCollection.swift in Sources */,
 				1634CF952AC365800022A8F6 /* Storage.swift in Sources */,
 				16FDB0FF2ADB450B003A4BBD /* CrawlerStorage.swift in Sources */,
 				165F10C22AC8802400442892 /* IndexEntry.swift in Sources */,
@@ -542,6 +562,14 @@
 				kind = branch;
 			};
 		};
+		1657AAC42AE41C0700503669 /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-algorithms.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
 		1697539B2ACA2F9600C2281D /* XCRemoteSwiftPackageReference "swift-collections" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-collections.git";
@@ -597,6 +625,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1634CF8F2AC34D780022A8F6 /* XCRemoteSwiftPackageReference "Lista" */;
 			productName = Lista;
+		};
+		1657AAC52AE41C0700503669 /* Algorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1657AAC42AE41C0700503669 /* XCRemoteSwiftPackageReference "swift-algorithms" */;
+			productName = Algorithms;
 		};
 		1697539C2ACA2F9600C2281D /* OrderedCollections */ = {
 			isa = XCSwiftPackageProductDependency;

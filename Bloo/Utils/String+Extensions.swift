@@ -37,7 +37,7 @@ extension String {
     }
 
     var hashString: String {
-        var res = utf8.reduce(UInt64(5381)) { 127 * ($0 & 0x00ffffffffffffff) + UInt64($1) }
+        var res = utf8.reduce(UInt64(5381)) { 127 * ($0 & 0x00FF_FFFF_FFFF_FFFF) + UInt64($1) }
 
         return withUnsafeBytes(of: &res) { pointer in
             (0 ..< 8).map { pointer.load(fromByteOffset: $0, as: UInt8.self) }.map { String($0, radix: 16) }.joined()
