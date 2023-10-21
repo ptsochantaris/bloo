@@ -13,6 +13,10 @@ enum IndexEntry: Hashable, Sendable {
         var hasItems: Bool {
             title != nil || description != nil || content != nil || keywords != nil
         }
+
+        var indexableText: String {
+            [title, description, content].compactMap { $0 }.joined(separator: ".\n\n")
+        }
     }
 
     case pending(url: String, isSitemap: Bool), visited(url: String, lastModified: Date?, etag: String?)

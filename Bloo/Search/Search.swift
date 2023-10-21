@@ -1,12 +1,12 @@
 import Foundation
 
 enum Search: Equatable, Codable, Sendable {
-    case none, top(String), full(String)
+    case none(Bool), top(String, Bool), full(String, Bool)
 
     var trimmedText: String {
         switch self {
         case .none: ""
-        case let .full(text), let .top(text): text.trimmingCharacters(in: .whitespacesAndNewlines)
+        case let .full(text, _), let .top(text, _): text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
 

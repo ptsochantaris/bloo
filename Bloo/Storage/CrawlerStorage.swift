@@ -156,7 +156,7 @@ final class CrawlerStorage {
         if let newItem {
             try await append(item: newItem, to: &visited)
 
-            Log.crawling(id, .info).log("Indexed URL: \(newItem.url)")
+            Log.crawling(id, .info).log("Visited URL: \(newItem.url)")
         }
 
         if var newEntries, newEntries.isPopulated {

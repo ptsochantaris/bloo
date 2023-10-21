@@ -3,6 +3,23 @@ import Foundation
 @preconcurrency import NaturalLanguage
 import SQLite
 
+final actor SetenceEmbeddingRental {
+    static let shared = SetenceEmbeddingRental()
+
+    private var embeddings = [NLEmbedding]()
+
+    func reserve() -> NLEmbedding {
+        if let existing = embeddings.popLast() {
+            return existing
+        }
+        return NLEmbedding.sentenceEmbedding(for: .english)!
+    }
+
+    func release(embedding: NLEmbedding) {
+        embeddings.append(embedding)
+    }
+}
+
 final actor SearchDB {
     static let shared = SearchDB()
 
@@ -38,23 +55,6 @@ final actor SearchDB {
 
     private static let sentenceRegex = try! Regex("[\\.\\!\\?\\:\\n]")
 
-    private final actor SetenceEmbeddingRental {
-        private var embeddings = [NLEmbedding]()
-
-        func reserve() -> NLEmbedding {
-            if let existing = embeddings.popLast() {
-                return existing
-            }
-            return NLEmbedding.sentenceEmbedding(for: .english)!
-        }
-
-        func release(embedding: NLEmbedding) {
-            embeddings.append(embedding)
-        }
-    }
-
-    private let setenceEmbeddingRental = SetenceEmbeddingRental()
-
     func insert(id: String, url: String, content: IndexEntry.Content) async throws {
         let newRowId = try indexDb.run(
             textTable.insert(or: .replace,
@@ -72,8 +72,8 @@ final actor SearchDB {
         }
 
         // free this actor up while we produce the vectors
-        let embedSentences = Task<[Vector], Never>.detached { [setenceEmbeddingRental] in
-            let sentences = contentText.split(separator: Self.sentenceRegex, omittingEmptySubsequences: true).map {
+        let embedSentences = Task<[Vector], Never>.detached {
+            let sentences = content.indexableText.split(separator: Self.sentenceRegex, omittingEmptySubsequences: true).map {
                 $0.trimmingCharacters(in: .alphanumerics.inverted)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             }
@@ -82,10 +82,10 @@ final actor SearchDB {
                 return []
             }
 
-            let sentenceEmbedding = await setenceEmbeddingRental.reserve()
+            let sentenceEmbedding = await SetenceEmbeddingRental.shared.reserve()
             defer {
                 Task {
-                    await setenceEmbeddingRental.release(embedding: sentenceEmbedding)
+                    await SetenceEmbeddingRental.shared.release(embedding: sentenceEmbedding)
                 }
             }
 
@@ -93,7 +93,7 @@ final actor SearchDB {
                 let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.count > 2, trimmed.contains(" "), let vector = sentenceEmbedding.vector(for: sentence) {
                     // Log.crawling(id, .info).log("Embedding [\(newRowId)]: '\(sentence)'")
-                    return Vector(coords: vector, rowId: newRowId)
+                    return Vector(coords: vector, rowId: newRowId, sentence: sentence)
                 }
                 return nil
             }
@@ -108,7 +108,7 @@ final actor SearchDB {
         try indexDb.run(textTable.filter(DB.domainRow == id).delete())
     }
 
-    func textQuery(_ text: String, limit: Int) throws -> [Search.Result] {
+    func keywordQuery(_ text: String, limit: Int) throws -> [Search.Result] {
         let searchTerms = text.split(separator: " ").map { String($0) }
         let terms = searchTerms.map { $0.lowercased().sqlSafe }.joined(separator: " AND ")
         return try indexDb.prepareRowIterator(
@@ -137,15 +137,74 @@ final actor SearchDB {
                           displayDate: $0[DB.lastModifiedRow],
                           thumbnailUrl: URL(string: $0[DB.thumbnailUrlRow] ?? ""),
                           keywords: $0[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? [],
-                          terms: searchTerms)
+                          terms: searchTerms,
+                          manuallyHighlight: nil)
         }
     }
 
-    func items(at searchVector: Vector, limit: Int) -> [Vector] {
-        vectorIndex.max(count: limit) { e1, e2 in
+    func sentenceQuery(_ text: String, limit: Int) async throws -> [Search.Result] {
+        let nl = await SetenceEmbeddingRental.shared.reserve()
+        defer {
+            Task {
+                await SetenceEmbeddingRental.shared.release(embedding: nl)
+            }
+        }
+
+        guard let sv = nl.vector(for: text) else {
+            return []
+        }
+
+        let searchVector = Vector(coords: sv, rowId: 0, sentence: text)
+
+        let vectors = vectorIndex.max(count: limit) { e1, e2 in
             let d1 = searchVector.similarity(to: e1)
             let d2 = searchVector.similarity(to: e2)
             return d1 < d2
         }
+
+        let idList = vectors.reversed().map(\.rowId)
+        let rowIds = idList.map { String($0) }.joined(separator: ",")
+        let termList = text.split(separator: " ").map { String($0) }
+
+        return try indexDb.prepareRowIterator(
+            """
+            select
+            rowid,
+            url,
+            title,
+            description,
+            content,
+            keywords,
+            thumbnailUrl,
+            lastModified
+
+            from text_search
+
+            where rowid in (\(rowIds))
+            """
+        ).map { element in
+            Self.createResults(element, terms: termList, vectors: vectors)
+        }.sorted {
+            (idList.firstIndex(of: $0.0) ?? 0) < (idList.firstIndex(of: $1.0) ?? 0)
+        }.map(\.1)
+    }
+
+    static func createResults(_ element: RowIterator.Element, terms: [String], vectors: [Vector]) -> (Int64, Search.Result) {
+        let id = element[DB.rowId]
+        let relevantPhrase = vectors.first(where: { $0.rowId == id })?.sentence
+
+        return (
+            id,
+
+            Search.Result(id: element[DB.urlRow],
+                          title: element[DB.titleRow] ?? "",
+                          descriptionText: element[DB.descriptionRow] ?? "",
+                          contentText: element[DB.contentRow],
+                          displayDate: element[DB.lastModifiedRow],
+                          thumbnailUrl: URL(string: element[DB.thumbnailUrlRow] ?? ""),
+                          keywords: element[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? [],
+                          terms: terms,
+                          manuallyHighlight: relevantPhrase)
+        )
     }
 }

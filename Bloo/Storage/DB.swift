@@ -2,6 +2,7 @@ import Foundation
 import SQLite
 
 enum DB {
+    static let rowId = Expression<Int64>("rowid")
     static let urlRow = Expression<String>("url")
     static let isSitemapRow = Expression<Bool?>("isSitemap")
     static let lastModifiedRow = Expression<Date?>("lastModified")
