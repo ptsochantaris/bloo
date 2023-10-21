@@ -25,14 +25,14 @@ extension Search {
 
                 case let .top(string, fuzzy):
                     Log.search(.default).log("Initialised: \(string) - top results - windowId: \(windowId.uuidString)")
-                    searchQuery = string
                     useFuzzy = fuzzy
+                    searchQuery = string
                     resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
 
                 case let .full(string, fuzzy):
                     Log.search(.default).log("Initialised: \(string) - full results - windowId: \(windowId.uuidString)")
-                    searchQuery = string
                     useFuzzy = fuzzy
+                    searchQuery = string
                     resetQuery(expandIfNeeded: true, onlyIfChanged: false)
                 }
             }
@@ -44,7 +44,8 @@ extension Search {
 
         var useFuzzy = false {
             didSet {
-                if useFuzzy != oldValue {
+                if useFuzzy != oldValue, searchQuery.isPopulated {
+                    resultState = .searching
                     resetQuery(onlyIfChanged: false)
                 }
             }
