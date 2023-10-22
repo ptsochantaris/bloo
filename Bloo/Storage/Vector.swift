@@ -44,10 +44,10 @@ struct Vector {
     private static let vectorTupleSize = MemoryLayout<VectorTuple>.stride
     private static let blobTupleSize = MemoryLayout<BlobTuple>.stride
 
-    init(coords: [Double], rowId: Int64, sentence: String) {
+    init(coordVector: [Double], rowId: Int64, sentence: String) {
         self.rowId = rowId
-        sumOfSquares = sqrt(vDSP.sumOfSquares(coords))
-        self.coords = coords.withUnsafeBytes { pointer in
+        sumOfSquares = sqrt(vDSP.sumOfSquares(coordVector))
+        coords = coordVector.withUnsafeBytes { pointer in
             let t = UnsafeMutablePointer<VectorTuple>.allocate(capacity: 1)
             defer { t.deallocate() }
             memcpy(t, pointer.baseAddress!, Self.vectorTupleSize)
@@ -63,10 +63,8 @@ struct Vector {
     }
 
     var sentence: String {
-        withUnsafePointer(to: blob) { tuplePointer in
-            tuplePointer.withMemoryRebound(to: CChar.self, capacity: Self.blobTupleSize) { charPointer in
-                String(cString: charPointer)
-            }
+        withUnsafePointer(to: blob) {
+            String(cString: UnsafePointer<CChar>(OpaquePointer($0)))
         }
     }
 }

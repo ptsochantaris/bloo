@@ -33,7 +33,7 @@ final actor SentenceEmbedding {
             return nil
         }
 
-        return Vector(coords: coords, rowId: 0, sentence: sentence)
+        return Vector(coordVector: coords, rowId: 0, sentence: sentence)
     }
 
     nonisolated func vectors(for sentences: [String], at rowId: Int64) async -> [Vector] {
@@ -45,7 +45,7 @@ final actor SentenceEmbedding {
         return sentences.compactMap { sentence in
             let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.count > 2, trimmed.contains(" "), let coords = sentenceEmbedding.vector(for: sentence) {
-                return Vector(coords: coords, rowId: rowId, sentence: sentence)
+                return Vector(coordVector: coords, rowId: rowId, sentence: sentence)
             }
             return nil
         }

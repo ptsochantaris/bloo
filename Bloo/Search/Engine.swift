@@ -131,6 +131,7 @@ extension Search {
                 return
             }
 
+            let previousTask = runningQueryTask
             runningQueryTask?.cancel()
             runningQueryTask = nil
 
@@ -163,15 +164,27 @@ extension Search {
                 updateResultState(.updating(searchText, mode, array, fuzzyMode))
             }
 
-            runningQueryTask = Task.detached { [weak self] in
+            runningQueryTask = Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
 
-                let results = fuzzyMode
-                    ? await (try? SearchDB.shared.sentenceQuery(searchText, limit: chunkSize)) ?? []
-                    : await (try? SearchDB.shared.keywordQuery(searchText, limit: chunkSize)) ?? []
+                _ = await previousTask?.value
 
                 if Task.isCancelled {
-                    print(">>> Cancelled search, ignoring results")
+                    Log.search(.info).log("Cancelled search, skipping")
+                    return
+                }
+
+                let results = fuzzyMode
+                    ? await (try? SearchDB.shared.sentenceQuery(searchText, limit: chunkSize))
+                    : await (try? SearchDB.shared.keywordQuery(searchText, limit: chunkSize))
+
+                if Task.isCancelled {
+                    Log.search(.info).log("Cancelled search, ignoring results")
+                    return
+                }
+
+                guard let results else {
+                    await updateResultState(.noResults)
                     return
                 }
 
