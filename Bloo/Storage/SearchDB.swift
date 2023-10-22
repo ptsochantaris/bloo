@@ -162,7 +162,7 @@ final actor SearchDB {
             return d1 < d2
         }
 
-        let idList = vectors.reversed().map(\.rowId)
+        let idList = vectors.map(\.rowId)
         let rowIds = idList.map { String($0) }.joined(separator: ",")
         let termList = text.split(separator: " ").map { String($0) }
 
