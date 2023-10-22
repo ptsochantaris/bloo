@@ -417,7 +417,7 @@ private struct SearchResults: View {
             ProgressView()
                 .padding()
 
-        case let .results(mode, items, _), let .updating(mode, items, _):
+        case let .results(mode, items, _), let .updating(_, mode, items, _):
             switch mode {
             case .all:
                 LazyVGrid(columns: gridColumns) {
@@ -465,16 +465,16 @@ private struct SearchSection: View {
             showResults = false
             showFilter = false
 
-        case .searching:
-            title = "Searching"
+        case let .searching(text):
+            title = "Searching for '\(text)'"
             showProgress = true
             ctaTitle = nil
             prefersLargeView = false
             showResults = false
             showFilter = false
 
-        case let .updating(resultType, _, _):
-            title = "Searching"
+        case let .updating(text, resultType, _, _):
+            title = "Searching for '\(text)'"
             showProgress = true
             ctaTitle = nil
 

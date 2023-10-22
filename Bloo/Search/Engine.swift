@@ -45,7 +45,7 @@ extension Search {
         var useFuzzy = false {
             didSet {
                 if useFuzzy != oldValue, searchQuery.isPopulated {
-                    resultState = .searching
+                    resultState = .searching(searchQuery)
                     resetQuery(onlyIfChanged: false)
                 }
             }
@@ -91,6 +91,7 @@ extension Search {
             }
         }
 
+        private var runningQueryTask: Task<Void, Never>?
         func resetQuery(expandIfNeeded: Bool = false, collapseIfNeeded: Bool = false, onlyIfChanged: Bool = true) {
             let fuzzyMode = useFuzzy
             queryTimer.abort()
@@ -108,7 +109,7 @@ extension Search {
                     } else {
                         .top(trimmedText, fuzzyMode)
                     }
-                case let .results(displayMode, _, _), let .updating(displayMode, _, _):
+                case let .results(displayMode, _, _), let .updating(_, displayMode, _, _):
                     switch displayMode {
                     case .all:
                         if collapseIfNeeded {
@@ -129,6 +130,10 @@ extension Search {
             if onlyIfChanged, searchState == newSearch {
                 return
             }
+
+            runningQueryTask?.cancel()
+            runningQueryTask = nil
+
             searchState = newSearch
 
             let smallChunkSize = 10
@@ -149,19 +154,26 @@ extension Search {
 
             switch resultState {
             case .noResults, .noSearch:
-                updateResultState(.searching)
-            case let .results(mode, array, fuzzy):
-                updateResultState(.updating(mode, array, fuzzy))
-            case .searching, .updating:
-                break
+                updateResultState(.searching(searchText))
+            case let .results(mode, array, _):
+                updateResultState(.updating(searchText, mode, array, fuzzyMode))
+            case let .searching(text):
+                updateResultState(.searching(text))
+            case let .updating(_, mode, array, _):
+                updateResultState(.updating(searchText, mode, array, fuzzyMode))
             }
 
-            Task.detached { [weak self] in
+            runningQueryTask = Task.detached { [weak self] in
                 guard let self else { return }
 
                 let results = fuzzyMode
                     ? await (try? SearchDB.shared.sentenceQuery(searchText, limit: chunkSize)) ?? []
                     : await (try? SearchDB.shared.keywordQuery(searchText, limit: chunkSize)) ?? []
+
+                if Task.isCancelled {
+                    print(">>> Cancelled search, ignoring results")
+                    return
+                }
 
                 switch results.count {
                 case 0:
