@@ -275,14 +275,14 @@ private struct ResultRow: View {
                         .font(.blooCaption2)
                 }
 
-                Text(result.id)
+                Text(result.url)
                     .lineLimit(2)
                     .font(.blooCaption2)
                     .foregroundStyle(.accent)
             }
         }
         .onTapGesture {
-            if let url = result.url {
+            if let url = URL(string: result.url) {
                 openURL(url)
             }
         }

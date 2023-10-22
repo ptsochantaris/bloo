@@ -5,6 +5,7 @@ import SQLite
 extension Search {
     struct Result: Identifiable {
         let id: String
+        let url: String
         let title: String
         let descriptionText: String
         let contentText: String?
@@ -50,7 +51,8 @@ extension Search {
         }
 
         init(element: Row, terms: [String], relevantVector: Vector?) {
-            id = element[DB.urlRow]
+            id = (relevantVector?.sentence ?? "") + String(element[DB.rowId])
+            url = element[DB.urlRow]
             displayDate = element[DB.lastModifiedRow]
             thumbnailUrl = URL(string: element[DB.thumbnailUrlRow] ?? "")
             keywords = element[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? []
@@ -84,10 +86,6 @@ extension Search {
                 return contentRes
             }
             return descriptionText.highlightedAttributedString()
-        }
-
-        var url: URL? {
-            URL(string: id)
         }
 
         var matchedKeywords: String? {
