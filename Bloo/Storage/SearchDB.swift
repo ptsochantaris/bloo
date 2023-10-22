@@ -1,24 +1,6 @@
 import Algorithms
 import Foundation
-@preconcurrency import NaturalLanguage
 import SQLite
-
-final actor SetenceEmbeddingRental {
-    static let shared = SetenceEmbeddingRental()
-
-    private var embeddings = [NLEmbedding]()
-
-    func reserve() -> NLEmbedding {
-        if let existing = embeddings.popLast() {
-            return existing
-        }
-        return NLEmbedding.sentenceEmbedding(for: .english)!
-    }
-
-    func release(embedding: NLEmbedding) {
-        embeddings.append(embedding)
-    }
-}
 
 final actor SearchDB {
     static let shared = SearchDB()
@@ -53,6 +35,10 @@ final actor SearchDB {
         vectorIndex = MemoryMappedCollection(at: embeddingFile.path, minimumCapacity: 1000)
     }
 
+    func shutdown() {
+        vectorIndex.stop()
+    }
+
     private static let sentenceRegex = try! Regex("[\\.\\!\\?\\:\\n]")
 
     func insert(id: String, url: String, content: IndexEntry.Content) async throws {
@@ -82,21 +68,7 @@ final actor SearchDB {
                 return []
             }
 
-            let sentenceEmbedding = await SetenceEmbeddingRental.shared.reserve()
-            defer {
-                Task {
-                    await SetenceEmbeddingRental.shared.release(embedding: sentenceEmbedding)
-                }
-            }
-
-            return sentences.compactMap { sentence in
-                let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.count > 2, trimmed.contains(" "), let vector = sentenceEmbedding.vector(for: sentence) {
-                    // Log.crawling(id, .info).log("Embedding [\(newRowId)]: '\(sentence)'")
-                    return Vector(coords: vector, rowId: newRowId, sentence: sentence)
-                }
-                return nil
-            }
+            return await SentenceEmbedding.shared.vectors(for: sentences, at: newRowId)
         }
 
         let newVectors = await embedSentences.value
@@ -135,18 +107,9 @@ final actor SearchDB {
     }
 
     func sentenceQuery(_ text: String, limit: Int) async throws -> [Search.Result] {
-        let nl = await SetenceEmbeddingRental.shared.reserve()
-        defer {
-            Task {
-                await SetenceEmbeddingRental.shared.release(embedding: nl)
-            }
-        }
-
-        guard let sv = nl.vector(for: text) else {
+        guard let searchVector = await SentenceEmbedding.shared.vector(for: text) else {
             return []
         }
-
-        let searchVector = Vector(coords: sv, rowId: 0, sentence: text)
 
         let vectors = vectorIndex.max(count: limit) { e1, e2 in
             let d1 = searchVector.similarity(to: e1)

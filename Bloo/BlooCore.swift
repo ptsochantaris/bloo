@@ -165,7 +165,9 @@ final class BlooCore {
         Log.app(.default).log("All domains are shut down")
         await snapshotter.shutdown()
         Log.app(.default).log("Storage now shut down")
-        try? await Task.sleep(for: .milliseconds(200))
+        await SearchDB.shared.shutdown()
+        Log.app(.default).log("Search DB shut down")
+        try? await Task.sleep(for: .milliseconds(100))
     }
 
     func contains(domain: String) -> Bool {
