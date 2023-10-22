@@ -37,8 +37,8 @@ typealias BlobTuple = (
 
 struct Vector {
     let rowId: Int64
-    private let sumOfSquares: Double
-    private let coords: VectorTuple
+    let sumOfSquares: Double
+    let coords: VectorTuple
     private let blob: BlobTuple
 
     private static let vectorTupleSize = MemoryLayout<VectorTuple>.stride
@@ -68,19 +68,5 @@ struct Vector {
                 String(cString: charPointer)
             }
         }
-    }
-
-    func similarity(to other: Vector) -> Double {
-        var dot: Double = 0
-        withUnsafePointer(to: coords) { tuplePointer1 in
-            tuplePointer1.withMemoryRebound(to: Double.self, capacity: 512) { typedPointer1 in
-                withUnsafePointer(to: other.coords) { tuplePointer2 in
-                    tuplePointer2.withMemoryRebound(to: Double.self, capacity: 512) { typedPointer2 in
-                        vDSP_dotprD(typedPointer1, 1, typedPointer2, 1, &dot, 512)
-                    }
-                }
-            }
-        }
-        return dot / (sumOfSquares * other.sumOfSquares) * 1000
     }
 }

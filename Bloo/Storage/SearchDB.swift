@@ -1,3 +1,4 @@
+import Accelerate
 import Algorithms
 import Foundation
 import SQLite
@@ -81,6 +82,11 @@ final actor SearchDB {
     }
 
     func keywordQuery(_ text: String, limit: Int) throws -> [Search.Result] {
+        let start = Date.now
+        defer {
+            Log.search(.info).log("Keyword search query time: \(-start.timeIntervalSinceNow) sec")
+        }
+
         let searchTerms = text.split(separator: " ").map { String($0) }
         let terms = searchTerms.map { $0.lowercased().sqlSafe }.joined(separator: " AND ")
         return try indexDb.prepareRowIterator(
@@ -107,14 +113,31 @@ final actor SearchDB {
     }
 
     func sentenceQuery(_ text: String, limit: Int) async throws -> [Search.Result] {
+        let start = Date.now
+        defer {
+            Log.search(.info).log("Sentence search query time: \(-start.timeIntervalSinceNow) sec")
+        }
         guard let searchVector = await SentenceEmbedding.shared.vector(for: text) else {
             return []
         }
 
-        let vectors = vectorIndex.max(count: limit) { e1, e2 in
-            let d1 = searchVector.similarity(to: e1)
-            let d2 = searchVector.similarity(to: e2)
-            return d1 < d2
+        let vectors = withUnsafePointer(to: searchVector.coords) { sp in
+            let sb = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(sp)), count: 512)
+            let s_sos = searchVector.sumOfSquares
+            return vectorIndex.max(count: limit) { e1, e2 in
+                withUnsafePointer(to: e1.coords) { e1p in
+                    withUnsafePointer(to: e2.coords) { e2p in
+
+                        let e1b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e1p)), count: 512)
+                        let r1 = vDSP.dot(sb, e1b) / (e1.sumOfSquares * s_sos)
+
+                        let e2b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e2p)), count: 512)
+                        let r2 = vDSP.dot(sb, e2b) / (e2.sumOfSquares * s_sos)
+
+                        return r1 < r2
+                    }
+                }
+            }
         }
 
         if vectors.isEmpty {
