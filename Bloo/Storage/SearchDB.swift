@@ -130,15 +130,7 @@ final actor SearchDB {
 
             limit \(limit)
             """).map {
-            Search.Result(id: $0[DB.urlRow],
-                          title: $0[DB.titleRow] ?? "",
-                          descriptionText: $0[DB.descriptionRow] ?? "",
-                          contentText: $0[DB.contentRow],
-                          displayDate: $0[DB.lastModifiedRow],
-                          thumbnailUrl: URL(string: $0[DB.thumbnailUrlRow] ?? ""),
-                          keywords: $0[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? [],
-                          terms: searchTerms,
-                          manuallyHighlight: nil)
+            Search.Result(element: $0, terms: searchTerms, relevantVector: nil)
         }
     }
 
@@ -162,6 +154,10 @@ final actor SearchDB {
             return d1 < d2
         }
 
+        if vectors.isEmpty {
+            return []
+        }
+
         let idList = vectors.map(\.rowId)
         let rowIds = idList.map { String($0) }.joined(separator: ",")
         let termList = text.split(separator: " ").map { String($0) }
@@ -182,29 +178,20 @@ final actor SearchDB {
 
             where rowid in (\(rowIds))
             """
-        ).map { element in
-            Self.createResults(element, terms: termList, vectors: vectors)
+        ).compactMap { element in
+            let id = element[DB.rowId]
+            if let v = vectors.first(where: { $0.rowId == id }) {
+                return (v, element)
+            } else {
+                return nil
+            }
         }.sorted {
-            (idList.firstIndex(of: $0.0) ?? 0) < (idList.firstIndex(of: $1.0) ?? 0)
-        }.map(\.1)
-    }
+            let pos1 = idList.firstIndex(of: $0.0.rowId) ?? 0
+            let pos2 = idList.firstIndex(of: $1.0.rowId) ?? 0
+            return pos1 > pos2
 
-    static func createResults(_ element: RowIterator.Element, terms: [String], vectors: [Vector]) -> (Int64, Search.Result) {
-        let id = element[DB.rowId]
-        let relevantPhrase = vectors.first(where: { $0.rowId == id })?.sentence
-
-        return (
-            id,
-
-            Search.Result(id: element[DB.urlRow],
-                          title: element[DB.titleRow] ?? "",
-                          descriptionText: element[DB.descriptionRow] ?? "",
-                          contentText: element[DB.contentRow],
-                          displayDate: element[DB.lastModifiedRow],
-                          thumbnailUrl: URL(string: element[DB.thumbnailUrlRow] ?? ""),
-                          keywords: element[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? [],
-                          terms: terms,
-                          manuallyHighlight: relevantPhrase)
-        )
+        }.map { relevantVector, element in
+            Search.Result(element: element, terms: termList, relevantVector: relevantVector)
+        }
     }
 }

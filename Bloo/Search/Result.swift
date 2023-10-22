@@ -1,5 +1,6 @@
 import CoreSpotlight
 import Foundation
+import SQLite
 
 extension Search {
     struct Result: Identifiable {
@@ -48,25 +49,29 @@ extension Search {
             return "\(prefix)\(text[excerptRange])\(suffix)"
         }
 
-        init(id: String, title: String, descriptionText: String, contentText: String?, displayDate: Date?, thumbnailUrl: URL?, keywords: [String], terms: [String], manuallyHighlight: String?) {
-            self.id = id
-            self.displayDate = displayDate
-            self.thumbnailUrl = thumbnailUrl
-            self.keywords = keywords
+        init(element: Row, terms: [String], relevantVector: Vector?) {
+            id = element[DB.urlRow]
+            displayDate = element[DB.lastModifiedRow]
+            thumbnailUrl = URL(string: element[DB.thumbnailUrlRow] ?? "")
+            keywords = element[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? []
             self.terms = terms
 
-            if let manuallyHighlight {
-                self.title = Self.highlightedExcerpt(title, phrase: manuallyHighlight)
-                self.descriptionText = Self.highlightedExcerpt(descriptionText, phrase: manuallyHighlight)
-                if let contentText {
-                    self.contentText = Self.highlightedExcerpt(contentText, phrase: manuallyHighlight)
+            let _title = element[DB.titleRow] ?? ""
+            let _descriptionText = element[DB.descriptionRow] ?? ""
+            let _contentText = element[DB.contentRow]
+
+            if let manuallyHighlight = relevantVector?.sentence {
+                title = Self.highlightedExcerpt(_title, phrase: manuallyHighlight)
+                descriptionText = Self.highlightedExcerpt(_descriptionText, phrase: manuallyHighlight)
+                if let _contentText {
+                    contentText = Self.highlightedExcerpt(_contentText, phrase: manuallyHighlight)
                 } else {
-                    self.contentText = contentText
+                    contentText = _contentText
                 }
             } else {
-                self.title = title
-                self.descriptionText = descriptionText
-                self.contentText = contentText
+                title = _title
+                descriptionText = _descriptionText
+                contentText = _contentText
             }
         }
 
