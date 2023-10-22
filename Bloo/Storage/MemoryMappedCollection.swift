@@ -130,6 +130,12 @@ final class MemoryMappedCollection<T>: Collection {
         mappedSize = 0
     }
 
+    func sync() {
+        if let buffer {
+            msync(buffer, mappedSize, 0)
+        }
+    }
+
     deinit {
         stop()
         if fileDescriptor != 0 {

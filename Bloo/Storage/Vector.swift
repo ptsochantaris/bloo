@@ -94,13 +94,15 @@ struct Vector {
     private let coords: VectorTuple
     private let blob: BlobTuple
 
+    private static let vectorTupleSize = MemoryLayout<VectorTuple>.stride
+
     init(coords: [Double], rowId: Int64, sentence: String) {
         self.rowId = rowId
         sumOfSquares = sqrt(vDSP.sumOfSquares(coords))
         self.coords = coords.withUnsafeBytes { pointer in
             let t = UnsafeMutablePointer<VectorTuple>.allocate(capacity: 1)
             defer { t.deallocate() }
-            memcpy(t, pointer.baseAddress!, 4096)
+            memcpy(t, pointer.baseAddress!, Self.vectorTupleSize)
             return t.pointee
         }
         blob = sentence.utf8CString.withUnsafeBytes { pointer in
@@ -123,10 +125,10 @@ struct Vector {
     func similarity(to other: Vector) -> Double {
         var dot: Double = 0
         withUnsafePointer(to: coords) { tuplePointer1 in
-            tuplePointer1.withMemoryRebound(to: Double.self, capacity: 512) { doublePointer1 in
+            tuplePointer1.withMemoryRebound(to: Double.self, capacity: 512) { typedPointer1 in
                 withUnsafePointer(to: other.coords) { tuplePointer2 in
-                    tuplePointer2.withMemoryRebound(to: Double.self, capacity: 512) { doublePointer2 in
-                        vDSP_dotprD(doublePointer1, 1, doublePointer2, 1, &dot, 512)
+                    tuplePointer2.withMemoryRebound(to: Double.self, capacity: 512) { typedPointer2 in
+                        vDSP_dotprD(typedPointer1, 1, typedPointer2, 1, &dot, 512)
                     }
                 }
             }

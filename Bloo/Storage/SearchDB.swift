@@ -35,8 +35,8 @@ final actor SearchDB {
         vectorIndex = MemoryMappedCollection(at: embeddingFile.path, minimumCapacity: 1000)
     }
 
-    func shutdown() {
-        vectorIndex.stop()
+    func sync() {
+        vectorIndex.sync()
     }
 
     private static let sentenceRegex = try! Regex("[\\.\\!\\?\\:\\n]")

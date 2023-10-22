@@ -44,9 +44,8 @@ final actor SentenceEmbedding {
 
         return sentences.compactMap { sentence in
             let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.count > 2, trimmed.contains(" "), let vector = sentenceEmbedding.vector(for: sentence) {
-                // Log.crawling(id, .info).log("Embedding [\(newRowId)]: '\(sentence)'")
-                return Vector(coords: vector, rowId: rowId, sentence: sentence)
+            if trimmed.count > 2, trimmed.contains(" "), let coords = sentenceEmbedding.vector(for: sentence) {
+                return Vector(coords: coords, rowId: rowId, sentence: sentence)
             }
             return nil
         }
