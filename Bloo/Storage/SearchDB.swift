@@ -7,7 +7,7 @@ final actor SearchDB {
     static let shared = SearchDB()
 
     private let textTable = VirtualTable("text_search")
-    private let vectorIndex: MemoryMappedCollection<Vector>
+    private var vectorIndex: MemoryMappedCollection<Vector>
     private let indexDb: Connection
 
     init() {
@@ -37,8 +37,8 @@ final actor SearchDB {
         Log.search(.info).log("Loaded search indexes with \(vectorIndex.count) entries")
     }
 
-    func sync() {
-        vectorIndex.sync()
+    func shutdown() {
+        vectorIndex.shutdown()
     }
 
     private static let sentenceRegex = try! Regex("[\\.\\!\\?\\:\\n]")
@@ -93,6 +93,7 @@ final actor SearchDB {
         return try indexDb.prepareRowIterator(
             """
             select
+            rowid,
             url,
             snippet(text_search, 2, '#[BLU', 'ULB]#', '...', 64) as title,
             snippet(text_search, 3, '#[BLU', 'ULB]#', '...', 64) as description,
@@ -151,7 +152,7 @@ final actor SearchDB {
         let resultSequence = AsyncStream { continuation in
             DispatchQueue.concurrentPerform(iterations: shardCount) { [vectorIndex] i in
                 let shardStart = i * shardLength
-                let shardEnd = min(shardStart+shardLength, count)
+                let shardEnd = min(shardStart + shardLength, count)
                 let block = vectorIndex[shardStart ..< shardEnd].max(count: limit, sortedBy: comparator)
                 Log.search(.info).log("Scanned shard \(shardStart) to \(shardEnd); \(block.count) results")
                 continuation.yield(block)

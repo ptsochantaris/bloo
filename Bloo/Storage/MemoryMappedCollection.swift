@@ -1,6 +1,6 @@
 import Foundation
 
-final class MemoryMappedCollection<T>: Collection {
+struct MemoryMappedCollection<T>: Collection {
     // derived from: https://github.com/akirark/MemoryMappedFileSwift
 
     private let step = MemoryLayout<T>.stride
@@ -34,23 +34,23 @@ final class MemoryMappedCollection<T>: Collection {
         start(minimumCapacity: minimumCapacity)
     }
 
-    func append(_ item: T) {
+    mutating func append(_ item: T) {
         let originalCount = count
         let newCount = originalCount + 1
         if newCount == capacity {
             stop()
-            start(minimumCapacity: newCount + 1000)
+            start(minimumCapacity: newCount + 10000)
         }
         buffer.storeBytes(of: item, toByteOffset: offset(for: originalCount), as: T.self)
         count = newCount
     }
 
-    func append(contentsOf sequence: any Collection<T>) {
+    mutating func append(contentsOf sequence: any Collection<T>) {
         var originalCount = count
         let newCount = originalCount + sequence.count
         if newCount >= capacity {
             stop()
-            start(minimumCapacity: newCount + 1000)
+            start(minimumCapacity: newCount + 10000)
         }
         for item in sequence {
             originalCount += 1
@@ -88,7 +88,7 @@ final class MemoryMappedCollection<T>: Collection {
         buffer.load(fromByteOffset: offset(for: position), as: T.self)
     }
 
-    private func start(minimumCapacity: Int) {
+    private mutating func start(minimumCapacity: Int) {
         if buffer != nil {
             return
         }
@@ -118,9 +118,11 @@ final class MemoryMappedCollection<T>: Collection {
 
         capacity = (mappedSize - counterSize) / step
         buffer = mmap(UnsafeMutableRawPointer(mutating: nil), mappedSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, 0)
+
+        Log.storage(.info).log("Memory mapped index size: \(mappedSize / 1_000_000_000) Gb")
     }
 
-    func stop() {
+    mutating func stop() {
         guard let buf = buffer else {
             return
         }
@@ -130,13 +132,7 @@ final class MemoryMappedCollection<T>: Collection {
         mappedSize = 0
     }
 
-    func sync() {
-        if let buffer {
-            msync(buffer, mappedSize, 0)
-        }
-    }
-
-    deinit {
+    mutating func shutdown() {
         stop()
         if fileDescriptor != 0 {
             close(fileDescriptor)

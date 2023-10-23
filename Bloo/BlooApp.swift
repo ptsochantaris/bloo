@@ -12,7 +12,7 @@ struct BlooApp: App {
         final class AppDelegate: NSObject, NSApplicationDelegate {
             var newSearch: String?
 
-            func applicationDidFinishLaunching(_ notification: Notification) {
+            func applicationDidFinishLaunching(_: Notification) {
                 Maintini.setup()
             }
 
