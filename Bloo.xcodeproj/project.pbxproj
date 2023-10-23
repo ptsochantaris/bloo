@@ -122,14 +122,14 @@
 		16B67CED2AD4210900366266 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
-				1697539E2ACA350B00C2281D /* Snapshot.swift */,
-				1634CF942AC365800022A8F6 /* Storage.swift */,
 				16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */,
-				1657AAC22AE41BED00503669 /* MemoryMappedCollection.swift */,
-				1657AAC72AE428B200503669 /* Vector.swift */,
 				1657AAC92AE4298500503669 /* DB.swift */,
+				1657AAC22AE41BED00503669 /* MemoryMappedCollection.swift */,
 				1657AACB2AE4299D00503669 /* SearchDB.swift */,
 				1657AACE2AE502D800503669 /* SentenceEmbedding.swift */,
+				1697539E2ACA350B00C2281D /* Snapshot.swift */,
+				1634CF942AC365800022A8F6 /* Storage.swift */,
+				1657AAC72AE428B200503669 /* Vector.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";

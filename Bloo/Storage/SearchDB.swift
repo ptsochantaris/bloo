@@ -82,9 +82,7 @@ final actor SearchDB {
         var ids = Set<Int64>()
         for associatedRow in try indexDb.prepare(textTable.select(DB.rowId).filter(DB.domainRow == id)) {
             let i = try associatedRow.get(DB.rowId)
-            if i > 0 {
-                ids.insert(i)
-            }
+            ids.insert(i)
         }
 
         vectorIndex.deleteAll {
@@ -160,7 +158,7 @@ final actor SearchDB {
 
         let count = vectorIndex.count
         let shardLength = 1_000_000
-        let shardCount = count / shardLength
+        let shardCount = Int((Double(count) / Double(shardLength)).rounded(.up))
         let chunkLimit = limit * 2 // A lot of vectors point to embeddings in same URL
         let resultSequence = AsyncStream { continuation in
             DispatchQueue.concurrentPerform(iterations: shardCount) { [vectorIndex] i in

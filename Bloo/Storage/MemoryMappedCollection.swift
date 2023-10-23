@@ -60,13 +60,12 @@ struct MemoryMappedCollection<T>: Collection {
     }
 
     mutating func deleteAll(where condition: (T) -> Bool) {
-        var pos = 0
-        while pos < count {
+        var pos = count - 1
+        while pos >= 0 {
             if condition(self[pos]) {
                 delete(at: pos)
-            } else {
-                pos += 1
             }
+            pos -= 1
         }
     }
 
@@ -100,18 +99,15 @@ struct MemoryMappedCollection<T>: Collection {
             return
         }
 
-        if index == count - 1 {
+        let highestIndex = count - 1
+        if index == highestIndex {
             count -= 1
             return
         }
 
         let itemOffset = offset(for: index)
-        let lastItemOffset = offset(for: count - 1)
-        if lastItemOffset <= itemOffset {
-            return
-        }
-
-        memcpy(buffer.advanced(by: itemOffset), buffer.advanced(by: lastItemOffset), step)
+        let highestItemOffset = offset(for: highestIndex)
+        memcpy(buffer.advanced(by: itemOffset), buffer.advanced(by: highestItemOffset), step)
         count -= 1
     }
 
