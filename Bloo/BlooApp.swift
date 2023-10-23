@@ -12,6 +12,10 @@ struct BlooApp: App {
         final class AppDelegate: NSObject, NSApplicationDelegate {
             var newSearch: String?
 
+            func applicationDidFinishLaunching(_ notification: Notification) {
+                Maintini.setup()
+            }
+
             func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
                 if BlooCore.shared.runState == .running {
                     Task {

@@ -34,6 +34,7 @@ final actor SearchDB {
 
         let embeddingFile = documentsPath.appending(path: "index.embeddings", directoryHint: .notDirectory)
         vectorIndex = MemoryMappedCollection(at: embeddingFile.path, minimumCapacity: 1000)
+        Log.search(.info).log("Loaded search indexes with \(vectorIndex.count) entries")
     }
 
     func sync() {
@@ -121,24 +122,50 @@ final actor SearchDB {
             return []
         }
 
-        let vectors = withUnsafePointer(to: searchVector.coords) { sp in
-            let sb = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(sp)), count: 512)
-            let s_sos = searchVector.sumOfSquares
-            return vectorIndex.max(count: limit) { e1, e2 in
-                withUnsafePointer(to: e1.coords) { e1p in
-                    withUnsafePointer(to: e2.coords) { e2p in
+        let s_sos = searchVector.sumOfSquares
+        let buf = malloc(4096)
+        defer { free(buf) }
+        _ = withUnsafePointer(to: searchVector.coords) { sp in
+            memcpy(buf, sp, 4096)
+        }
+        let sb = UnsafeBufferPointer<Double>(start: UnsafePointer<Double>(OpaquePointer(buf)), count: 512)
 
-                        let e1b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e1p)), count: 512)
-                        let r1 = vDSP.dot(sb, e1b) / (e1.sumOfSquares * s_sos)
+        let comparator = { @Sendable (e1: Vector, e2: Vector) -> Bool in
+            withUnsafePointer(to: e1.coords) { e1p in
+                withUnsafePointer(to: e2.coords) { e2p in
 
-                        let e2b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e2p)), count: 512)
-                        let r2 = vDSP.dot(sb, e2b) / (e2.sumOfSquares * s_sos)
+                    let e1b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e1p)), count: 512)
+                    let r1 = vDSP.dot(sb, e1b) / (e1.sumOfSquares * s_sos)
 
-                        return r1 < r2
-                    }
+                    let e2b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e2p)), count: 512)
+                    let r2 = vDSP.dot(sb, e2b) / (e2.sumOfSquares * s_sos)
+
+                    return r1 < r2
                 }
             }
         }
+
+        let count = vectorIndex.count
+        let shardLength = 1_000_000
+        let shardCount = count / shardLength
+        let resultSequence = AsyncStream { continuation in
+            DispatchQueue.concurrentPerform(iterations: shardCount) { [vectorIndex] i in
+                let shardStart = i * shardLength
+                let shardEnd = min(shardStart+shardLength, count)
+                let block = vectorIndex[shardStart ..< shardEnd].max(count: limit, sortedBy: comparator)
+                Log.search(.info).log("Scanned shard \(shardStart) to \(shardEnd); \(block.count) results")
+                continuation.yield(block)
+            }
+            continuation.finish()
+        }
+
+        var res = [Vector]()
+        res.reserveCapacity(shardCount * limit)
+        for await chunk in resultSequence {
+            res.append(contentsOf: chunk)
+        }
+
+        let vectors = res.max(count: limit, sortedBy: comparator)
 
         if vectors.isEmpty {
             return []
