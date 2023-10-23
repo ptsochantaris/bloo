@@ -79,6 +79,18 @@ final actor SearchDB {
     }
 
     func purgeDomain(id: String) throws {
+        var ids = Set<Int64>()
+        for associatedRow in try indexDb.prepare(textTable.select(DB.rowId).filter(DB.domainRow == id)) {
+            let i = try associatedRow.get(DB.rowId)
+            if i > 0 {
+                ids.insert(i)
+            }
+        }
+
+        vectorIndex.deleteAll {
+            ids.contains($0.rowId)
+        }
+
         try indexDb.run(textTable.filter(DB.domainRow == id).delete())
     }
 

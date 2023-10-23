@@ -59,6 +59,17 @@ struct MemoryMappedCollection<T>: Collection {
         count = newCount
     }
 
+    mutating func deleteAll(where condition: (T) -> Bool) {
+        var pos = 0
+        while pos < count {
+            if condition(self[pos]) {
+                delete(at: pos)
+            } else {
+                pos += 1
+            }
+        }
+    }
+
     final class MemoryMappedIterator: IteratorProtocol {
         private var position = 0
         private let buffer: UnsafeMutableRawPointer
@@ -82,6 +93,26 @@ struct MemoryMappedCollection<T>: Collection {
 
     func makeIterator() -> MemoryMappedIterator {
         MemoryMappedIterator(buffer: buffer)
+    }
+
+    mutating func delete(at index: Int) {
+        if index >= count {
+            return
+        }
+
+        if index == count - 1 {
+            count -= 1
+            return
+        }
+
+        let itemOffset = offset(for: index)
+        let lastItemOffset = offset(for: count - 1)
+        if lastItemOffset <= itemOffset {
+            return
+        }
+
+        memcpy(buffer.advanced(by: itemOffset), buffer.advanced(by: lastItemOffset), step)
+        count -= 1
     }
 
     subscript(position: Int) -> T {

@@ -407,8 +407,13 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 return .error
             }
 
+            if headResponse.statusCode >= 400 {
+                Log.crawling(id, .info).log("No content (code \(headResponse.statusCode)) in \(link)")
+                return .error
+            }
+
             if headResponse.statusCode == 304 {
-                Log.crawling(id, .info).log("No change (304) in \(link)")
+                Log.crawling(id, .info).log("No change (code 304) in \(link)")
                 return .noChange
             }
 
