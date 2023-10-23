@@ -53,8 +53,8 @@ struct MemoryMappedCollection<T>: Collection {
             start(minimumCapacity: newCount + 100_000)
         }
         for item in sequence {
-            originalCount += 1
             buffer.storeBytes(of: item, toByteOffset: offset(for: originalCount), as: T.self)
+            originalCount += 1
         }
         count = newCount
     }
