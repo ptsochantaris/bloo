@@ -188,6 +188,8 @@ extension Search {
                     return
                 }
 
+                Log.search(.info).log("Total \(results.count) results")
+
                 switch results.count {
                 case 0:
                     await updateResultState(.noResults)

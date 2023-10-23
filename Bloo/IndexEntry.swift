@@ -15,7 +15,7 @@ enum IndexEntry: Hashable, Sendable {
         }
 
         var indexableText: String {
-            [title, description, content].compactMap { $0 }.joined(separator: ".\n\n")
+            [title, description, content].compacted().joined(separator: ".\n\n")
         }
     }
 

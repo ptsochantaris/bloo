@@ -149,24 +149,26 @@ final actor SearchDB {
         let count = vectorIndex.count
         let shardLength = 1_000_000
         let shardCount = count / shardLength
+        let chunkLimit = limit * 2 // A lot of vectors point to embeddings in same URL
         let resultSequence = AsyncStream { continuation in
             DispatchQueue.concurrentPerform(iterations: shardCount) { [vectorIndex] i in
                 let shardStart = i * shardLength
                 let shardEnd = min(shardStart + shardLength, count)
-                let block = vectorIndex[shardStart ..< shardEnd].max(count: limit, sortedBy: comparator)
-                Log.search(.info).log("Scanned shard \(shardStart) to \(shardEnd); \(block.count) results")
+                let block = vectorIndex[shardStart ..< shardEnd].max(count: chunkLimit, sortedBy: comparator)
+                Log.search(.info).log("Scanned shard \(shardStart) to \(shardEnd); \(block.count) vectors match")
                 continuation.yield(block)
             }
             continuation.finish()
         }
 
         var res = [Vector]()
-        res.reserveCapacity(shardCount * limit)
+        res.reserveCapacity(shardCount * chunkLimit)
         for await chunk in resultSequence {
             res.append(contentsOf: chunk)
         }
 
-        let vectors = res.max(count: limit, sortedBy: comparator)
+        let vectors = res.max(count: chunkLimit, sortedBy: comparator)
+        Log.search(.info).log("Total \(vectors.count) vectors match")
 
         if vectors.isEmpty {
             return []

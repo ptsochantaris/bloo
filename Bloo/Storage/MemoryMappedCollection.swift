@@ -39,7 +39,7 @@ struct MemoryMappedCollection<T>: Collection {
         let newCount = originalCount + 1
         if newCount == capacity {
             stop()
-            start(minimumCapacity: newCount + 10000)
+            start(minimumCapacity: newCount + 100_000)
         }
         buffer.storeBytes(of: item, toByteOffset: offset(for: originalCount), as: T.self)
         count = newCount
@@ -50,7 +50,7 @@ struct MemoryMappedCollection<T>: Collection {
         let newCount = originalCount + sequence.count
         if newCount >= capacity {
             stop()
-            start(minimumCapacity: newCount + 10000)
+            start(minimumCapacity: newCount + 100_000)
         }
         for item in sequence {
             originalCount += 1
@@ -119,7 +119,7 @@ struct MemoryMappedCollection<T>: Collection {
         capacity = (mappedSize - counterSize) / step
         buffer = mmap(UnsafeMutableRawPointer(mutating: nil), mappedSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, 0)
 
-        Log.storage(.info).log("Memory mapped index size: \(mappedSize / 1_000_000_000) Gb")
+        Log.storage(.info).log("Memory mapped index size: \(Double(mappedSize) / 1_000_000_000) Gb")
     }
 
     mutating func stop() {
