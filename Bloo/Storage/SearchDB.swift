@@ -220,6 +220,6 @@ final actor SearchDB {
         }.map { relevantVector, element in
             Search.Result(element: element, terms: termList, relevantVector: relevantVector)
             
-        }.uniqued(on: \.url)
+        }.uniqued { $0.url.normalisedUrlForResults() }
     }
 }

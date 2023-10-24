@@ -24,6 +24,14 @@ extension URL {
         return result.removingPathAfter("?").removingPathAfter("#")
     }
 
+    func normalisedForResults() -> String {
+        var host = host() ?? ""
+        if host.hasPrefix("www.") {
+            host = String(host.dropFirst(4))
+        }
+        return host + path
+    }
+
     private func removingPathAfter(_ string: String) -> URL {
         let segments = absoluteString.split(separator: string)
         if segments.count > 1, let first = segments.first, let resolved = URL(string: String(first)) {

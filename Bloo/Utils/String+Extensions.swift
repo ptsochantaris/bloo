@@ -43,4 +43,11 @@ extension String {
             (0 ..< 8).map { pointer.load(fromByteOffset: $0, as: UInt8.self) }.map { String($0, radix: 16) }.joined()
         }
     }
+
+    func normalisedUrlForResults() -> String {
+        if let url = URL(string: self) {
+            return url.normalisedForResults()
+        }
+        return self
+    }
 }
