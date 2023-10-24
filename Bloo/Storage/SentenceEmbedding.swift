@@ -1,53 +1,71 @@
 import Foundation
 @preconcurrency import NaturalLanguage
+import Accelerate
 
 final actor SentenceEmbedding {
     static let shared = SentenceEmbedding()
 
-    private var embeddings = [NLEmbedding]()
+    private var engines = [NLContextualEmbedding]()
 
-    private func reserve() -> NLEmbedding {
-        if let existing = embeddings.popLast() {
+    private func reserve() async throws -> NLContextualEmbedding {
+        if let existing = engines.popLast() {
             return existing
         }
-        return NLEmbedding.sentenceEmbedding(for: .english)!
+        let newEngine = NLContextualEmbedding(language: .english)!
+        if !newEngine.hasAvailableAssets {
+            try await newEngine.requestAssets()
+            try newEngine.load()
+        }
+        return newEngine
     }
 
-    private func _release(embedding: NLEmbedding) {
-        embeddings.append(embedding)
+    private func _release(engine: NLContextualEmbedding) {
+        engines.append(engine)
     }
 
-    private nonisolated func release(embedding: NLEmbedding) {
+    private nonisolated func release(engine: NLContextualEmbedding) {
         Task {
-            await _release(embedding: embedding)
+            await _release(engine: engine)
         }
     }
 
-    nonisolated func vector(for sentence: String) async -> Vector? {
-        let sentenceEmbedding = await reserve()
+    nonisolated func vector(for searchTerm: String, rowId: Int64 = 0) async -> Vector? {
+        guard let engine = try? await reserve() else {
+            return nil
+        }
         defer {
-            release(embedding: sentenceEmbedding)
+            release(engine: engine)
         }
 
-        guard let coords = sentenceEmbedding.vector(for: sentence) else {
+        guard let coordResult = try? engine.embeddingResult(for: searchTerm, language: .english) else {
             return nil
         }
 
-        return Vector(coordVector: coords, rowId: 0, sentence: sentence)
+        var vector = [Double](repeating: 0, count: 512) // TODO cache these buffers?
+        coordResult.enumerateTokenVectors(in: searchTerm.startIndex ..< searchTerm.endIndex) { vec, range in
+            if !range.isEmpty {
+                vDSP.add(vector, vec, result: &vector)
+            }
+            return true
+        }
+        return Vector(coordVector: vector, rowId: rowId, sentence: searchTerm)
     }
 
     nonisolated func vectors(for sentences: [String], at rowId: Int64) async -> [Vector] {
-        let sentenceEmbedding = await reserve()
+        guard let engine = try? await reserve() else {
+            return []
+        }
         defer {
-            release(embedding: sentenceEmbedding)
+            release(engine: engine)
         }
 
-        return sentences.compactMap { sentence in
-            let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.count > 2, trimmed.contains(" "), let coords = sentenceEmbedding.vector(for: sentence) {
-                return Vector(coordVector: coords, rowId: rowId, sentence: sentence)
+        var res = [Vector]()
+        for rawSentence in sentences {
+            let trimmed = rawSentence.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.count > 2, trimmed.contains(" "), let vec = await vector(for: trimmed, rowId: rowId) {
+                res.append(vec)
             }
-            return nil
         }
+        return res
     }
 }

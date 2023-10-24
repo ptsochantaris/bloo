@@ -177,12 +177,13 @@ final actor SearchDB {
             res.append(contentsOf: chunk)
         }
 
-        let vectors = res.max(count: chunkLimit, sortedBy: comparator)
-        Log.search(.info).log("Total \(vectors.count) vectors match")
+        let vectors = res.uniqued { $0.rowId }.max(count: chunkLimit, sortedBy: comparator)
 
         if vectors.isEmpty {
             return []
         }
+
+        Log.search(.info).log("Total \(vectors.count) vectors match")
 
         let idList = vectors.map(\.rowId)
         let rowIds = idList.map { String($0) }.joined(separator: ",")
@@ -218,6 +219,7 @@ final actor SearchDB {
 
         }.map { relevantVector, element in
             Search.Result(element: element, terms: termList, relevantVector: relevantVector)
-        }
+            
+        }.uniqued(on: \.url)
     }
 }

@@ -260,7 +260,7 @@ private struct ResultRow: View {
             }
 
             Text(descriptionText ?? "")
-                .lineLimit(6, reservesSpace: true)
+                .lineLimit(8, reservesSpace: true)
                 .font(.blooBody)
                 .foregroundStyle(.secondary)
                 .task {
