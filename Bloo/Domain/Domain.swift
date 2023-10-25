@@ -535,7 +535,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             } else if let creationDate {
                 creationDate
             } else {
-                Self.generateDate(from: textContent)
+                await SentenceEmbedding.generateDate(from: textContent)
             }
 
             var numberOfKeywordsInTitle = 0
@@ -592,18 +592,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             return fileUrl
         }
 
-        private static func generateDate(from text: String) -> Date? {
-            let types: NSTextCheckingResult.CheckingType = [.date]
-            guard let detector = try? NSDataDetector(types: types.rawValue) else {
-                return nil
-            }
-            return detector.firstMatch(in: text, range: NSRange(text.startIndex ..< text.endIndex, in: text))?.date
-        }
-
         private static func generateKeywords(from text: String) -> [String] {
             let tagger = NLTagger(tagSchemes: [.nameType])
             tagger.string = text
-            let range = text.startIndex ..< text.endIndex
+            let range = text.wholeRange
             let results = tagger.tags(in: range, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitOther, .omitPunctuation])
             let res = results.compactMap { token -> String? in
                 guard let tag = token.0 else { return nil }

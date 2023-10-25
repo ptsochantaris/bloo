@@ -44,6 +44,14 @@ extension String {
         }
     }
 
+    var wholeRange: Range<String.Index> {
+        startIndex ..< endIndex
+    }
+
+    var wholeNSRange: NSRange {
+        NSRange(wholeRange, in: self)
+    }
+
     func normalisedUrlForResults() -> String {
         if let url = URL(string: self) {
             return url.normalisedForResults()

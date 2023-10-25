@@ -41,8 +41,6 @@ final actor SearchDB {
         vectorIndex.shutdown()
     }
 
-    private static let sentenceRegex = try! Regex("[\\.\\!\\?\\:\\n]")
-
     func insert(id: String, url: String, content: IndexEntry.Content) async throws {
         let newRowId = try indexDb.run(
             textTable.insert(or: .replace,
@@ -61,16 +59,19 @@ final actor SearchDB {
 
         // free this actor up while we produce the vectors
         let embedSentences = Task<[Vector], Never>.detached {
-            let sentences = content.indexableText.split(separator: Self.sentenceRegex, omittingEmptySubsequences: true).map {
-                $0.trimmingCharacters(in: .alphanumerics.inverted)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            let sentences = await SentenceEmbedding.sentences(for: content.indexableText)
 
             guard sentences.isPopulated else {
                 return []
             }
 
-            return await SentenceEmbedding.shared.vectors(for: sentences, at: newRowId)
+            let res = await SentenceEmbedding.vectors(for: sentences, at: newRowId)
+            #if DEBUG
+                for vector in res {
+                    Log.search(.debug).log("Adding vector for: [\(vector.sentence)]")
+                }
+            #endif
+            return res
         }
 
         let newVectors = await embedSentences.value
@@ -129,7 +130,7 @@ final actor SearchDB {
         defer {
             Log.search(.info).log("Sentence search query time: \(-start.timeIntervalSinceNow) sec")
         }
-        guard let searchVector = await SentenceEmbedding.shared.vector(for: text) else {
+        guard let searchVector = await SentenceEmbedding.vector(for: text) else {
             return []
         }
 
@@ -219,7 +220,7 @@ final actor SearchDB {
 
         }.map { relevantVector, element in
             Search.Result(element: element, terms: termList, relevantVector: relevantVector)
-            
+
         }.uniqued { $0.url.normalisedUrlForResults() }
     }
 }
