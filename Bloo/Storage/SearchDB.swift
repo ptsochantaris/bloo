@@ -48,18 +48,18 @@ final actor SearchDB {
                              DB.urlRow <- url,
                              DB.titleRow <- content.title,
                              DB.descriptionRow <- content.description,
-                             DB.contentRow <- content.content,
+                             DB.contentRow <- content.condensedContent,
                              DB.keywordRow <- content.keywords,
                              DB.thumbnailUrlRow <- content.thumbnailUrl,
                              DB.lastModifiedRow <- content.lastModified))
 
-        guard let contentText = content.content, contentText.isPopulated else {
+        guard let sparseContent = content.sparseContent ?? content.title, sparseContent.isPopulated else {
             return
         }
 
         // free this actor up while we produce the vectors
         let embedSentences = Task<[Vector], Never>.detached {
-            let sentences = await SentenceEmbedding.sentences(for: content.indexableText)
+            let sentences = await SentenceEmbedding.sentences(for: sparseContent, titled: content.title)
 
             guard sentences.isPopulated else {
                 return []
@@ -68,7 +68,7 @@ final actor SearchDB {
             let res = await SentenceEmbedding.vectors(for: sentences, at: newRowId)
             #if DEBUG
                 for vector in res {
-                    Log.search(.debug).log("Adding vector for: [\(vector.sentence)]")
+                    Log.search(.debug).log("Adding vector: [\(vector.sentence)]")
                 }
             #endif
             return res

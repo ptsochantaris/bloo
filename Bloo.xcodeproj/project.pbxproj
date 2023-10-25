@@ -41,6 +41,7 @@
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
 		16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */; };
 		16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 16E8A0F72AC1F9B500CCB10D /* SwiftSoup */; };
+		16F8D1D92AE92E530005A01D /* HTMLString in Frameworks */ = {isa = PBXBuildFile; productRef = 16F8D1D82AE92E530005A01D /* HTMLString */; };
 		16FBCC112AD1D7C300A5A14E /* Robots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FBCC102AD1D7C300A5A14E /* Robots.swift */; };
 		16FD23352AC3A5A600751A85 /* Maintini in Frameworks */ = {isa = PBXBuildFile; productRef = 16FD23342AC3A5A600751A85 /* Maintini */; };
 		16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */ = {isa = PBXBuildFile; productRef = 16FD23372AC43D0F00751A85 /* PopTimer */; };
@@ -105,6 +106,7 @@
 				1657AAC62AE41C0700503669 /* Algorithms in Frameworks */,
 				16FDB1022ADB47A8003A4BBD /* SQLite in Frameworks */,
 				1634CF912AC34D780022A8F6 /* Lista in Frameworks */,
+				16F8D1D92AE92E530005A01D /* HTMLString in Frameworks */,
 				16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -237,6 +239,7 @@
 				16E3EF5C2AD088A800CF9B80 /* Semalot */,
 				16FDB1012ADB47A8003A4BBD /* SQLite */,
 				1657AAC52AE41C0700503669 /* Algorithms */,
+				16F8D1D82AE92E530005A01D /* HTMLString */,
 			);
 			productName = Nibbel;
 			productReference = 16E8A0E42AC1F96500CCB10D /* Bloo.app */;
@@ -275,6 +278,7 @@
 				16E3EF592AD0876900CF9B80 /* XCRemoteSwiftPackageReference "semalot" */,
 				16FDB1002ADB47A8003A4BBD /* XCRemoteSwiftPackageReference "SQLite.swift" */,
 				1657AAC42AE41C0700503669 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
+				16F8D1D72AE92E530005A01D /* XCRemoteSwiftPackageReference "HTMLString" */,
 			);
 			productRefGroup = 16E8A0E52AC1F96500CCB10D /* Products */;
 			projectDirPath = "";
@@ -598,6 +602,14 @@
 				minimumVersion = 2.6.1;
 			};
 		};
+		16F8D1D72AE92E530005A01D /* XCRemoteSwiftPackageReference "HTMLString" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alexisakers/HTMLString";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.1;
+			};
+		};
 		16FD23332AC3A5A600751A85 /* XCRemoteSwiftPackageReference "maintini" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ptsochantaris/maintini";
@@ -649,6 +661,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 16E8A0F62AC1F9B500CCB10D /* XCRemoteSwiftPackageReference "SwiftSoup" */;
 			productName = SwiftSoup;
+		};
+		16F8D1D82AE92E530005A01D /* HTMLString */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 16F8D1D72AE92E530005A01D /* XCRemoteSwiftPackageReference "HTMLString" */;
+			productName = HTMLString;
 		};
 		16FD23342AC3A5A600751A85 /* Maintini */ = {
 			isa = XCSwiftPackageProductDependency;

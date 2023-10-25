@@ -1,5 +1,6 @@
 import CoreSpotlight
 import Foundation
+import HTMLString
 import Maintini
 import NaturalLanguage
 import OrderedCollections
@@ -472,7 +473,10 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 return .error
             }
 
-            guard let textContent = try? htmlDoc.body()?.text() else {
+            guard let body = htmlDoc.body(),
+                  let condensedText = try? body.text(trimAndNormaliseWhitespace: true).removingHTMLEntities(),
+                  let sparseText = try? body.text(trimAndNormaliseWhitespace: false).removingHTMLEntities()
+            else {
                 Log.crawling(id, .error).log("Cannot parse text in \(link)")
                 return .error
             }
@@ -528,14 +532,14 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let keywords = header
                 .metaNameContent(for: "keywords")?.split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                ?? Self.generateKeywords(from: textContent)
+                ?? Self.generateKeywords(from: condensedText)
 
             let lastModified: Date? = if let lastModifiedHeaderDate {
                 lastModifiedHeaderDate
             } else if let creationDate {
                 creationDate
             } else {
-                await SentenceEmbedding.generateDate(from: textContent)
+                await SentenceEmbedding.generateDate(from: condensedText)
             }
 
             var numberOfKeywordsInTitle = 0
@@ -553,20 +557,26 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     numberOfKeywordsInDescription += 1
                 }
 
-                if textContent.localizedCaseInsensitiveContains(keyword) {
+                if condensedText.localizedCaseInsensitiveContains(keyword) {
                     numberOfKeywordsInContent += 1
                 }
             }
 
             let thumbnailUrl = await imageFileUrl.value
-            let newContent = IndexEntry.Content(title: title, description: summaryContent, content: textContent, keywords: keywords.joined(separator: ", "), thumbnailUrl: thumbnailUrl?.absoluteString, lastModified: lastModified)
+            let newContent = IndexEntry.Content(title: title,
+                                                description: summaryContent,
+                                                sparseContent: sparseText,
+                                                condensedContent: condensedText,
+                                                keywords: keywords.joined(separator: ", "),
+                                                thumbnailUrl: thumbnailUrl?.absoluteString,
+                                                lastModified: lastModified)
             let indexed = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders)
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)
             attributes.keywords = keywords
             attributes.title = newContent.title
             attributes.contentDescription = newContent.description
-            attributes.textContent = newContent.content
+            attributes.textContent = newContent.condensedContent
             attributes.contentModificationDate = newContent.lastModified
             attributes.thumbnailURL = thumbnailUrl
             return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), indexed, newUrls, newContent)

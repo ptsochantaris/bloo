@@ -101,7 +101,7 @@ enum SentenceEmbedding {
         return res
     }
 
-    static func sentences(for text: String) async -> [String] {
+    static func sentences(for text: String, titled: String?) async -> [String] {
         guard let engine = try? await tokenizers.reserve(), let dateDetector = try? await detectors.reserve() else {
             return []
         }
@@ -109,11 +109,19 @@ enum SentenceEmbedding {
             tokenizers.release(item: engine)
             detectors.release(item: dateDetector)
         }
-        engine.string = text
+        let allText: String = if let titled, !text.contains(titled) {
+            titled + ". " + text
+        } else {
+            text
+        }
         var sentences = [String]()
-        engine.enumerateTokens(in: text.wholeRange) { range, _ in
-            let text = text[range].trimmingCharacters(in: Self.charsetForTrimming)
-            if text.contains("   ") || text.contains("   ") { // not spaces
+        engine.string = allText
+        engine.enumerateTokens(in: allText.wholeRange) { range, _ in
+            let text = allText[range].trimmingCharacters(in: Self.charsetForTrimming)
+            if text.isEmpty || text.contains("   ") || text.contains("   ") { // not spaces
+                return true
+            }
+            if text.split(separator: " ").count < 4 {
                 return true
             }
             if let match = dateDetector.firstMatch(in: text, range: text.wholeNSRange), match.range.lowerBound == 0 {
@@ -122,6 +130,6 @@ enum SentenceEmbedding {
             sentences.append(text)
             return true
         }
-        return sentences
+        return Array(sentences.uniqued())
     }
 }
