@@ -135,30 +135,10 @@ final actor SearchDB {
         }
 
         let searchVectorSumOfSquares = searchVector.sumOfSquares
-        let buf = malloc(4096)
+        let buf = malloc(4096)!
         defer { free(buf) }
-        withUnsafePointer(to: searchVector.coords) { sp in
-            _ = memcpy(buf, sp, 4096)
-        }
-        let searchCoordsBuffer = UnsafePointer<Double>(OpaquePointer(buf))!
-
-        let comparator = { @Sendable (e1: Vector, e2: Vector) -> Bool in
-            let buf = malloc(4096)
-            defer { free(buf) }
-            let B = UnsafePointer<Double>(OpaquePointer(buf))!
-
-            var R1: Double = 0
-            withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 4096) }
-            vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R1, 512)
-            R1 /= (e1.sumOfSquares * searchVectorSumOfSquares)
-
-            var R2: Double = 0
-            withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 4096) }
-            vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R2, 512)
-            R2 /= (e2.sumOfSquares * searchVectorSumOfSquares)
-
-            return R1 < R2
-        }
+        withUnsafePointer(to: searchVector.coords) { _ = memcpy(buf, $0, 4096) }
+        let searchCoordsBuffer = buf.assumingMemoryBound(to: Double.self)
 
         let count = vectorIndex.count
         let shardLength = 1_000_000
@@ -167,7 +147,24 @@ final actor SearchDB {
             DispatchQueue.concurrentPerform(iterations: shardCount) { [vectorIndex] i in
                 let shardStart = i * shardLength
                 let shardEnd = min(shardStart + shardLength, count)
-                let block = vectorIndex[shardStart ..< shardEnd].max(count: limit, sortedBy: comparator)
+
+                let buf = malloc(4096)!
+                defer { free(buf) }
+                let B = buf.assumingMemoryBound(to: Double.self)
+
+                let block = vectorIndex[shardStart ..< shardEnd].max(count: limit) { @Sendable (e1: Vector, e2: Vector) -> Bool in
+                    var R: Double = 0
+                    withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 4096) }
+                    vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R, 512)
+                    R /= (e1.sumOfSquares * searchVectorSumOfSquares)
+                    let R0 = R
+
+                    withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 4096) }
+                    vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R, 512)
+                    R /= (e2.sumOfSquares * searchVectorSumOfSquares)
+
+                    return R0 < R
+                }
                 Log.search(.info).log("Scanned shard \(shardStart) to \(shardEnd); \(block.count) vectors match")
                 continuation.yield(block)
             }
@@ -184,26 +181,26 @@ final actor SearchDB {
             return []
         }
 
-        let buf2 = malloc(4096)
+        let buf2 = malloc(4096)!
         defer { free(buf2) }
-        let B2 = UnsafePointer<Double>(OpaquePointer(buf2))!
+        let B2 = buf2.assumingMemoryBound(to: Double.self)
         let comparator2 = { @Sendable (e1: Vector, e2: Vector) -> Bool in
-            var R1: Double = 0
+            var R: Double = 0
             withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 4096) }
-            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R1, 512)
-            R1 /= (e1.sumOfSquares * searchVectorSumOfSquares)
+            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R, 512)
+            R /= (e1.sumOfSquares * searchVectorSumOfSquares)
             if e1.sentence.localizedCaseInsensitiveContains(text) {
-                R1 += 1
+                R += 1
             }
+            let R0 = R
 
-            var R2: Double = 0
             withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 4096) }
-            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R2, 512)
-            R2 /= (e2.sumOfSquares * searchVectorSumOfSquares)
+            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R, 512)
+            R /= (e2.sumOfSquares * searchVectorSumOfSquares)
             if e2.sentence.localizedCaseInsensitiveContains(text) {
-                R2 += 1
+                R += 1
             }
-            return R1 < R2
+            return R0 < R
         }
 
         let vectors = res
