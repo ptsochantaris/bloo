@@ -73,10 +73,11 @@ enum SentenceEmbedding {
             return nil
         }
 
-        var vector = [Double](repeating: 0, count: 512) // TODO: cache these buffers?
+        var vector = [Float](repeating: 0, count: 512) // TODO: cache these buffers?
         coordResult.enumerateTokenVectors(in: searchTerm.wholeRange) { vec, range in
             if !range.isEmpty {
-                vDSP.add(vector, vec, result: &vector)
+                let fvec = vec.map { Float($0) }
+                vDSP.add(vector, fvec, result: &vector)
             }
             return true
         }

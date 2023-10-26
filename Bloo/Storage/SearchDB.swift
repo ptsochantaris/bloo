@@ -134,34 +134,34 @@ final actor SearchDB {
             return []
         }
 
-        let searchVectorSumOfSquares = searchVector.sumOfSquares
-        let buf = malloc(4096)!
+        let searchVectorMagnitude = searchVector.magnitude
+        let buf = malloc(2048)!
         defer { free(buf) }
-        withUnsafePointer(to: searchVector.coords) { _ = memcpy(buf, $0, 4096) }
-        let searchCoordsBuffer = buf.assumingMemoryBound(to: Double.self)
+        withUnsafePointer(to: searchVector.coords) { _ = memcpy(buf, $0, 2048) }
+        let searchCoordsBuffer = buf.assumingMemoryBound(to: Float.self)
 
         let count = vectorIndex.count
-        let shardLength = 1_000_000
+        let shardLength = 500_000
         let shardCount = Int((Double(count) / Double(shardLength)).rounded(.up))
         let resultSequence = AsyncStream { continuation in
             DispatchQueue.concurrentPerform(iterations: shardCount) { [vectorIndex] i in
                 let shardStart = i * shardLength
                 let shardEnd = min(shardStart + shardLength, count)
 
-                let buf = malloc(4096)!
+                let buf = malloc(2048)!
                 defer { free(buf) }
-                let B = buf.assumingMemoryBound(to: Double.self)
+                let B = buf.assumingMemoryBound(to: Float.self)
 
-                let block = vectorIndex[shardStart ..< shardEnd].max(count: limit) { @Sendable (e1: Vector, e2: Vector) -> Bool in
-                    var R: Double = 0
-                    withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 4096) }
-                    vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R, 512)
-                    R /= (e1.sumOfSquares * searchVectorSumOfSquares)
+                let block = vectorIndex[shardStart ..< shardEnd].max(count: limit * 2) { @Sendable (e1: Vector, e2: Vector) -> Bool in
+                    var R: Float = 0
+                    withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 2048) }
+                    vDSP_dotpr(searchCoordsBuffer, 1, B, 1, &R, 512)
+                    R /= (e1.magnitude * searchVectorMagnitude)
                     let R0 = R
 
-                    withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 4096) }
-                    vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R, 512)
-                    R /= (e2.sumOfSquares * searchVectorSumOfSquares)
+                    withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 2048) }
+                    vDSP_dotpr(searchCoordsBuffer, 1, B, 1, &R, 512)
+                    R /= (e2.magnitude * searchVectorMagnitude)
 
                     return R0 < R
                 }
@@ -181,31 +181,24 @@ final actor SearchDB {
             return []
         }
 
-        let buf2 = malloc(4096)!
+        let buf2 = malloc(2048)!
         defer { free(buf2) }
-        let B2 = buf2.assumingMemoryBound(to: Double.self)
-        let comparator2 = { @Sendable (e1: Vector, e2: Vector) -> Bool in
-            var R: Double = 0
-            withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 4096) }
-            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R, 512)
-            R /= (e1.sumOfSquares * searchVectorSumOfSquares)
-            if e1.sentence.localizedCaseInsensitiveContains(text) {
-                R += 1
-            }
-            let R0 = R
-
-            withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 4096) }
-            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R, 512)
-            R /= (e2.sumOfSquares * searchVectorSumOfSquares)
-            if e2.sentence.localizedCaseInsensitiveContains(text) {
-                R += 1
-            }
-            return R0 < R
-        }
+        let B2 = buf2.assumingMemoryBound(to: Float.self)
 
         let vectors = res
             .uniqued { $0.rowId }
-            .max(count: limit, sortedBy: comparator2)
+            .max(count: limit) { @Sendable (e1: Vector, e2: Vector) -> Bool in
+                var R: Float = 0
+                withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 2048) }
+                vDSP_dotpr(searchCoordsBuffer, 1, B2, 1, &R, 512)
+                R /= (e1.magnitude * searchVectorMagnitude)
+                let R0 = R
+
+                withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 2048) }
+                vDSP_dotpr(searchCoordsBuffer, 1, B2, 1, &R, 512)
+                R /= (e2.magnitude * searchVectorMagnitude)
+                return R0 < R
+            }
 
         Log.search(.info).log("Total \(vectors.count) vectors match")
 
@@ -239,13 +232,19 @@ final actor SearchDB {
         }.sorted {
             let pos1 = idList.firstIndex(of: $0.0.rowId) ?? 0
             let pos2 = idList.firstIndex(of: $1.0.rowId) ?? 0
-            return pos1 > pos2
+            return pos2 < pos1
 
         }.map { (relevantVector: Vector, element: RowIterator.Element) in
             withUnsafePointer(to: relevantVector.coords) { coordPointer in
-                // let vb = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(coordPointer)), count: 512)
-                // let score = vDSP.dot(searchCoordsBuffer, vb) / (relevantVector.sumOfSquares * searchVectorSumOfSquares) * 1000
-                // print(">>> \(relevantVector.sentence) - \(score)")
+
+                //var R: Float = 0
+                //withUnsafePointer(to: relevantVector.coords) { _ = memcpy(buf, $0, 2048) }
+                //vDSP_dotpr(searchCoordsBuffer, 1, B2, 1, &R, 512)
+                //R /= (relevantVector.magnitude * searchVectorMagnitude)
+                //if relevantVector.sentence.localizedCaseInsensitiveContains(text) {
+                    //R += 1
+                //}
+
                 return Search.Result(element: element, terms: termList, relevantVector: relevantVector)
             }
 
