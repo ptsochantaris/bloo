@@ -137,45 +137,27 @@ final actor SearchDB {
         let searchVectorSumOfSquares = searchVector.sumOfSquares
         let buf = malloc(4096)
         defer { free(buf) }
-        _ = withUnsafePointer(to: searchVector.coords) { sp in
-            memcpy(buf, sp, 4096)
+        withUnsafePointer(to: searchVector.coords) { sp in
+            _ = memcpy(buf, sp, 4096)
         }
-        let searchCoordsBuffer = UnsafeBufferPointer<Double>(start: UnsafePointer<Double>(OpaquePointer(buf)), count: 512)
+        let searchCoordsBuffer = UnsafePointer<Double>(OpaquePointer(buf))!
 
         let comparator = { @Sendable (e1: Vector, e2: Vector) -> Bool in
-            withUnsafePointer(to: e1.coords) { e1p in
-                withUnsafePointer(to: e2.coords) { e2p in
+            let buf = malloc(4096)
+            defer { free(buf) }
+            let B = UnsafePointer<Double>(OpaquePointer(buf))!
 
-                    let e1b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e1p)), count: 512)
-                    let r1 = vDSP.dot(searchCoordsBuffer, e1b) / (e1.sumOfSquares * searchVectorSumOfSquares)
+            var R1: Double = 0
+            withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 4096) }
+            vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R1, 512)
+            R1 /= (e1.sumOfSquares * searchVectorSumOfSquares)
 
-                    let e2b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e2p)), count: 512)
-                    let r2 = vDSP.dot(searchCoordsBuffer, e2b) / (e2.sumOfSquares * searchVectorSumOfSquares)
+            var R2: Double = 0
+            withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 4096) }
+            vDSP_dotprD(searchCoordsBuffer, 1, B, 1, &R2, 512)
+            R2 /= (e2.sumOfSquares * searchVectorSumOfSquares)
 
-                    return r1 < r2
-                }
-            }
-        }
-
-        let comparator2 = { @Sendable (e1: Vector, e2: Vector) -> Bool in
-            withUnsafePointer(to: e1.coords) { e1p in
-                withUnsafePointer(to: e2.coords) { e2p in
-
-                    let e1b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e1p)), count: 512)
-                    var r1 = vDSP.dot(searchCoordsBuffer, e1b) / (e1.sumOfSquares * searchVectorSumOfSquares)
-                    if e1.sentence.localizedCaseInsensitiveContains(text) {
-                        r1 += 1
-                    }
-
-                    let e2b = UnsafeBufferPointer(start: UnsafePointer<Double>(OpaquePointer(e2p)), count: 512)
-                    var r2 = vDSP.dot(searchCoordsBuffer, e2b) / (e2.sumOfSquares * searchVectorSumOfSquares)
-                    if e2.sentence.localizedCaseInsensitiveContains(text) {
-                        r2 += 1
-                    }
-
-                    return r1 < r2
-                }
-            }
+            return R1 < R2
         }
 
         let count = vectorIndex.count
@@ -198,13 +180,35 @@ final actor SearchDB {
             res.append(contentsOf: chunk)
         }
 
+        if res.isEmpty {
+            return []
+        }
+
+        let buf2 = malloc(4096)
+        defer { free(buf2) }
+        let B2 = UnsafePointer<Double>(OpaquePointer(buf2))!
+        let comparator2 = { @Sendable (e1: Vector, e2: Vector) -> Bool in
+            var R1: Double = 0
+            withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 4096) }
+            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R1, 512)
+            R1 /= (e1.sumOfSquares * searchVectorSumOfSquares)
+            if e1.sentence.localizedCaseInsensitiveContains(text) {
+                R1 += 1
+            }
+
+            var R2: Double = 0
+            withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 4096) }
+            vDSP_dotprD(searchCoordsBuffer, 1, B2, 1, &R2, 512)
+            R2 /= (e2.sumOfSquares * searchVectorSumOfSquares)
+            if e2.sentence.localizedCaseInsensitiveContains(text) {
+                R2 += 1
+            }
+            return R1 < R2
+        }
+
         let vectors = res
             .uniqued { $0.rowId }
             .max(count: limit, sortedBy: comparator2)
-
-        if vectors.isEmpty {
-            return []
-        }
 
         Log.search(.info).log("Total \(vectors.count) vectors match")
 
