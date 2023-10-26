@@ -51,7 +51,6 @@ extension Search {
         }
 
         init(element: Row, terms: [String], relevantVector: Vector?) {
-            id = (relevantVector?.sentence ?? "") + String(element[DB.rowId])
             url = element[DB.urlRow]
             displayDate = element[DB.lastModifiedRow]
             thumbnailUrl = URL(string: element[DB.thumbnailUrlRow] ?? "")
@@ -61,8 +60,10 @@ extension Search {
             let _title = element[DB.titleRow] ?? ""
             let _descriptionText = element[DB.descriptionRow] ?? ""
             let _contentText = element[DB.contentRow]
+            let _rid = String(element[DB.rowId])
 
             if let manuallyHighlight = relevantVector?.sentence {
+                id = manuallyHighlight + _rid
                 title = Self.highlightedExcerpt(_title, phrase: manuallyHighlight)
                 descriptionText = Self.highlightedExcerpt(_descriptionText, phrase: manuallyHighlight)
                 if let _contentText {
@@ -71,6 +72,7 @@ extension Search {
                     contentText = _contentText
                 }
             } else {
+                id = _rid
                 title = _title
                 descriptionText = _descriptionText
                 contentText = _contentText
