@@ -125,6 +125,11 @@ final actor SearchDB {
         }
     }
 
+    private static let searchCoordsBytes = malloc(2048)!
+    private static let searchCoordsBuffer = searchCoordsBytes.assumingMemoryBound(to: Float.self)
+    private static let comparisonBytes2 = malloc(2048)!
+    private static let comparisonBuffer2 = comparisonBytes2.assumingMemoryBound(to: Float.self)
+
     func sentenceQuery(_ text: String, limit: Int) async throws -> [Search.Result] {
         let start = Date.now
         defer {
@@ -135,10 +140,7 @@ final actor SearchDB {
         }
 
         let searchVectorMagnitude = searchVector.magnitude
-        let buf = malloc(2048)!
-        defer { free(buf) }
-        withUnsafePointer(to: searchVector.coords) { _ = memcpy(buf, $0, 2048) }
-        let searchCoordsBuffer = buf.assumingMemoryBound(to: Float.self)
+        withUnsafePointer(to: searchVector.coords) { _ = memcpy(Self.searchCoordsBytes, $0, 2048) }
 
         let count = vectorIndex.count
         let shardLength = 500_000
@@ -155,12 +157,12 @@ final actor SearchDB {
                 let block = vectorIndex[shardStart ..< shardEnd].max(count: limit * 2) { @Sendable (e1: Vector, e2: Vector) -> Bool in
                     var R: Float = 0
                     withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 2048) }
-                    vDSP_dotpr(searchCoordsBuffer, 1, B, 1, &R, 512)
+                    vDSP_dotpr(Self.searchCoordsBuffer, 1, B, 1, &R, 512)
                     R /= (e1.magnitude * searchVectorMagnitude)
                     let R0 = R
 
                     withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 2048) }
-                    vDSP_dotpr(searchCoordsBuffer, 1, B, 1, &R, 512)
+                    vDSP_dotpr(Self.searchCoordsBuffer, 1, B, 1, &R, 512)
                     R /= (e2.magnitude * searchVectorMagnitude)
 
                     return R0 < R
@@ -181,21 +183,17 @@ final actor SearchDB {
             return []
         }
 
-        let buf2 = malloc(2048)!
-        defer { free(buf2) }
-        let B2 = buf2.assumingMemoryBound(to: Float.self)
-
         let vectors = res
             .uniqued { $0.rowId }
             .max(count: limit) { @Sendable (e1: Vector, e2: Vector) -> Bool in
                 var R: Float = 0
-                withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 2048) }
-                vDSP_dotpr(searchCoordsBuffer, 1, B2, 1, &R, 512)
+                withUnsafePointer(to: e1.coords) { _ = memcpy(Self.comparisonBytes2, $0, 2048) }
+                vDSP_dotpr(Self.searchCoordsBuffer, 1, Self.comparisonBuffer2, 1, &R, 512)
                 R /= (e1.magnitude * searchVectorMagnitude)
                 let R0 = R
 
-                withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 2048) }
-                vDSP_dotpr(searchCoordsBuffer, 1, B2, 1, &R, 512)
+                withUnsafePointer(to: e2.coords) { _ = memcpy(Self.comparisonBytes2, $0, 2048) }
+                vDSP_dotpr(Self.searchCoordsBuffer, 1, Self.comparisonBuffer2, 1, &R, 512)
                 R /= (e2.magnitude * searchVectorMagnitude)
                 return R0 < R
             }
@@ -204,6 +202,7 @@ final actor SearchDB {
 
         let idList = vectors.map(\.rowId)
         let rowIds = idList.map { String($0) }.joined(separator: ",")
+        let indexLookup = [Int64: Int](uniqueKeysWithValues: idList.enumerated().map { ($0.element, $0.offset) })
         let termList = text.split(separator: " ").map { String($0) }
 
         return try indexDb.prepareRowIterator(
@@ -230,8 +229,8 @@ final actor SearchDB {
                 return nil
             }
         }.sorted {
-            let pos1 = idList.firstIndex(of: $0.0.rowId) ?? 0
-            let pos2 = idList.firstIndex(of: $1.0.rowId) ?? 0
+            let pos1 = indexLookup[$0.0.rowId] ?? -1
+            let pos2 = indexLookup[$1.0.rowId] ?? -1
             return pos2 < pos1
 
         }.map { (relevantVector: Vector, element: RowIterator.Element) in

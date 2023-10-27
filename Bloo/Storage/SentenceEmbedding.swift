@@ -31,7 +31,7 @@ private final actor Rental<T: Sendable> {
 }
 
 enum SentenceEmbedding {
-    private static let vectorEngines = Rental<NLContextualEmbedding> {
+    private static let vectorEngines = Rental<NLContextualEmbedding> { @Sendable in
         let newEngine = NLContextualEmbedding(language: .english)!
         if !newEngine.hasAvailableAssets {
             try await newEngine.requestAssets()
@@ -40,11 +40,11 @@ enum SentenceEmbedding {
         return newEngine
     }
 
-    private static let tokenizers = Rental<NLTokenizer> {
+    private static let tokenizers = Rental<NLTokenizer> { @Sendable in
         NLTokenizer(unit: .sentence)
     }
 
-    private static let detectors = Rental<NSDataDetector> {
+    private static let detectors = Rental<NSDataDetector> { @Sendable in
         let types: NSTextCheckingResult.CheckingType = [.date]
         return try NSDataDetector(types: types.rawValue)
     }
