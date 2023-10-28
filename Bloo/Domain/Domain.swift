@@ -185,7 +185,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         private func parseSitemap(at url: String) async -> Set<IndexEntry>? {
-            guard let xmlData = try? await Network.getData(from: url).0 else {
+            guard let xmlData = await Network.getData(from: url)?.0 else {
                 Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
                 return nil
             }
@@ -210,7 +210,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private func scanRobots() async {
             let url = "https://\(id)/robots.txt"
             Log.crawling(id, .default).log("\(id) - Scanning \(url)")
-            if let data = try? await Network.getData(from: url).0,
+            if let data = await Network.getData(from: url)?.0,
                let robotText = String(data: data, encoding: .utf8) {
                 robots = Robots.parse(robotText)
             }
@@ -403,19 +403,16 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
 
-            guard let headResponse = try? await Network.getData(for: headRequest, lastVisited: lastModified, lastEtag: lastEtag).1 else {
-                Log.crawling(id, .error).log("No HEAD response from \(link)")
-                return .error
-            }
+            let headResponse = await Network.getData(for: headRequest, lastVisited: lastModified, lastEtag: lastEtag).1
 
-            if headResponse.statusCode >= 400 {
-                Log.crawling(id, .info).log("No content (code \(headResponse.statusCode)) in \(link)")
-                return .error
-            }
-
-            if headResponse.statusCode == 304 {
-                Log.crawling(id, .info).log("No change (code 304) in \(link)")
-                return .noChange
+            if headResponse.statusCode >= 300 {
+                if headResponse.statusCode == 304 {
+                    Log.crawling(id, .info).log("No change (code 304) in \(link)")
+                    return .noChange
+                } else {
+                    Log.crawling(id, .info).log("No content (code \(headResponse.statusCode)) in \(link)")
+                    return .error
+                }
             }
 
             let headers = headResponse.allHeaderFields
@@ -443,10 +440,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 return .error
             }
 
-            guard let contentResult = try? await Network.getData(from: site) else {
-                Log.crawling(id, .error).log("No content response from \(link)")
-                return .error
-            }
+            let contentResult = await Network.getData(from: site)
 
             guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
                 Log.crawling(id, .error).log("Cannot decode text from \(link)")
@@ -485,7 +479,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let imageFileUrl = Task<URL?, Never>.detached { [id] in
                 if let ogImage,
                    let thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false),
-                   let data = try? await Network.getData(from: thumbnailUrl).0,
+                   let data = await Network.getImageData(from: thumbnailUrl),
                    let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
                    let dataToSave = image.jpegData {
                     return Self.storeImageData(dataToSave, for: id, sourceUrl: ogImage)
@@ -539,7 +533,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             } else if let creationDate {
                 creationDate
             } else {
-                await SentenceEmbedding.generateDate(from: condensedText)
+                await Embedding.generateDate(from: condensedText)
             }
 
             var numberOfKeywordsInTitle = 0

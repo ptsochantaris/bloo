@@ -30,7 +30,7 @@ private final actor Rental<T: Sendable> {
     }
 }
 
-enum SentenceEmbedding {
+enum Embedding {
     private static let vectorEngines = Rental<NLContextualEmbedding> { @Sendable in
         let newEngine = NLContextualEmbedding(language: .english)!
         if !newEngine.hasAvailableAssets {

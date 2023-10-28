@@ -29,18 +29,18 @@ enum Network {
         return formatter
     }()
 
-    static func getData(from link: String, lastVisited: Date? = nil, lastEtag: String? = nil) async throws -> (Data, HTTPURLResponse) {
+    static func getData(from link: String, lastVisited: Date? = nil, lastEtag: String? = nil) async -> (Data, HTTPURLResponse)? {
         guard let url = URL(string: link) else {
-            throw Blooper.malformedUrl
+            return nil
         }
-        return try await getData(for: URLRequest(url: url), lastVisited: lastVisited, lastEtag: lastEtag)
+        return await getData(for: URLRequest(url: url), lastVisited: lastVisited, lastEtag: lastEtag)
     }
 
-    static func getData(from url: URL) async throws -> (Data, HTTPURLResponse) {
-        try await getData(for: URLRequest(url: url), lastVisited: nil, lastEtag: nil)
+    static func getData(from url: URL) async -> (Data, HTTPURLResponse) {
+        await getData(for: URLRequest(url: url), lastVisited: nil, lastEtag: nil)
     }
 
-    static func getData(for request: URLRequest, lastVisited: Date? = nil, lastEtag: String? = nil) async throws -> (Data, HTTPURLResponse) {
+    static func getData(for request: URLRequest, lastVisited: Date? = nil, lastEtag: String? = nil) async -> (Data, HTTPURLResponse) {
         var request = request
 
         if let lastEtag {
@@ -52,7 +52,30 @@ enum Network {
             request.cachePolicy = .reloadIgnoringLocalCacheData
         }
 
-        let res = try await urlSession.data(for: request)
-        return (res.0, res.1 as! HTTPURLResponse)
+        var attempts = 10
+        while true {
+            do {
+                let res = try await urlSession.data(for: request)
+                return (res.0, res.1 as! HTTPURLResponse)
+            } catch {
+                let location = request.url!.absoluteString
+                let code = (error as NSError).code
+                attempts -= 1
+                if attempts == 0 {
+                    Log.app(.info).log("Giving up after multiple connection failures to \(location)")
+                    return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: [:])!)
+                } else if code == -1007 { // too many redirects
+                    Log.app(.info).log("Too many redirects to \(location), giving up")
+                    return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: [:])!)
+                } else {
+                    Log.app(.error).log("Connection error to \(location), retrying in a moment: \(error.localizedDescription) - code: \(code)")
+                    try? await Task.sleep(for: .seconds(6))
+                }
+            }
+        }
+    }
+
+    static func getImageData(from url: URL) async -> Data? {
+        try? await urlSession.data(from: url).0
     }
 }

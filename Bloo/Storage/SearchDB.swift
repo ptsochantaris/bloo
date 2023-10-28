@@ -62,7 +62,7 @@ final actor SearchDB {
         // free this actor up while we produce the vector
         let embeddings = Task<Vector?, Never>.detached {
             if let document = content.condensedContent ?? content.title ?? content.description {
-                return await SentenceEmbedding.vector(for: document, rowId: newRowId)
+                return await Embedding.vector(for: document, rowId: newRowId)
             }
             return nil
         }
@@ -116,7 +116,7 @@ final actor SearchDB {
             limit \(2000)
             """))
 
-        guard let searchVector = await SentenceEmbedding.vector(for: text) else {
+        guard let searchVector = await Embedding.vector(for: text) else {
             return elements.map {
                 Search.Result(element: $0, terms: searchTerms, relevantVector: nil)
             }
