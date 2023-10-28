@@ -15,6 +15,7 @@ enum Network {
         let config = URLSessionConfiguration.default
         config.httpShouldUsePipelining = true
         config.httpShouldSetCookies = false
+        config.waitsForConnectivity = true
         config.httpCookieAcceptPolicy = .never
         config.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Bloo/1.0.0"]
         config.timeoutIntervalForRequest = 20.0

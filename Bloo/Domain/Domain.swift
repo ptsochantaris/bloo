@@ -83,7 +83,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private var goTask: Task<Void, Error>?
         private let storage: CrawlerStorage
 
-        private var rejectionCache = OrderedCollections.OrderedSet<String>()
+        private var botRejectionCache = OrderedCollections.OrderedSet<String>()
 
         @MainActor
         fileprivate weak var crawlerDelegate: CrawlerDelegate!
@@ -500,22 +500,22 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 .filter { uniqued.insert($0).inserted }
 
             for newUrlString in links ?? [] {
-                if let index = rejectionCache.firstIndex(of: newUrlString) {
-                    let rejectionCount = rejectionCache.count
+                if let index = botRejectionCache.firstIndex(of: newUrlString) {
+                    let rejectionCount = botRejectionCache.count
                     if rejectionCount > 400 {
-                        rejectionCache.elements.move(fromOffsets: IndexSet(integer: index), toOffset: rejectionCount)
+                        botRejectionCache.elements.move(fromOffsets: IndexSet(integer: index), toOffset: rejectionCount)
                         Log.crawling(id, .default).log("\(id) promoted rejected URL: \(newUrlString) - total: \(rejectionCount)")
                     }
                 } else {
                     if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrlString) ?? true {
                         newUrls.insert(.pending(url: newUrlString, isSitemap: false))
                     } else {
-                        rejectionCache.append(newUrlString)
-                        let rejectionCount = rejectionCache.count
+                        botRejectionCache.append(newUrlString)
+                        let rejectionCount = botRejectionCache.count
                         // log("\(id) added rejected URL: \(newUrlString) - total: \(rejectionCount)")
                         if rejectionCount == 500 {
-                            rejectionCache = OrderedSet(rejectionCache.suffix(300))
-                            Log.crawling(id, .default).log("\(id) Trimmed rejection cache: \(rejectionCache.count)")
+                            botRejectionCache = OrderedSet(botRejectionCache.suffix(300))
+                            Log.crawling(id, .default).log("\(id) Trimmed rejection cache: \(botRejectionCache.count)")
                         }
                     }
                 }
