@@ -14,6 +14,7 @@ extension Search {
         let keywords: [String]
         let terms: [String]
         let rowId: Int64
+        let hashValueForResults: Int
 
         private static func highlightedExcerpt(_ text: String, phrase: String) -> String {
             guard let range = text.range(of: phrase, options: [.caseInsensitive, .diacriticInsensitive], range: nil, locale: nil) else {
@@ -59,10 +60,13 @@ extension Search {
             rowId = element[DB.rowId]
             self.terms = terms
 
-            let _title = element[DB.titleRow] ?? ""
+            let rawTitle = element[DB.titleRow]
+            let _title = rawTitle ?? ""
             let _descriptionText = element[DB.descriptionRow] ?? ""
             let _contentText = element[DB.contentRow]
             let _rid = String(rowId)
+
+            hashValueForResults = (rawTitle ?? _contentText).hashValue
 
             if let manuallyHighlight = relevantVector?.text {
                 id = manuallyHighlight + _rid

@@ -6,14 +6,14 @@ extension Search.Engine {
             case limited, top, all
         }
 
-        case noSearch, searching(String), updating(String, DisplayMode, [Search.Result]), results(DisplayMode, [Search.Result]), noResults
+        case noSearch, searching(String), updating(String, DisplayMode, [Search.Result], Int), results(DisplayMode, [Search.Result], Int), noResults
 
-        var results: (DisplayMode, [Search.Result])? {
+        var results: (DisplayMode, [Search.Result], Int)? {
             switch self {
             case .noResults, .noSearch, .searching:
                 nil
-            case let .results(type, items), let .updating(_, type, items):
-                (type, items)
+            case let .results(type, items, count), let .updating(_, type, items, count):
+                (type, items, count)
             }
         }
     }

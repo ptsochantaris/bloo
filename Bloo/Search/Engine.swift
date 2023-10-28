@@ -96,7 +96,7 @@ extension Search {
                     } else {
                         .top(trimmedText)
                     }
-                case let .results(displayMode, _), let .updating(_, displayMode, _):
+                case let .results(displayMode, _, _), let .updating(_, displayMode, _, _):
                     switch displayMode {
                     case .all:
                         if collapseIfNeeded {
@@ -143,12 +143,12 @@ extension Search {
             switch resultState {
             case .noResults, .noSearch:
                 updateResultState(.searching(searchText))
-            case let .results(mode, array):
-                updateResultState(.updating(searchText, mode, array))
+            case let .results(mode, array, count):
+                updateResultState(.updating(searchText, mode, array, count))
             case let .searching(text):
                 updateResultState(.searching(text))
-            case let .updating(_, mode, array):
-                updateResultState(.updating(searchText, mode, array))
+            case let .updating(_, mode, array, count):
+                updateResultState(.updating(searchText, mode, array, count))
             }
 
             runningQueryTask = Task.detached(priority: .userInitiated) { [weak self] in
@@ -179,13 +179,13 @@ extension Search {
                 case 0:
                     await updateResultState(.noResults)
                 case 1 ..< smallChunkSize:
-                    await updateResultState(.results(.limited, results))
+                    await updateResultState(.results(.limited, results.items, results.count))
                 default:
                     switch newSearch {
                     case .none, .top:
-                        await updateResultState(.results(.top, results))
+                        await updateResultState(.results(.top, results.items, results.count))
                     case .full:
-                        await updateResultState(.results(.all, results))
+                        await updateResultState(.results(.all, results.items, results.count))
                     }
                 }
             }
