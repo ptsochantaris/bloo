@@ -19,19 +19,16 @@ extension Search {
 
             Task {
                 switch searchState {
-                case let .none(fuzzy):
+                case .none:
                     Log.search(.default).log("Initialised - windowId: \(windowId.uuidString)")
-                    useFuzzy = fuzzy
 
-                case let .top(string, fuzzy):
+                case let .top(string):
                     Log.search(.default).log("Initialised: \(string) - top results - windowId: \(windowId.uuidString)")
-                    useFuzzy = fuzzy
                     searchQuery = string
                     resetQuery(collapseIfNeeded: true, onlyIfChanged: false)
 
-                case let .full(string, fuzzy):
+                case let .full(string):
                     Log.search(.default).log("Initialised: \(string) - full results - windowId: \(windowId.uuidString)")
-                    useFuzzy = fuzzy
                     searchQuery = string
                     resetQuery(expandIfNeeded: true, onlyIfChanged: false)
                 }
@@ -40,15 +37,6 @@ extension Search {
 
         deinit {
             Log.search(.default).log("De-initialised - windowId: \(windowId.uuidString)")
-        }
-
-        var useFuzzy = false {
-            didSet {
-                if useFuzzy != oldValue, searchQuery.isPopulated {
-                    resultState = .searching(searchQuery)
-                    resetQuery(onlyIfChanged: false)
-                }
-            }
         }
 
         var searchQuery = "" {
@@ -62,7 +50,7 @@ extension Search {
 
         private var searchState: Search {
             get {
-                Search.windowIdToSearch[windowId] ?? .none(useFuzzy)
+                Search.windowIdToSearch[windowId] ?? .none
             }
             set {
                 Search.windowIdToSearch[windowId] = newValue
@@ -93,35 +81,34 @@ extension Search {
 
         private var runningQueryTask: Task<Void, Never>?
         func resetQuery(expandIfNeeded: Bool = false, collapseIfNeeded: Bool = false, onlyIfChanged: Bool = true) {
-            let fuzzyMode = useFuzzy
             queryTimer.abort()
 
             let trimmedText = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
 
             let newSearch: Search = if trimmedText.isEmpty {
-                .none(fuzzyMode)
+                .none
 
             } else {
                 switch resultState {
                 case .noResults, .noSearch, .searching:
                     if expandIfNeeded {
-                        .full(trimmedText, fuzzyMode)
+                        .full(trimmedText)
                     } else {
-                        .top(trimmedText, fuzzyMode)
+                        .top(trimmedText)
                     }
-                case let .results(displayMode, _, _), let .updating(_, displayMode, _, _):
+                case let .results(displayMode, _), let .updating(_, displayMode, _):
                     switch displayMode {
                     case .all:
                         if collapseIfNeeded {
-                            .top(trimmedText, fuzzyMode)
+                            .top(trimmedText)
                         } else {
-                            .full(trimmedText, fuzzyMode)
+                            .full(trimmedText)
                         }
                     case .limited, .top:
                         if expandIfNeeded {
-                            .full(trimmedText, fuzzyMode)
+                            .full(trimmedText)
                         } else {
-                            .top(trimmedText, fuzzyMode)
+                            .top(trimmedText)
                         }
                     }
                 }
@@ -144,10 +131,10 @@ extension Search {
             case .none:
                 updateResultState(.noSearch)
                 return
-            case let .top(text, _):
+            case let .top(text):
                 chunkSize = smallChunkSize
                 searchText = text
-            case let .full(text, _):
+            case let .full(text):
                 chunkSize = 1000
                 searchText = text
             }
@@ -156,12 +143,12 @@ extension Search {
             switch resultState {
             case .noResults, .noSearch:
                 updateResultState(.searching(searchText))
-            case let .results(mode, array, _):
-                updateResultState(.updating(searchText, mode, array, fuzzyMode))
+            case let .results(mode, array):
+                updateResultState(.updating(searchText, mode, array))
             case let .searching(text):
                 updateResultState(.searching(text))
-            case let .updating(_, mode, array, _):
-                updateResultState(.updating(searchText, mode, array, fuzzyMode))
+            case let .updating(_, mode, array):
+                updateResultState(.updating(searchText, mode, array))
             }
 
             runningQueryTask = Task.detached(priority: .userInitiated) { [weak self] in
@@ -174,9 +161,7 @@ extension Search {
                     return
                 }
 
-                let results = fuzzyMode
-                    ? await (try? SearchDB.shared.sentenceQuery(searchText, limit: chunkSize))
-                    : await (try? SearchDB.shared.keywordQuery(searchText, limit: chunkSize))
+                let results = await (try? SearchDB.shared.searchQuery(searchText, limit: chunkSize))
 
                 if Task.isCancelled {
                     Log.search(.info).log("Cancelled search, ignoring results")
@@ -194,13 +179,13 @@ extension Search {
                 case 0:
                     await updateResultState(.noResults)
                 case 1 ..< smallChunkSize:
-                    await updateResultState(.results(.limited, results, fuzzyMode))
+                    await updateResultState(.results(.limited, results))
                 default:
                     switch newSearch {
                     case .none, .top:
-                        await updateResultState(.results(.top, results, fuzzyMode))
+                        await updateResultState(.results(.top, results))
                     case .full:
-                        await updateResultState(.results(.all, results, fuzzyMode))
+                        await updateResultState(.results(.all, results))
                     }
                 }
             }

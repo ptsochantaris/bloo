@@ -417,7 +417,7 @@ private struct SearchResults: View {
             ProgressView()
                 .padding()
 
-        case let .results(mode, items, _), let .updating(_, mode, items, _):
+        case let .results(mode, items), let .updating(_, mode, items):
             switch mode {
             case .all:
                 LazyVGrid(columns: gridColumns) {
@@ -473,7 +473,7 @@ private struct SearchSection: View {
             showResults = false
             showFilter = false
 
-        case let .updating(text, resultType, _, _):
+        case let .updating(text, resultType, _):
             title = "Searching for '\(text)'"
             showProgress = true
             ctaTitle = nil
@@ -489,7 +489,7 @@ private struct SearchSection: View {
             showResults = true
             showFilter = false
 
-        case let .results(resultType, results, _):
+        case let .results(resultType, results):
             switch resultType {
             case .all:
                 let c = results.count
@@ -746,7 +746,7 @@ private struct Admin: View {
             searcher.searchQuery = ""
         }
         .navigationTitle(searcher.title)
-        .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, prompt: searcher.useFuzzy ? "Search for a sentence" : "Search for keyword(s)")
+        .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, prompt: "Search for keyword(s)")
         .toolbar {
             ToolbarItem {
                 Button {
@@ -767,14 +767,6 @@ private struct Admin: View {
                     }
                 } label: {
                     Image(systemName: model.showAddition ? "arrow.down.and.line.horizontal.and.arrow.up" : "plus")
-                }
-            }
-
-            ToolbarItem {
-                Button {
-                    searcher.useFuzzy.toggle()
-                } label: {
-                    Image(systemName: searcher.useFuzzy ? "text.magnifyingglass.rtl" : "exclamationmark.magnifyingglass")
                 }
             }
         }

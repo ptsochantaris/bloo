@@ -44,7 +44,7 @@ struct Vector: Sendable {
     private static let vectorTupleSize = MemoryLayout<VectorTuple>.stride
     private static let blobTupleSize = MemoryLayout<BlobTuple>.stride
 
-    init(coordVector: [Float], rowId: Int64, sentence: String) {
+    init(coordVector: [Float], rowId: Int64, text: String) {
         self.rowId = rowId
         magnitude = sqrt(vDSP.sumOfSquares(coordVector))
         coords = coordVector.withUnsafeBytes { pointer in
@@ -53,7 +53,7 @@ struct Vector: Sendable {
             memcpy(t, pointer.baseAddress!, Self.vectorTupleSize)
             return t.pointee
         }
-        blob = sentence.utf8CString.withUnsafeBytes { pointer in
+        blob = text.utf8CString.withUnsafeBytes { pointer in
             let t = UnsafeMutablePointer<BlobTuple>.allocate(capacity: 1)
             defer { t.deallocate() }
             bzero(t, Self.blobTupleSize)
@@ -62,7 +62,7 @@ struct Vector: Sendable {
         }
     }
 
-    var sentence: String {
+    var text: String {
         withUnsafePointer(to: blob) {
             String(cString: UnsafePointer<CChar>(OpaquePointer($0)))
         }

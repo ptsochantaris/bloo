@@ -61,7 +61,7 @@ enum SentenceEmbedding {
         return engine.firstMatch(in: text, range: text.wholeNSRange)?.date
     }
 
-    static func vector(for searchTerm: String, rowId: Int64 = 0) async -> Vector? {
+    static func vector(for text: String, rowId: Int64 = 0) async -> Vector? {
         guard let engine = try? await vectorEngines.reserve() else {
             return nil
         }
@@ -69,19 +69,19 @@ enum SentenceEmbedding {
             vectorEngines.release(item: engine)
         }
 
-        guard let coordResult = try? engine.embeddingResult(for: searchTerm, language: .english) else {
+        guard let coordResult = try? engine.embeddingResult(for: text, language: .english) else {
             return nil
         }
 
         var vector = [Float](repeating: 0, count: 512) // TODO: cache these buffers?
-        coordResult.enumerateTokenVectors(in: searchTerm.wholeRange) { vec, range in
+        coordResult.enumerateTokenVectors(in: text.wholeRange) { vec, range in
             if !range.isEmpty {
                 let fvec = vec.map { Float($0) }
                 vDSP.add(vector, fvec, result: &vector)
             }
             return true
         }
-        return Vector(coordVector: vector, rowId: rowId, sentence: searchTerm)
+        return Vector(coordVector: vector, rowId: rowId, text: text)
     }
 
     static func vectors(for sentences: [String], at rowId: Int64) async -> [Vector] {

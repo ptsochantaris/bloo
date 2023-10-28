@@ -7,8 +7,9 @@ final actor SearchDB {
     static let shared = SearchDB()
 
     private let textTable = VirtualTable("text_search")
-    private var vectorIndex: MemoryMappedCollection<Vector>
     private let indexDb: Connection
+
+    private var documentIndex: MemoryMappedCollection<Vector>
 
     init() {
         let file = documentsPath.appending(path: "index.sqlite3", directoryHint: .notDirectory)
@@ -32,13 +33,14 @@ final actor SearchDB {
 
         indexDb = c
 
-        let embeddingFile = documentsPath.appending(path: "index.embeddings", directoryHint: .notDirectory)
-        vectorIndex = MemoryMappedCollection(at: embeddingFile.path, minimumCapacity: 1000)
-        Log.search(.info).log("Loaded search indexes with \(vectorIndex.count) entries")
+        documentIndex = MemoryMappedCollection(at: documentsPath.appending(path: "document.embeddings", directoryHint: .notDirectory).path,
+                                               minimumCapacity: 1000)
+
+        Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }
 
     func shutdown() {
-        vectorIndex.shutdown()
+        documentIndex.shutdown()
     }
 
     func insert(id: String, url: String, content: IndexEntry.Content) async throws {
@@ -57,26 +59,18 @@ final actor SearchDB {
             return
         }
 
-        // free this actor up while we produce the vectors
-        let embedSentences = Task<[Vector], Never>.detached {
-            let sentences = await SentenceEmbedding.sentences(for: sparseContent, titled: content.title)
-
-            guard sentences.isPopulated else {
-                return []
+        // free this actor up while we produce the vector
+        let embeddings = Task<Vector?, Never>.detached {
+            if let document = content.condensedContent ?? content.title ?? content.description {
+                return await SentenceEmbedding.vector(for: document, rowId: newRowId)
             }
-
-            let res = await SentenceEmbedding.vectors(for: sentences, at: newRowId)
-            #if DEBUG
-                for vector in res {
-                    Log.search(.debug).log("Adding vector: [\(vector.sentence)]")
-                }
-            #endif
-            return res
+            return nil
         }
 
-        let newVectors = await embedSentences.value
-        vectorIndex.append(contentsOf: newVectors)
-        Log.crawling(id, .info).log("Added \(newVectors.count) embeddings")
+        if let embeddingResult = await embeddings.value {
+            documentIndex.append(embeddingResult)
+            Log.crawling(id, .info).log("Added document embedding for '\(content.title ?? "<no title>")'")
+        }
     }
 
     func purgeDomain(id: String) throws {
@@ -86,14 +80,14 @@ final actor SearchDB {
             ids.insert(i)
         }
 
-        vectorIndex.deleteAll {
+        documentIndex.deleteAll {
             ids.contains($0.rowId)
         }
 
         try indexDb.run(textTable.filter(DB.domainRow == id).delete())
     }
 
-    func keywordQuery(_ text: String, limit: Int) throws -> [Search.Result] {
+    func searchQuery(_ text: String, limit: Int) async throws -> [Search.Result] {
         let start = Date.now
         defer {
             Log.search(.info).log("Keyword search query time: \(-start.timeIntervalSinceNow) sec")
@@ -101,7 +95,7 @@ final actor SearchDB {
 
         let searchTerms = text.split(separator: " ").map { String($0) }
         let terms = searchTerms.map { $0.lowercased().sqlSafe }.joined(separator: " AND ")
-        return try indexDb.prepareRowIterator(
+        let elements = try Array(indexDb.prepareRowIterator(
             """
             select
             rowid,
@@ -119,133 +113,54 @@ final actor SearchDB {
 
             order by bm25(text_search, 0, 0, 20, 10, 5, 5), lastModified desc
 
-            limit \(limit)
-            """).map {
-            Search.Result(element: $0, terms: searchTerms, relevantVector: nil)
-        }
-    }
+            limit \(2000)
+            """))
 
-    private static let searchCoordsBytes = malloc(2048)!
-    private static let searchCoordsBuffer = searchCoordsBytes.assumingMemoryBound(to: Float.self)
-    private static let comparisonBytes2 = malloc(2048)!
-    private static let comparisonBuffer2 = comparisonBytes2.assumingMemoryBound(to: Float.self)
-
-    func sentenceQuery(_ text: String, limit: Int) async throws -> [Search.Result] {
-        let start = Date.now
-        defer {
-            Log.search(.info).log("Sentence search query time: \(-start.timeIntervalSinceNow) sec")
-        }
         guard let searchVector = await SentenceEmbedding.vector(for: text) else {
-            return []
+            return elements.map {
+                Search.Result(element: $0, terms: searchTerms, relevantVector: nil)
+            }
+        }
+
+        let rowIds = Set(elements.map { $0[DB.rowId] })
+
+        let vectorLookup = [Int64: Vector](uniqueKeysWithValues: documentIndex.filter {
+            rowIds.contains($0.rowId)
+        }.map {
+            ($0.rowId, $0)
+        })
+
+        let searchCoordsBytes = malloc(2048)!
+        let searchCoordsBuffer = searchCoordsBytes.assumingMemoryBound(to: Float.self)
+        let comparisonBytes = malloc(2048)!
+        let comparisonBuffer = comparisonBytes.assumingMemoryBound(to: Float.self)
+
+        defer {
+            free(searchCoordsBytes)
+            free(comparisonBytes)
         }
 
         let searchVectorMagnitude = searchVector.magnitude
-        withUnsafePointer(to: searchVector.coords) { _ = memcpy(Self.searchCoordsBytes, $0, 2048) }
+        withUnsafePointer(to: searchVector.coords) { _ = memcpy(searchCoordsBytes, $0, 2048) }
 
-        let count = vectorIndex.count
-        let shardLength = 500_000
-        let shardCount = Int((Double(count) / Double(shardLength)).rounded(.up))
-        let resultSequence = AsyncStream { continuation in
-            DispatchQueue.concurrentPerform(iterations: shardCount) { [vectorIndex] i in
-                let shardStart = i * shardLength
-                let shardEnd = min(shardStart + shardLength, count)
-
-                let buf = malloc(2048)!
-                defer { free(buf) }
-                let B = buf.assumingMemoryBound(to: Float.self)
-
-                let block = vectorIndex[shardStart ..< shardEnd].max(count: limit * 2) { @Sendable (e1: Vector, e2: Vector) -> Bool in
-                    var R: Float = 0
-                    withUnsafePointer(to: e1.coords) { _ = memcpy(buf, $0, 2048) }
-                    vDSP_dotpr(Self.searchCoordsBuffer, 1, B, 1, &R, 512)
-                    R /= (e1.magnitude * searchVectorMagnitude)
-                    let R0 = R
-
-                    withUnsafePointer(to: e2.coords) { _ = memcpy(buf, $0, 2048) }
-                    vDSP_dotpr(Self.searchCoordsBuffer, 1, B, 1, &R, 512)
-                    R /= (e2.magnitude * searchVectorMagnitude)
-
-                    return R0 < R
-                }
-                Log.search(.info).log("Scanned shard \(shardStart) to \(shardEnd); \(block.count) vectors match")
-                continuation.yield(block)
+        return elements.max(count: limit) { e1, e2 in
+            guard let v1 = vectorLookup[e1[DB.rowId]], let v2 = vectorLookup[e2[DB.rowId]] else {
+                return false
             }
-            continuation.finish()
-        }
+            var R: Float = 0
+            withUnsafePointer(to: v1.coords) { _ = memcpy(comparisonBytes, $0, 2048) }
+            vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R, 512)
+            R /= (v1.magnitude * searchVectorMagnitude)
+            let R0 = R
 
-        var res = [Vector]()
-        res.reserveCapacity(shardCount * limit)
-        for await chunk in resultSequence {
-            res.append(contentsOf: chunk)
-        }
+            withUnsafePointer(to: v2.coords) { _ = memcpy(comparisonBytes, $0, 2048) }
+            vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R, 512)
+            R /= (v2.magnitude * searchVectorMagnitude)
 
-        if res.isEmpty {
-            return []
-        }
+            return R0 < R
 
-        let vectors = res
-            .uniqued { $0.rowId }
-            .max(count: limit) { @Sendable (e1: Vector, e2: Vector) -> Bool in
-                var R: Float = 0
-                withUnsafePointer(to: e1.coords) { _ = memcpy(Self.comparisonBytes2, $0, 2048) }
-                vDSP_dotpr(Self.searchCoordsBuffer, 1, Self.comparisonBuffer2, 1, &R, 512)
-                R /= (e1.magnitude * searchVectorMagnitude)
-                let R0 = R
-
-                withUnsafePointer(to: e2.coords) { _ = memcpy(Self.comparisonBytes2, $0, 2048) }
-                vDSP_dotpr(Self.searchCoordsBuffer, 1, Self.comparisonBuffer2, 1, &R, 512)
-                R /= (e2.magnitude * searchVectorMagnitude)
-                return R0 < R
-            }
-
-        Log.search(.info).log("Total \(vectors.count) vectors match")
-
-        let idList = vectors.map(\.rowId)
-        let rowIds = idList.map { String($0) }.joined(separator: ",")
-        let indexLookup = [Int64: Int](uniqueKeysWithValues: idList.enumerated().map { ($0.element, $0.offset) })
-        let termList = text.split(separator: " ").map { String($0) }
-
-        return try indexDb.prepareRowIterator(
-            """
-            select
-            rowid,
-            url,
-            title,
-            description,
-            content,
-            keywords,
-            thumbnailUrl,
-            lastModified
-
-            from text_search
-
-            where rowid in (\(rowIds))
-            """
-        ).compactMap { element in
-            let id = element[DB.rowId]
-            if let v = vectors.first(where: { $0.rowId == id }) {
-                return (v, element)
-            } else {
-                return nil
-            }
-        }.sorted {
-            let pos1 = indexLookup[$0.0.rowId] ?? -1
-            let pos2 = indexLookup[$1.0.rowId] ?? -1
-            return pos2 < pos1
-
-        }.map { (relevantVector: Vector, element: RowIterator.Element) in
-            withUnsafePointer(to: relevantVector.coords) { coordPointer in
-
-                //var R: Float = 0
-                //withUnsafePointer(to: relevantVector.coords) { _ = memcpy(buf, $0, 2048) }
-                //vDSP_dotpr(searchCoordsBuffer, 1, B2, 1, &R, 512)
-                //R /= (relevantVector.magnitude * searchVectorMagnitude)
-                //if relevantVector.sentence.localizedCaseInsensitiveContains(text) {
-                    //R += 1
-                //}
-
-                return Search.Result(element: element, terms: termList, relevantVector: relevantVector)
-            }
+        }.map {
+            Search.Result(element: $0, terms: searchTerms, relevantVector: vectorLookup[$0[DB.rowId]])
 
         }.uniqued { $0.url.normalisedUrlForResults() }
     }

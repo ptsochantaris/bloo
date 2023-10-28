@@ -13,6 +13,7 @@ extension Search {
         let thumbnailUrl: URL?
         let keywords: [String]
         let terms: [String]
+        let rowId: Int64
 
         private static func highlightedExcerpt(_ text: String, phrase: String) -> String {
             guard let range = text.range(of: phrase, options: [.caseInsensitive, .diacriticInsensitive], range: nil, locale: nil) else {
@@ -55,14 +56,15 @@ extension Search {
             displayDate = element[DB.lastModifiedRow]
             thumbnailUrl = URL(string: element[DB.thumbnailUrlRow] ?? "")
             keywords = element[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? []
+            rowId = element[DB.rowId]
             self.terms = terms
 
             let _title = element[DB.titleRow] ?? ""
             let _descriptionText = element[DB.descriptionRow] ?? ""
             let _contentText = element[DB.contentRow]
-            let _rid = String(element[DB.rowId])
+            let _rid = String(rowId)
 
-            if let manuallyHighlight = relevantVector?.sentence {
+            if let manuallyHighlight = relevantVector?.text {
                 id = manuallyHighlight + _rid
                 title = Self.highlightedExcerpt(_title, phrase: manuallyHighlight)
                 descriptionText = Self.highlightedExcerpt(_descriptionText, phrase: manuallyHighlight)
