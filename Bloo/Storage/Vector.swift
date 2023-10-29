@@ -46,13 +46,16 @@ struct Vector: Sendable {
 
     init(coordVector: [Float], rowId: Int64, text: String) {
         self.rowId = rowId
+
         magnitude = sqrt(vDSP.sumOfSquares(coordVector))
+
         coords = coordVector.withUnsafeBytes { pointer in
             let t = UnsafeMutablePointer<VectorTuple>.allocate(capacity: 1)
             defer { t.deallocate() }
             memcpy(t, pointer.baseAddress!, Self.vectorTupleSize)
             return t.pointee
         }
+
         blob = text.utf8CString.withUnsafeBytes { pointer in
             let t = UnsafeMutablePointer<BlobTuple>.allocate(capacity: 1)
             defer { t.deallocate() }

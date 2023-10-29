@@ -33,7 +33,7 @@ extension String {
     }
 
     var sqlSafe: String {
-        components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+        components(separatedBy: CharacterSet.alphanumerics.inverted).joined().trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var hashString: String {

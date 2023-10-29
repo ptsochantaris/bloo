@@ -3,6 +3,38 @@ import Foundation
 struct MemoryMappedCollection<T>: Collection {
     // derived from: https://github.com/akirark/MemoryMappedFileSwift
 
+    enum MemoryMappedCollectionError: LocalizedError {
+        case ioError(String)
+
+        var errorDescription: String? {
+            switch self {
+            case let .ioError(text):
+                "IO Error: \(text)"
+            }
+        }
+    }
+
+    final class MemoryMappedIterator: IteratorProtocol {
+        private var position = 0
+        private let buffer: UnsafeMutableRawPointer
+        private let step = MemoryLayout<T>.stride
+        private let counterSize = MemoryLayout<Int>.stride
+
+        fileprivate init(buffer: UnsafeMutableRawPointer) {
+            self.buffer = buffer
+        }
+
+        func next() -> T? {
+            if position == buffer.load(as: Int.self) {
+                return nil
+            }
+            defer {
+                position += 1
+            }
+            return buffer.load(fromByteOffset: counterSize + step * position, as: T.self)
+        }
+    }
+
     private let step = MemoryLayout<T>.stride
     private let counterSize = MemoryLayout<Int>.stride
 
@@ -29,28 +61,31 @@ struct MemoryMappedCollection<T>: Collection {
         counterSize + step * index
     }
 
-    init(at path: String, minimumCapacity: Int) {
+    init(at path: String, minimumCapacity: Int) throws {
         fileDescriptor = open(path, O_CREAT | O_RDWR, S_IREAD | S_IWRITE)
-        start(minimumCapacity: minimumCapacity)
+        if fileDescriptor == 0 {
+            throw MemoryMappedCollectionError.ioError("Could not create or open file at \(path)")
+        }
+        try start(minimumCapacity: minimumCapacity)
     }
 
-    mutating func append(_ item: T) {
+    mutating func append(_ item: T) throws {
         let originalCount = count
         let newCount = originalCount + 1
         if newCount == capacity {
             stop()
-            start(minimumCapacity: newCount + 100_000)
+            try start(minimumCapacity: newCount + 100_000)
         }
         buffer.storeBytes(of: item, toByteOffset: offset(for: originalCount), as: T.self)
         count = newCount
     }
 
-    mutating func append(contentsOf sequence: any Collection<T>) {
+    mutating func append(contentsOf sequence: any Collection<T>) throws {
         var originalCount = count
         let newCount = originalCount + sequence.count
         if newCount >= capacity {
             stop()
-            start(minimumCapacity: newCount + 100_000)
+            try start(minimumCapacity: newCount + 100_000)
         }
         for item in sequence {
             buffer.storeBytes(of: item, toByteOffset: offset(for: originalCount), as: T.self)
@@ -66,27 +101,6 @@ struct MemoryMappedCollection<T>: Collection {
                 delete(at: pos)
             }
             pos -= 1
-        }
-    }
-
-    final class MemoryMappedIterator: IteratorProtocol {
-        private var position = 0
-        private let buffer: UnsafeMutableRawPointer
-        private let step = MemoryLayout<T>.stride
-        private let counterSize = MemoryLayout<Int>.stride
-
-        fileprivate init(buffer: UnsafeMutableRawPointer) {
-            self.buffer = buffer
-        }
-
-        func next() -> T? {
-            if position == buffer.load(as: Int.self) {
-                return nil
-            }
-            defer {
-                position += 1
-            }
-            return buffer.load(fromByteOffset: counterSize + step * position, as: T.self)
         }
     }
 
@@ -115,18 +129,14 @@ struct MemoryMappedCollection<T>: Collection {
         buffer.load(fromByteOffset: offset(for: position), as: T.self)
     }
 
-    private mutating func start(minimumCapacity: Int) {
+    private mutating func start(minimumCapacity: Int) throws {
         if buffer != nil {
             return
         }
 
-        if fileDescriptor == 0 {
-            abort()
-        }
-
         var statInfo = stat()
         if fstat(fileDescriptor, &statInfo) != 0 {
-            abort()
+            throw MemoryMappedCollectionError.ioError("Cannot access backing file on disk")
         }
 
         let minimumSize = offset(for: minimumCapacity)
@@ -136,7 +146,7 @@ struct MemoryMappedCollection<T>: Collection {
 
         if targetSize > existingSize {
             if ftruncate(fileDescriptor, off_t(targetSize)) != 0 {
-                abort()
+                throw MemoryMappedCollectionError.ioError("Cannot resize backing file on disk")
             }
             mappedSize = targetSize
         } else {
@@ -149,7 +159,7 @@ struct MemoryMappedCollection<T>: Collection {
         Log.storage(.info).log("Memory mapped index size: \(Double(mappedSize) / 1_000_000_000) Gb")
     }
 
-    mutating func stop() {
+    private mutating func stop() {
         guard let buf = buffer else {
             return
         }
@@ -161,8 +171,6 @@ struct MemoryMappedCollection<T>: Collection {
 
     mutating func shutdown() {
         stop()
-        if fileDescriptor != 0 {
-            close(fileDescriptor)
-        }
+        close(fileDescriptor)
     }
 }

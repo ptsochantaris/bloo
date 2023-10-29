@@ -15,8 +15,10 @@ Bloo uses some of my own utility packages:
 - [Maintini](https://github.com/ptsochantaris/maintini)
 - [PopTimer](https://github.com/ptsochantaris/pop-timer)
 
-And the (not my own but) brilliant SwiftSoup HTML parser:
+And the following (not my own but) brilliant packages:
 - [SwiftSoup](https://github.com/scinfu/SwiftSoup)
+- [SQLite.swift](https://github.com/stephencelis/SQLite.swift)
+- [HTMLString](https://github.com/alexisakers/HTMLString)
 
 ## License
 

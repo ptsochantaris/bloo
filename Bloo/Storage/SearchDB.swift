@@ -4,14 +4,14 @@ import Foundation
 import SQLite
 
 final actor SearchDB {
-    static let shared = SearchDB()
+    static let shared = try! SearchDB()
 
     private let textTable = VirtualTable("text_search")
     private let indexDb: Connection
 
     private var documentIndex: MemoryMappedCollection<Vector>
 
-    init() {
+    init() throws {
         let file = documentsPath.appending(path: "index.sqlite3", directoryHint: .notDirectory)
         let fm = FileManager.default
         if !fm.fileExists(atPath: documentsPath.path) {
@@ -33,8 +33,8 @@ final actor SearchDB {
 
         indexDb = c
 
-        documentIndex = MemoryMappedCollection(at: documentsPath.appending(path: "document.embeddings", directoryHint: .notDirectory).path,
-                                               minimumCapacity: 1000)
+        documentIndex = try MemoryMappedCollection(at: documentsPath.appending(path: "document.embeddings", directoryHint: .notDirectory).path,
+                                                   minimumCapacity: 1000)
 
         Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }
@@ -68,7 +68,7 @@ final actor SearchDB {
         }
 
         if let embeddingResult = await embeddings.value {
-            documentIndex.append(embeddingResult)
+            try documentIndex.append(embeddingResult)
             Log.crawling(id, .info).log("Added document embedding for '\(content.title ?? "<no title>")'")
         }
     }
@@ -90,11 +90,12 @@ final actor SearchDB {
     func searchQuery(_ text: String, limit: Int) async throws -> (items: [Search.Result], count: Int) {
         let start = Date.now
         defer {
-            Log.search(.info).log("Keyword search query time: \(-start.timeIntervalSinceNow) sec")
+            Log.search(.info).log("Search query time: \(-start.timeIntervalSinceNow) sec")
         }
 
         let searchTerms = text.split(separator: " ").map { String($0) }
         let terms = searchTerms.map { $0.lowercased().sqlSafe }.joined(separator: " ")
+        let query = searchTerms.count == 1 ? terms : "NEAR(\(terms))"
         let elements = try Array(indexDb.prepareRowIterator(
             """
             select
@@ -109,7 +110,7 @@ final actor SearchDB {
 
             from text_search
 
-            where text_search match '\(terms)'
+            where text_search match '\(query)'
 
             order by bm25(text_search, 0, 0, 10, 0, 100), lastModified desc
 
@@ -166,7 +167,7 @@ final actor SearchDB {
 
             let d1 = e1.displayDate ?? .distantPast
             let d2 = e2.displayDate ?? .distantPast
-            if d1 < d2  {
+            if d1 < d2 {
                 R2 += 0.01
             } else if d1 > d2 {
                 R1 += 0.01
