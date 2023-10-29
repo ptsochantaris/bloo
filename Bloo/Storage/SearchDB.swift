@@ -19,18 +19,11 @@ final actor SearchDB {
         }
         let c = try! Connection(file.path)
         try! c.run(DB.pragmas)
-
-        let fts5Config = FTS5Config()
-        fts5Config.column(DB.domainRow, [.unindexed])
-        fts5Config.column(DB.urlRow, [.unindexed])
-        fts5Config.column(DB.titleRow)
-        fts5Config.column(DB.descriptionRow)
-        fts5Config.column(DB.contentRow)
-        fts5Config.column(DB.keywordRow)
-        fts5Config.column(DB.thumbnailUrlRow, [.unindexed])
-        fts5Config.column(DB.lastModifiedRow, [.unindexed])
-        try! c.run(textTable.create(.FTS5(fts5Config), ifNotExists: true))
-
+        
+        try! c.run("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS "text_search"
+            USING fts5("domain" UNINDEXED, "url" UNINDEXED, "title", "description", "content", "keywords", "thumbnailUrl" UNINDEXED, "lastModified" UNINDEXED, tokenize="porter unicode61 remove_diacritics 1")
+        """)
         indexDb = c
 
         documentIndex = try MemoryMappedCollection(at: documentsPath.appending(path: "document.embeddings", directoryHint: .notDirectory).path,
@@ -110,9 +103,9 @@ final actor SearchDB {
 
             from text_search
 
-            where text_search match '\(query)'
+            where text_search match '\(query)' and rank match 'bm25(0, 0, 10, 0, 100)'
 
-            order by bm25(text_search, 0, 0, 10, 0, 100), lastModified desc
+            order by rank, lastModified desc
 
             limit \(3000)
             """))
