@@ -15,23 +15,24 @@ struct MemoryMappedCollection<T>: Collection {
     }
 
     final class MemoryMappedIterator: IteratorProtocol {
-        private var position = 0
+        private var position = MemoryLayout<Int>.stride
         private let buffer: UnsafeMutableRawPointer
         private let step = MemoryLayout<T>.stride
-        private let counterSize = MemoryLayout<Int>.stride
+        private let end: Int
 
         fileprivate init(buffer: UnsafeMutableRawPointer) {
             self.buffer = buffer
+            end = position + buffer.load(as: Int.self) * step
         }
 
         func next() -> T? {
-            if position == buffer.load(as: Int.self) {
+            if position == end {
                 return nil
             }
             defer {
-                position += 1
+                position += step
             }
-            return buffer.load(fromByteOffset: counterSize + step * position, as: T.self)
+            return buffer.load(fromByteOffset: position, as: T.self)
         }
     }
 

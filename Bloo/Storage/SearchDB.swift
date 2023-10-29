@@ -19,7 +19,7 @@ final actor SearchDB {
         }
         let c = try! Connection(file.path)
         try! c.run(DB.pragmas)
-        
+
         try! c.run("""
             CREATE VIRTUAL TABLE IF NOT EXISTS "text_search"
             USING fts5("domain" UNINDEXED, "url" UNINDEXED, "title", "description", "content", "keywords", "thumbnailUrl" UNINDEXED, "lastModified" UNINDEXED, tokenize="porter unicode61 remove_diacritics 1")
@@ -62,7 +62,7 @@ final actor SearchDB {
 
         if let embeddingResult = await embeddings.value {
             try documentIndex.append(embeddingResult)
-            Log.crawling(id, .info).log("Added document embedding for '\(content.title ?? "<no title>")'")
+            Log.crawling(id, .info).log("Added document embedding for '\(content.title ?? "<no title>")', rowId: \(embeddingResult.rowId)")
         }
     }
 
@@ -110,13 +110,11 @@ final actor SearchDB {
             limit \(3000)
             """))
 
-        let numResults = elements.count
-
         guard let searchVector = await Embedding.vector(for: text) else {
             let res = elements.map {
                 Search.Result(element: $0, terms: searchTerms, relevantVector: nil)
             }
-            return (res, numResults)
+            return (res, res.count)
         }
 
         let rowIds = Set(elements.map { $0[DB.rowId] })
@@ -129,7 +127,8 @@ final actor SearchDB {
 
         let results = elements
             .map { Search.Result(element: $0, terms: searchTerms, relevantVector: vectorLookup[$0[DB.rowId]]) }
-            .uniqued { $0.hashValueForResults }
+            .uniqued { $0.titleHashValueForResults }
+            .uniqued { $0.bodyHashValueForResults }
 
         let searchCoordsBytes = malloc(2048)!
         let searchCoordsBuffer = searchCoordsBytes.assumingMemoryBound(to: Float.self)
@@ -145,21 +144,26 @@ final actor SearchDB {
         withUnsafePointer(to: searchVector.coords) { _ = memcpy(searchCoordsBytes, $0, 2048) }
 
         let res = results.max(count: limit) { e1, e2 in
-            guard let v1 = vectorLookup[e1.rowId], let v2 = vectorLookup[e2.rowId] else {
+            guard let v1 = vectorLookup[e1.rowId] else {
+                Log.search(.error).log("Could not find an embedding for document '\(e1.title)', at rowId \(e1.rowId)")
                 return false
             }
             var R1: Float = 0
             withUnsafePointer(to: v1.coords) { _ = memcpy(comparisonBytes, $0, 2048) }
             vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R1, 512)
             R1 /= (v1.magnitude * searchVectorMagnitude)
+            let d1 = e1.displayDate ?? .distantPast
 
+            guard let v2 = vectorLookup[e2.rowId] else {
+                Log.search(.error).log("Could not find an embedding for document '\(e2.title)', at rowId \(e2.rowId)")
+                return false
+            }
             var R2: Float = 0
             withUnsafePointer(to: v2.coords) { _ = memcpy(comparisonBytes, $0, 2048) }
             vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R2, 512)
             R2 /= (v2.magnitude * searchVectorMagnitude)
-
-            let d1 = e1.displayDate ?? .distantPast
             let d2 = e2.displayDate ?? .distantPast
+
             if d1 < d2 {
                 R2 += 0.01
             } else if d1 > d2 {
@@ -169,6 +173,6 @@ final actor SearchDB {
             return R1 < R2
         }
 
-        return (res, min(1000, numResults))
+        return (res, min(1000, results.count))
     }
 }
