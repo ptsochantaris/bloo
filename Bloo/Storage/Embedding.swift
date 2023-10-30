@@ -1,19 +1,19 @@
 import Accelerate
 import Foundation
+import Lista
 @preconcurrency import NaturalLanguage
 
 private final actor Rental<T: Sendable> {
-    private var items: [T]
+    private let items = Lista<T>()
 
     private var createBlock: () async throws -> T
 
     init(createBlock: @escaping () async throws -> T) {
-        items = [T]()
         self.createBlock = createBlock
     }
 
     func reserve() async throws -> T {
-        if let existing = items.popLast() {
+        if let existing = items.pop() {
             return existing
         }
         return try await createBlock()
@@ -84,15 +84,15 @@ enum Embedding {
         return Vector(coordVector: vector, rowId: rowId, text: text)
     }
 
-    static func vectors(for sentences: [String], at rowId: Int64) async -> [Vector] {
+    static func vectors(for sentences: [String], at rowId: Int64) async -> Lista<Vector> {
         guard let engine = try? await vectorEngines.reserve() else {
-            return []
+            return Lista()
         }
         defer {
             vectorEngines.release(item: engine)
         }
 
-        var res = [Vector]()
+        let res = Lista<Vector>()
         for rawSentence in sentences {
             let trimmed = rawSentence.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.count > 2, trimmed.contains(" "), let vec = await vector(for: trimmed, rowId: rowId) {
@@ -115,7 +115,7 @@ enum Embedding {
         } else {
             text
         }
-        var sentences = [String]()
+        let sentences = Lista<String>()
         engine.string = allText
         engine.enumerateTokens(in: allText.wholeRange) { range, _ in
             let text = allText[range].trimmingCharacters(in: Self.charsetForTrimming)

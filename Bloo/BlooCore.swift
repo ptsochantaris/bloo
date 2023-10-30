@@ -17,7 +17,7 @@ final class BlooCore {
     var clearSearches = false
     var showAddition = false
 
-    private var domains = [Domain]()
+    private let domains = Lista<Domain>()
 
     var domainSections: [Domain.Section] {
         var disposableDomainPresent = false

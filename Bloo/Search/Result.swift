@@ -1,5 +1,6 @@
 import CoreSpotlight
 import Foundation
+import Lista
 import SQLite
 
 extension Search {
@@ -99,7 +100,7 @@ extension Search {
         }
 
         var matchedKeywords: String? {
-            var res = [String]()
+            let res = Lista<String>()
             for term in terms {
                 if let found = keywords.first(where: { $0.localizedCaseInsensitiveCompare(term) == .orderedSame }) {
                     res.append("#\(found)")

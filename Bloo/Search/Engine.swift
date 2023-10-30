@@ -1,5 +1,4 @@
 import Foundation
-import Lista
 import PopTimer
 import SwiftUI
 

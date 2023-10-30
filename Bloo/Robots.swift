@@ -1,4 +1,5 @@
 import Foundation
+import Lista
 
 // Based on: https://github.com/chrisakroyd/robots-txt-parser/blob/master/src/parser.js
 
@@ -47,8 +48,8 @@ struct Robots {
     }
 
     private struct Agent {
-        var allow: [GroupMemberRecord] = []
-        var disallow: [GroupMemberRecord] = []
+        let allow = Lista<GroupMemberRecord>()
+        let disallow = Lista<GroupMemberRecord>()
         var crawlDelay = 0
 
         func canProceedTo(to: String) -> Decision {
