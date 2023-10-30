@@ -14,25 +14,28 @@ struct MemoryMappedCollection<T>: Collection {
         }
     }
 
-    final class MemoryMappedIterator: IteratorProtocol {
-        private var position = MemoryLayout<Int>.stride
+    struct MemoryMappedIterator: IteratorProtocol {
         private let buffer: UnsafeMutableRawPointer
-        private let step = MemoryLayout<T>.stride
+        private let step: Int
         private let end: Int
 
-        fileprivate init(buffer: UnsafeMutableRawPointer) {
+        private var position: Int
+
+        fileprivate init(buffer: UnsafeMutableRawPointer, stride: Int, counterSize: Int) {
             self.buffer = buffer
-            end = position + buffer.load(as: Int.self) * step
+            position = counterSize
+            step = stride
+            end = counterSize + buffer.loadUnaligned(as: Int.self) * stride
         }
 
-        func next() -> T? {
+        mutating func next() -> T? {
             if position == end {
                 return nil
             }
             defer {
                 position += step
             }
-            return buffer.load(fromByteOffset: position, as: T.self)
+            return buffer.loadUnaligned(fromByteOffset: position, as: T.self)
         }
     }
 
@@ -41,7 +44,7 @@ struct MemoryMappedCollection<T>: Collection {
 
     var count: Int {
         get {
-            buffer.load(as: Int.self)
+            buffer.loadUnaligned(as: Int.self)
         }
         set {
             buffer.storeBytes(of: newValue, as: Int.self)
@@ -106,7 +109,7 @@ struct MemoryMappedCollection<T>: Collection {
     }
 
     func makeIterator() -> MemoryMappedIterator {
-        MemoryMappedIterator(buffer: buffer)
+        MemoryMappedIterator(buffer: buffer, stride: step, counterSize: counterSize)
     }
 
     mutating func delete(at index: Int) {
@@ -127,7 +130,7 @@ struct MemoryMappedCollection<T>: Collection {
     }
 
     subscript(position: Int) -> T {
-        buffer.load(fromByteOffset: offset(for: position), as: T.self)
+        buffer.loadUnaligned(fromByteOffset: offset(for: position), as: T.self)
     }
 
     private mutating func start(minimumCapacity: Int) throws {
