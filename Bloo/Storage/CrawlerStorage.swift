@@ -47,7 +47,7 @@ private struct TableWrapper: Equatable {
 
     mutating func delete(url: String, in db: Connection) throws {
         let totalChanges = db.totalChanges
-        let count = try db.run(table.filter(DB.urlRow == url).delete())
+        try db.run(table.filter(DB.urlRow == url).delete())
         if totalChanges != db.totalChanges {
             cachedCount = nil
         }
@@ -77,7 +77,7 @@ private struct TableWrapper: Equatable {
         if urlsToSubtract.isPopulated {
             let pendingWithUrl = table.filter(urlsToSubtract.contains(DB.urlRow))
             let totalChanges = db.totalChanges
-            let count = try db.run(pendingWithUrl.delete())
+            try db.run(pendingWithUrl.delete())
             if totalChanges != db.totalChanges {
                 cachedCount = nil
             }
