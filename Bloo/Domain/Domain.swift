@@ -176,6 +176,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
         fileprivate func remove() async throws {
             try await storage.removeAll(purge: true)
+            storage.shutdown()
             await signalState(.deleting)
             await snapshot()
         }
@@ -330,28 +331,21 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 indexResult = try await index(page: url, lastModified: lastModified, lastEtag: etag)
             }
 
-            let newItem: IndexEntry?
-            let newContent: IndexEntry.Content?
-
             switch indexResult {
             case .error:
-                newContent = nil
                 spotlightInvalidationQueue.insert(entry.url)
-                newItem = nil
+                try await storage.handleCrawlCompletion(item: nil, changed: false, url: entry.url, content: nil, newEntries: newEntries)
+                return false
 
             case .noChange:
-                newContent = nil
-                newItem = nil
+                try await storage.handleCrawlCompletion(item: entry, changed: false, url: entry.url, content: nil, newEntries: newEntries)
+                return false
 
             case let .indexed(csEntry, createdItem, newPendingItems, content):
-                newContent = content
                 spotlightQueue.append(csEntry)
-                newEntries = newPendingItems
-                newItem = createdItem
+                try await storage.handleCrawlCompletion(item: createdItem, changed: true, url: entry.url, content: content, newEntries: newPendingItems)
+                return true
             }
-
-            try await storage.handleCrawlCompletion(newItem: newItem, url: entry.url, content: newContent, newEntries: newEntries)
-            return newContent != nil
         }
 
         private func snapshot() async {

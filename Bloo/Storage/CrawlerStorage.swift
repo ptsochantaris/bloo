@@ -17,16 +17,20 @@ private struct TableWrapper: Equatable {
     }
 
     mutating func append(item: IndexEntry, in db: Connection) throws {
+        let totalChanges = db.totalChanges
         switch item {
         case let .pending(url, isSitemap):
             try db.run(table.insert(or: .replace, DB.urlRow <- url, DB.isSitemapRow <- isSitemap))
         case let .visited(url, lastModified, etag):
             try db.run(table.insert(or: .replace, DB.urlRow <- url, DB.lastModifiedRow <- lastModified, DB.etagRow <- etag))
         }
-        cachedCount = nil
+        if totalChanges != db.totalChanges, let c = cachedCount {
+            cachedCount = c + 1
+        }
     }
 
     mutating func append(items: any Collection<IndexEntry>, in db: Connection) throws {
+        let totalChanges = db.totalChanges
         let setters = items.map {
             switch $0 {
             case let .pending(url, isSitemap):
@@ -36,12 +40,17 @@ private struct TableWrapper: Equatable {
             }
         }
         try db.run(table.insertMany(or: .ignore, setters))
-        cachedCount = nil
+        if totalChanges != db.totalChanges {
+            cachedCount = nil
+        }
     }
 
     mutating func delete(url: String, in db: Connection) throws {
-        try db.run(table.filter(DB.urlRow == url).delete())
-        cachedCount = nil
+        let totalChanges = db.totalChanges
+        let count = try db.run(table.filter(DB.urlRow == url).delete())
+        if totalChanges != db.totalChanges {
+            cachedCount = nil
+        }
     }
 
     private func create(in db: Connection) throws {
@@ -67,8 +76,11 @@ private struct TableWrapper: Equatable {
         let urlsToSubtract = try db.prepare(otherTable.table).map { $0[DB.urlRow] }
         if urlsToSubtract.isPopulated {
             let pendingWithUrl = table.filter(urlsToSubtract.contains(DB.urlRow))
-            try db.run(pendingWithUrl.delete())
-            cachedCount = nil
+            let totalChanges = db.totalChanges
+            let count = try db.run(pendingWithUrl.delete())
+            if totalChanges != db.totalChanges {
+                cachedCount = nil
+            }
         }
     }
 
@@ -94,13 +106,13 @@ private struct TableWrapper: Equatable {
         } else {
             try db.run(table.delete())
         }
-        cachedCount = nil
+        cachedCount = 0
     }
 
     mutating func cloneAndClear(as newName: TableWrapper, in db: Connection) throws {
         try db.run(table.rename(newName.table))
         try create(in: db)
-        cachedCount = nil
+        cachedCount = 0
     }
 }
 
@@ -144,9 +156,10 @@ final class CrawlerStorage {
             try pending.clear(purge: purge, in: db)
         }
         try await SearchDB.shared.purgeDomain(id: id)
-        if purge {
-            db = nil
-        }
+    }
+
+    func shutdown() {
+        db = nil
     }
 
     func prepareForRefresh() throws {
@@ -172,7 +185,7 @@ final class CrawlerStorage {
         return result
     }
 
-    func handleCrawlCompletion(newItem: IndexEntry?, url: String, content: IndexEntry.Content?, newEntries: Set<IndexEntry>?) async throws {
+    func handleCrawlCompletion(item: IndexEntry?, changed: Bool, url: String, content: IndexEntry.Content?, newEntries: Set<IndexEntry>?) async throws {
         guard let db else { return }
         try pending.delete(url: url, in: db)
 
@@ -182,10 +195,11 @@ final class CrawlerStorage {
             }
         }
 
-        if let newItem {
-            try visited.append(item: newItem, in: db)
-
-            Log.crawling(id, .info).log("Visited URL: \(newItem.url)")
+        if let item {
+            try visited.append(item: item, in: db)
+            if changed {
+                Log.crawling(id, .info).log("Visited URL: \(item.url)")
+            }
         }
 
         if var newEntries, newEntries.isPopulated {
