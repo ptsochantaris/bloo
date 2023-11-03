@@ -145,13 +145,13 @@ struct Robots {
                 // https://developers.google.com/webmasters/control-crawl-index/docs/robots_txt#order-of-precedence-for-group-member-records
 
             case "allow" where agent.isPopulated && record.value.isPopulated:
-                if let r = GroupMemberRecord(record.value), var a = _agents[agent] {
+                if let r = GroupMemberRecord(record.value), let a = _agents[agent] {
                     a.allow.append(r)
                     _agents[agent] = a
                 }
 
             case "disallow" where agent.isPopulated && record.value.isPopulated:
-                if let r = GroupMemberRecord(record.value), var a = _agents[agent] {
+                if let r = GroupMemberRecord(record.value), let a = _agents[agent] {
                     a.disallow.append(r)
                     _agents[agent] = a
                 }
