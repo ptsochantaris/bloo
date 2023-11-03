@@ -56,10 +56,10 @@ extension Search {
             }
         }
 
-        var resultState: Engine.State = .noSearch
+        var state = EngineState.noSearch
 
         var title: String {
-            switch resultState {
+            switch state {
             case .noResults, .noSearch, .searching, .updating:
                 return "Bloo"
             case .results:
@@ -72,9 +72,9 @@ extension Search {
             }
         }
 
-        func updateResultState(_ newState: Engine.State) {
+        func updateResultState(_ newState: EngineState) {
             withAnimation(.easeInOut(duration: 0.3)) { [self] in
-                resultState = newState
+                state = newState
             }
         }
 
@@ -88,7 +88,7 @@ extension Search {
                 .none
 
             } else {
-                switch resultState {
+                switch state {
                 case .noResults, .noSearch, .searching:
                     if expandIfNeeded {
                         .full(trimmedText)
@@ -139,7 +139,7 @@ extension Search {
             }
             Log.search(.default).log("Starting new query: '\(searchText)'")
 
-            switch resultState {
+            switch state {
             case .noResults, .noSearch:
                 updateResultState(.searching(searchText))
             case let .results(mode, array, count):

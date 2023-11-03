@@ -233,7 +233,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
             if try storage.counts.indexed == 0 {
                 let url = "https://\(id)/sitemap.xml"
-                try await storage.appendPending(.pending(url: url, isSitemap: true))
+                try storage.appendPending(.pending(url: url, isSitemap: true))
 
                 if let providedSitemaps = robots?.sitemaps {
                     let sitemapEntries = providedSitemaps
@@ -242,12 +242,12 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     try storage.appendPending(items: sitemapEntries)
                 }
 
-                try await storage.appendPending(bootupEntry)
+                try storage.appendPending(bootupEntry)
             }
 
             try storage.substractIndexedFromPending()
             if try storage.counts.pending == 0 {
-                try await storage.appendPending(bootupEntry)
+                try storage.appendPending(bootupEntry)
             }
 
             if signalStateChange {

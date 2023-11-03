@@ -17,7 +17,7 @@ final class BlooCore {
     var clearSearches = false
     var showAddition = false
 
-    private let domains = Lista<Domain>()
+    private var domains = [Domain]() // not Lista, needs to be observable
 
     var domainSections: [Domain.Section] {
         var disposableDomainPresent = false

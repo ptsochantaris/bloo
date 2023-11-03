@@ -408,7 +408,7 @@ private struct DomainGrid: View {
 }
 
 private struct SearchResults: View {
-    let results: Search.Engine.State
+    let results: EngineState
     let filter: String
 
     var body: some View {
@@ -456,7 +456,7 @@ private struct SearchSection: View {
     init(searcher: Search.Engine) {
         self.searcher = searcher
 
-        switch searcher.resultState {
+        switch searcher.state {
         case .noSearch:
             title = "Search"
             showProgress = false
@@ -554,7 +554,7 @@ private struct SearchSection: View {
             }
 
             if showResults {
-                SearchResults(results: searcher.resultState, filter: filter)
+                SearchResults(results: searcher.state, filter: filter)
             }
         }
         .frame(maxWidth: .infinity)
@@ -727,7 +727,7 @@ private struct Admin: View {
                         .focused($additionFocused)
                 }
 
-                if case .noSearch = searcher.resultState {
+                if case .noSearch = searcher.state {
                     EmptyView()
                 } else {
                     SearchSection(searcher: searcher)
