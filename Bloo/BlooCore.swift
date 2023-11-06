@@ -121,7 +121,7 @@ final class BlooCore {
     }
 
     var isRunningAndBusy: Bool {
-        runState == .running && domainSections.contains(where: \.state.isActive)
+        runState == .running && domainSections.contains(where: \.state.isNotIdle)
     }
 
     func waitForIndexingToEnd() async {

@@ -111,14 +111,20 @@ private struct DomainRow: View {
                 ProgressView(value: Double(indexed) / max(1, Double(pending + indexed)))
                 FooterText(text: url)
 
-            case let .paused(indexed, pending, transitioning, _):
+            case let .pausing(indexed, pending, _):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
                     Spacer(minLength: 0)
-                    if transitioning {
-                        Text("Pausing")
-                            .font(.blooBody)
-                    } else if indexed > 0 || pending > 0 {
+                    Text("Pausing")
+                        .font(.blooBody)
+                }
+                ProgressView(value: Double(indexed) / max(1, Double(pending + indexed)))
+
+            case let .paused(indexed, pending, _):
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    DomainTitle(domain: domain)
+                    Spacer(minLength: 0)
+                    if indexed > 0 || pending > 0 {
                         HStack(spacing: 2) {
                             Text(pending, format: .number)
                                 .font(.blooBody).bold()

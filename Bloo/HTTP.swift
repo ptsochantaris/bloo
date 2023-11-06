@@ -1,6 +1,7 @@
 import Foundation
+import Network
 
-enum Network {
+enum HTTP {
     private static let urlCache = {
         let meg = 1000 * 1000
         let gig = 1000 * meg
@@ -15,7 +16,6 @@ enum Network {
         let config = URLSessionConfiguration.default
         config.httpShouldUsePipelining = true
         config.httpShouldSetCookies = false
-        config.waitsForConnectivity = true
         config.httpCookieAcceptPolicy = .never
         config.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Bloo/1.0.0"]
         config.timeoutIntervalForRequest = 20.0
@@ -74,12 +74,26 @@ enum Network {
                 } else {
                     Log.app(.error).log("Connection error to \(location), retrying in a moment: \(error.localizedDescription) - code: \(code)")
                     try? await Task.sleep(for: .seconds(6))
+                    await waitForNetworkIfNeeded()
                 }
             }
         }
     }
 
+    private static let monitor = {
+        let monitor = NWPathMonitor()
+        monitor.start(queue: DispatchQueue.global(qos: .background))
+        return monitor
+    }()
+
+    private static func waitForNetworkIfNeeded() async {
+        for await path in monitor where path.status == .satisfied && !path.isExpensive && !path.isConstrained {
+            return
+        }
+    }
+
     static func getImageData(from url: URL) async -> Data? {
-        try? await urlSession.data(from: url).0
+        await waitForNetworkIfNeeded()
+        return try? await urlSession.data(from: url).0
     }
 }

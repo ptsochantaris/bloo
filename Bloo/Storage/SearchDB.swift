@@ -48,19 +48,9 @@ final actor SearchDB {
                              DB.thumbnailUrlRow <- content.thumbnailUrl,
                              DB.lastModifiedRow <- content.lastModified))
 
-        guard let sparseContent = content.sparseContent ?? content.title, sparseContent.isPopulated else {
-            return
-        }
-
-        // free this actor up while we produce the vector
-        let embeddings = Task<Vector?, Never>.detached {
-            if let document = content.condensedContent ?? content.title ?? content.description {
-                return await Embedding.vector(for: document, rowId: newRowId)
-            }
-            return nil
-        }
-
-        if let embeddingResult = await embeddings.value {
+        if let sparseContent = content.sparseContent ?? content.title, sparseContent.isPopulated,
+           let document = content.condensedContent ?? content.title ?? content.description,
+           let embeddingResult = await Embedding.vector(for: document, rowId: newRowId) {
             try documentIndex.append(embeddingResult)
             Log.crawling(id, .info).log("Added document embedding for '\(content.title ?? "<no title>")', rowId: \(embeddingResult.rowId)")
         }

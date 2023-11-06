@@ -35,7 +35,7 @@
 		16B67CF42AD4229400366266 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B67CF32AD4229400366266 /* Settings.swift */; };
 		16B67CF62AD422D900366266 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B67CF52AD422D900366266 /* Log.swift */; };
 		16B67CF82AD422F300366266 /* Collection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B67CF72AD422F300366266 /* Collection.swift */; };
-		16E3EF5B2AD0881D00CF9B80 /* Network.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E3EF5A2AD0881D00CF9B80 /* Network.swift */; };
+		16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */; };
 		16E3EF5D2AD088A800CF9B80 /* Semalot in Frameworks */ = {isa = PBXBuildFile; productRef = 16E3EF5C2AD088A800CF9B80 /* Semalot */; };
 		16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* BlooApp.swift */; };
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
@@ -79,7 +79,7 @@
 		16B67CF32AD4229400366266 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		16B67CF52AD422D900366266 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		16B67CF72AD422F300366266 /* Collection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Collection.swift; sourceTree = "<group>"; };
-		16E3EF5A2AD0881D00CF9B80 /* Network.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Network.swift; sourceTree = "<group>"; };
+		16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTP.swift; sourceTree = "<group>"; };
 		16E8A0E42AC1F96500CCB10D /* Bloo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bloo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16E8A0E72AC1F96500CCB10D /* BlooApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlooApp.swift; sourceTree = "<group>"; };
 		16E8A0E92AC1F96500CCB10D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -202,7 +202,7 @@
 				1634CF9C2AC367760022A8F6 /* BlooCore.swift */,
 				16E8A0E92AC1F96500CCB10D /* ContentView.swift */,
 				165F10C12AC8802400442892 /* IndexEntry.swift */,
-				16E3EF5A2AD0881D00CF9B80 /* Network.swift */,
+				16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */,
 				16FBCC102AD1D7C300A5A14E /* Robots.swift */,
 				165F10BF2AC87C4600442892 /* SitemapParser.swift */,
 				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
@@ -322,7 +322,7 @@
 				16FD233A2AC4867D00751A85 /* NSImage+Extensions.swift in Sources */,
 				16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */,
 				1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */,
-				16E3EF5B2AD0881D00CF9B80 /* Network.swift in Sources */,
+				16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */,
 				16B67CEC2AD41FA400366266 /* Search.swift in Sources */,
 				165F10C62AC880DC00442892 /* DomainSection.swift in Sources */,
 				16FBCC112AD1D7C300A5A14E /* Robots.swift in Sources */,

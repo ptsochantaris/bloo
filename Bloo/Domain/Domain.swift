@@ -112,7 +112,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
         private func signalState(_ state: State, onlyIfActive: Bool = false) async {
             await MainActor.run {
-                if !onlyIfActive || crawlerDelegate.state.isActive {
+                if !onlyIfActive || crawlerDelegate.state.isStartingOrIndexing {
                     if crawlerDelegate.state != state {
                         // category change, animate
                         withAnimation {
@@ -151,7 +151,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             if let g = goTask {
                 Log.crawling(id, .info).log("Pausing")
                 let counts = try storage.counts
-                let newState = State.paused(counts.indexed, counts.pending, true, resumable)
+                let newState = State.pausing(counts.indexed, counts.pending, resumable)
                 await signalState(newState)
                 goTask = nil
                 try await g.value
@@ -160,7 +160,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         fileprivate func restart(wipingExistingData: Bool) async throws {
-            if await currentState.isActive {
+            if await currentState.isNotIdle {
                 return
             }
             Log.crawling(id, .default).log("Resetting domain \(id)")
@@ -186,7 +186,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         }
 
         private func parseSitemap(at url: String) async -> Set<IndexEntry>? {
-            guard let xmlData = await Network.getData(from: url)?.0 else {
+            guard let xmlData = await HTTP.getData(from: url)?.0 else {
                 Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
                 return nil
             }
@@ -211,7 +211,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
         private func scanRobots() async {
             let url = "https://\(id)/robots.txt"
             Log.crawling(id, .default).log("\(id) - Scanning \(url)")
-            if let data = await Network.getData(from: url)?.0,
+            if let data = await HTTP.getData(from: url)?.0,
                let robotText = String(data: data, encoding: .utf8) {
                 robots = Robots.parse(robotText)
             }
@@ -280,7 +280,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
 
                 // Detect stop
                 let currentState = await currentState
-                if currentState.isActive {
+                if currentState.isStartingOrIndexing {
                     operationCount += 1
                     if operationCount > 59 {
                         operationCount = 0
@@ -297,8 +297,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                     }
 
                 } else {
-                    if case let .paused(x, y, busy, resumeOnLaunch) = currentState, busy {
-                        await signalState(.paused(x, y, false, resumeOnLaunch))
+                    if case let .pausing(x, y, resumeOnLaunch) = currentState {
+                        await signalState(.paused(x, y, resumeOnLaunch))
                     }
                     Log.crawling(id, .default).log("Stopping crawl because of app action")
                     await snapshot()
@@ -397,7 +397,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             var headRequest = URLRequest(url: site)
             headRequest.httpMethod = "head"
 
-            let headResponse = await Network.getData(for: headRequest, lastVisited: lastModified, lastEtag: lastEtag).1
+            let headResponse = await HTTP.getData(for: headRequest, lastVisited: lastModified, lastEtag: lastEtag).1
 
             if headResponse.statusCode >= 300 {
                 if headResponse.statusCode == 304 {
@@ -434,7 +434,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                 return .error
             }
 
-            let contentResult = await Network.getData(from: site)
+            let contentResult = await HTTP.getData(from: site)
 
             guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
                 Log.crawling(id, .error).log("Cannot decode text from \(link)")
@@ -462,8 +462,8 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             guard let body = htmlDoc.body(),
-                  let condensedText = try? body.text(trimAndNormaliseWhitespace: true).removingHTMLEntities(),
-                  let sparseText = try? body.text(trimAndNormaliseWhitespace: false).removingHTMLEntities()
+                  let condensedText = (try? body.text(trimAndNormaliseWhitespace: true))?.removingHTMLEntities(),
+                  let sparseText = (try? body.text(trimAndNormaliseWhitespace: false))?.removingHTMLEntities()
             else {
                 Log.crawling(id, .error).log("Cannot parse text in \(link)")
                 return .error
@@ -473,7 +473,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             let imageFileUrl = Task<URL?, Never>.detached { [id] in
                 if let ogImage,
                    let thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false),
-                   let data = await Network.getImageData(from: thumbnailUrl),
+                   let data = await HTTP.getImageData(from: thumbnailUrl),
                    let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
                    let dataToSave = image.jpegData {
                     return Self.storeImageData(dataToSave, for: id, sourceUrl: ogImage)
@@ -551,6 +551,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
             }
 
             let thumbnailUrl = await imageFileUrl.value
+
             let newContent = IndexEntry.Content(title: title,
                                                 description: summaryContent,
                                                 sparseContent: sparseText,
@@ -558,6 +559,7 @@ final class Domain: Identifiable, CrawlerDelegate, Sendable {
                                                 keywords: keywords.joined(separator: ", "),
                                                 thumbnailUrl: thumbnailUrl?.absoluteString,
                                                 lastModified: lastModified)
+
             let indexed = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders)
 
             let attributes = CSSearchableItemAttributeSet(contentType: .url)
