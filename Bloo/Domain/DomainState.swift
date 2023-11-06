@@ -15,10 +15,10 @@ extension Domain {
             hasher.combine(title)
         }
 
-        case loading(PostAddAction), starting(Int, Int), pausing(Int, Int, Bool), paused(Int, Int, Bool), indexing(Int, Int, String), done(Int), deleting
+        case starting(Int, Int), pausing(Int, Int, Bool), paused(Int, Int, Bool), indexing(Int, Int, String), done(Int), deleting
 
         static var allCases: [Self] {
-            [.loading(.none), .starting(0, 0), .indexing(0, 0, ""), .pausing(0, 0, false), defaultState, .done(0)]
+            [.starting(0, 0), .indexing(0, 0, ""), .pausing(0, 0, false), defaultState, .done(0)]
         }
 
         static var defaultState: Self {
@@ -28,8 +28,6 @@ extension Domain {
         @ViewBuilder
         var symbol: some View {
             switch self {
-            case .loading:
-                StatusIcon(name: "gear", color: .yellow)
             case .starting:
                 StatusIcon(name: "magnifyingglass", color: .yellow)
             case .deleting:
@@ -47,7 +45,7 @@ extension Domain {
             switch self {
             case .paused:
                 true
-            case .deleting, .done, .indexing, .loading, .pausing, .starting:
+            case .deleting, .done, .indexing, .pausing, .starting:
                 false
             }
         }
@@ -56,7 +54,7 @@ extension Domain {
             switch self {
             case let .paused(_, _, reusumable):
                 reusumable
-            case .deleting, .done, .indexing, .loading, .pausing, .starting:
+            case .deleting, .done, .indexing, .pausing, .starting:
                 false
             }
         }
@@ -65,7 +63,7 @@ extension Domain {
             switch self {
             case .done, .paused:
                 true
-            case .deleting, .indexing, .loading, .pausing, .starting:
+            case .deleting, .indexing, .pausing, .starting:
                 false
             }
         }
@@ -74,14 +72,14 @@ extension Domain {
             switch self {
             case .done, .paused:
                 true
-            case .deleting, .indexing, .loading, .pausing, .starting:
+            case .deleting, .indexing, .pausing, .starting:
                 false
             }
         }
 
         var canStop: Bool {
             switch self {
-            case .deleting, .done, .loading, .paused, .pausing, .starting:
+            case .deleting, .done, .paused, .pausing, .starting:
                 false
             case .indexing:
                 true
@@ -92,14 +90,14 @@ extension Domain {
             switch self {
             case .done, .paused:
                 false
-            case .deleting, .indexing, .loading, .pausing, .starting:
+            case .deleting, .indexing, .pausing, .starting:
                 true
             }
         }
 
         var isStartingOrIndexing: Bool {
             switch self {
-            case .deleting, .done, .loading, .paused, .pausing:
+            case .deleting, .done, .paused, .pausing:
                 false
             case .indexing, .starting:
                 true
@@ -114,14 +112,13 @@ extension Domain {
             case .paused: "Paused"
             case .pausing: "Pausing"
             case .deleting: "Deleting"
-            case .loading: "Loading"
             }
         }
 
         var logText: String {
             switch self {
             case let .done(count): "Completed, \(count) indexed items"
-            case .deleting, .indexing, .loading, .paused, .pausing, .starting: title
+            case .deleting, .indexing, .paused, .pausing, .starting: title
             }
         }
     }

@@ -36,7 +36,7 @@ final class BlooCore {
             }
         }
         if disposableDomainPresent {
-            domains.removeAll { $0.shouldDispose }
+            domains.removeAll { $0.state == .deleting }
         }
         return Domain.State.allCases.compactMap {
             if let list = buckets[$0], list.count > 0 {
@@ -116,7 +116,7 @@ final class BlooCore {
         snapshotter.start()
 
         for domain in domains where domain.state.shouldResume {
-            try? await domain.start()
+            try? await domain.crawler.start()
         }
     }
 

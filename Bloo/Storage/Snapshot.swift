@@ -37,7 +37,7 @@ extension Storage {
                 self.state = state
             case let .pausing(a, b, c):
                 self.state = .paused(a, b, c)
-            case .indexing, .loading, .starting:
+            case .indexing, .starting:
                 self.state = .paused(0, 0, true)
             }
         }

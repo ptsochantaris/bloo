@@ -76,13 +76,6 @@ private struct DomainRow: View {
     var body: some View {
         VStack(alignment: .leading) {
             switch domain.state {
-            case .loading:
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    DomainTitle(domain: domain)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxHeight: .infinity)
-
             case let .starting(indexed, pending):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain)
@@ -165,14 +158,14 @@ private struct DomainRow: View {
             if domain.state.canStart {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        try await domain?.start()
+                        try await domain?.crawler.start()
                     }
                 } label: {
                     Text("Start")
                 }
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        try await domain?.remove()
+                        try await domain?.crawler.remove()
                     }
                 } label: {
                     Text("Remove")
@@ -180,7 +173,7 @@ private struct DomainRow: View {
             } else if domain.state.canStop {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        try await domain?.pause(resumable: false)
+                        try await domain?.crawler.pause(resumable: false)
                     }
                 } label: {
                     Text("Pause")
@@ -188,14 +181,14 @@ private struct DomainRow: View {
             } else if domain.state.canRestart {
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        try await domain?.restart(wipingExistingData: false)
+                        try await domain?.crawler.restart(wipingExistingData: false)
                     }
                 } label: {
                     Text("Refresh")
                 }
                 Button { [weak domain] in
                     Task { [weak domain] in
-                        try await domain?.remove()
+                        try await domain?.crawler.remove()
                     }
                 } label: {
                     Text("Remove")

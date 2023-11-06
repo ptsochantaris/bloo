@@ -26,6 +26,7 @@
 		165F10C82AC8810D00442892 /* EngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C72AC8810D00442892 /* EngineState.swift */; };
 		1697539D2ACA2F9600C2281D /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 1697539C2ACA2F9600C2281D /* OrderedCollections */; };
 		1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1697539E2ACA350B00C2281D /* Snapshot.swift */; };
+		16ACD37E2AF979BF00993099 /* Crawler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16ACD37D2AF979BF00993099 /* Crawler.swift */; };
 		16B43D252AC7B05D00EB4815 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D232AC7B05D00EB4815 /* README.md */; };
 		16B43D262AC7B05D00EB4815 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D242AC7B05D00EB4815 /* LICENSE */; };
 		16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */; };
@@ -49,7 +50,7 @@
 		16FD233C2AC5CD1600751A85 /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD233B2AC5CD1600751A85 /* String+Extensions.swift */; };
 		16FD233E2AC5CD3600751A85 /* URL+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */; };
 		16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */; };
-		16FDB0FF2ADB450B003A4BBD /* CrawlerStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */; };
+		16FDB0FF2ADB450B003A4BBD /* TableWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FDB0FE2ADB450B003A4BBD /* TableWrapper.swift */; };
 		16FDB1022ADB47A8003A4BBD /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 16FDB1012ADB47A8003A4BBD /* SQLite */; };
 /* End PBXBuildFile section */
 
@@ -70,6 +71,7 @@
 		165F10C52AC880DC00442892 /* DomainSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainSection.swift; sourceTree = "<group>"; };
 		165F10C72AC8810D00442892 /* EngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineState.swift; sourceTree = "<group>"; };
 		1697539E2ACA350B00C2281D /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
+		16ACD37D2AF979BF00993099 /* Crawler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Crawler.swift; sourceTree = "<group>"; };
 		16B43D232AC7B05D00EB4815 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		16B43D242AC7B05D00EB4815 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Extensions.swift"; sourceTree = "<group>"; };
@@ -91,7 +93,7 @@
 		16FD233B2AC5CD1600751A85 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
 		16FD233D2AC5CD3600751A85 /* URL+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+Extensions.swift"; sourceTree = "<group>"; };
 		16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSoup+Extensions.swift"; sourceTree = "<group>"; };
-		16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrawlerStorage.swift; sourceTree = "<group>"; };
+		16FDB0FE2ADB450B003A4BBD /* TableWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableWrapper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -124,7 +126,7 @@
 		16B67CED2AD4210900366266 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
-				16FDB0FE2ADB450B003A4BBD /* CrawlerStorage.swift */,
+				16FDB0FE2ADB450B003A4BBD /* TableWrapper.swift */,
 				1657AAC92AE4298500503669 /* DB.swift */,
 				1657AAC22AE41BED00503669 /* MemoryMappedCollection.swift */,
 				1657AACB2AE4299D00503669 /* SearchDB.swift */,
@@ -153,6 +155,7 @@
 				1634CF962AC365D90022A8F6 /* Domain.swift */,
 				165F10C52AC880DC00442892 /* DomainSection.swift */,
 				16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */,
+				16ACD37D2AF979BF00993099 /* Crawler.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -317,6 +320,7 @@
 				1657AACF2AE502D800503669 /* Embedding.swift in Sources */,
 				165F10C42AC8803C00442892 /* Result.swift in Sources */,
 				165F10C82AC8810D00442892 /* EngineState.swift in Sources */,
+				16ACD37E2AF979BF00993099 /* Crawler.swift in Sources */,
 				16B67CF62AD422D900366266 /* Log.swift in Sources */,
 				165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */,
 				16FD233A2AC4867D00751A85 /* NSImage+Extensions.swift in Sources */,
@@ -337,7 +341,7 @@
 				16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */,
 				1657AAC32AE41BED00503669 /* MemoryMappedCollection.swift in Sources */,
 				1634CF952AC365800022A8F6 /* Storage.swift in Sources */,
-				16FDB0FF2ADB450B003A4BBD /* CrawlerStorage.swift in Sources */,
+				16FDB0FF2ADB450B003A4BBD /* TableWrapper.swift in Sources */,
 				165F10C22AC8802400442892 /* IndexEntry.swift in Sources */,
 				1634CF9D2AC367760022A8F6 /* BlooCore.swift in Sources */,
 			);
@@ -482,7 +486,7 @@
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				DEVELOPMENT_TEAM = X727JSJUGJ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -516,7 +520,7 @@
 				CODE_SIGN_ENTITLEMENTS = Bloo/Bloo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				DEVELOPMENT_TEAM = X727JSJUGJ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;

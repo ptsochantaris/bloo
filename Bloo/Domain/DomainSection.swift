@@ -27,7 +27,7 @@ extension Domain {
         func resumeAll(matchingFilter: String) async throws {
             try await allDomains(matchingFilter: matchingFilter) {
                 if await $0.state.shouldResume {
-                    try await $0.start()
+                    try await $0.crawler.start()
                 }
             }
         }
@@ -35,26 +35,26 @@ extension Domain {
         func removeAll(matchingFilter: String) async throws {
             try await allDomains(matchingFilter: matchingFilter) {
                 if await $0.state.canRemove {
-                    try await $0.remove()
+                    try await $0.crawler.remove()
                 }
             }
         }
 
         func startAll(matchingFilter: String) async throws {
             try await allDomains(matchingFilter: matchingFilter) {
-                try await $0.start()
+                try await $0.crawler.start()
             }
         }
 
         func pauseAll(resumable: Bool, matchingFilter: String) async throws {
             try await allDomains(matchingFilter: matchingFilter) {
-                try await $0.pause(resumable: resumable)
+                try await $0.crawler.pause(resumable: resumable)
             }
         }
 
         func restartAll(wipingExistingData: Bool, matchingFilter: String) async throws {
             try await allDomains(matchingFilter: matchingFilter) {
-                try await $0.restart(wipingExistingData: wipingExistingData)
+                try await $0.crawler.restart(wipingExistingData: wipingExistingData)
             }
         }
     }
