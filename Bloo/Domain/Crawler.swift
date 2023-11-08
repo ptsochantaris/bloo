@@ -47,7 +47,7 @@ final actor Crawler {
     }()
 
     enum IndexResponse {
-        case noChange, error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content)
+        case noChange(viaServerCode: Bool), error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(Set<IndexEntry>?)
     }
 
     init(id: String, url: String) async throws {
@@ -167,10 +167,10 @@ final actor Crawler {
         await snapshot()
     }
 
-    private func parseSitemap(at url: String) async -> Set<IndexEntry>? {
+    private func parseSitemap(at url: String) async -> IndexResponse {
         guard let xmlData = await HTTP.getData(from: url)?.0 else {
             Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
-            return nil
+            return .wasSitemap(nil)
         }
         Log.crawling(id, .default).log("Fetched sitemap from \(url)")
         do {
@@ -179,12 +179,12 @@ final actor Crawler {
             try handleSitemapEntries(from: url, newSitemaps: newSitemaps)
 
             Log.crawling(id, .default).log("Considering \(newUrls.count) potential URLs from sitemap")
-            return newUrls
+            return .wasSitemap(newUrls)
 
         } catch {
             Log.crawling(id, .error).log("XML Parser error in \(url) - \(error.localizedDescription)")
             try? handleSitemapEntries(from: url, newSitemaps: [])
-            return nil
+            return .wasSitemap(nil)
         }
     }
 
@@ -257,7 +257,7 @@ final actor Crawler {
             }
 
             let start = Date()
-            let createdContent = try await crawl(entry: next)
+            let longPause = try await crawl(entry: next)
             let counts = try counts()
             await signalState(.indexing(counts.indexed, counts.pending, next.url), onlyIfActive: true)
 
@@ -273,7 +273,7 @@ final actor Crawler {
                     Self.requestLock.returnTicket()
                 }
 
-                let maxWait = createdContent ? 1 : 0.5
+                let maxWait = longPause ? 1 : 0.2
                 let duration = max(0, maxWait + start.timeIntervalSinceNow)
                 if duration > 0 {
                     try? await Task.sleep(for: .seconds(duration))
@@ -299,34 +299,36 @@ final actor Crawler {
     }
 
     private func crawl(entry: IndexEntry) async throws -> Bool {
-        var newEntries: Set<IndexEntry>?
-        let indexResult: IndexResponse
-
-        switch entry {
+        let indexResult = switch entry {
         case let .pending(url, isSitemap):
             if isSitemap {
-                newEntries = await parseSitemap(at: url)
-                indexResult = .noChange
+                await parseSitemap(at: url)
             } else {
-                indexResult = try await index(page: url, lastModified: nil, lastEtag: nil)
+                try await index(page: url, lastModified: nil, lastEtag: nil)
             }
         case let .visited(url, lastModified, etag):
-            indexResult = try await index(page: url, lastModified: lastModified, lastEtag: etag)
+            try await index(page: url, lastModified: lastModified, lastEtag: etag)
         }
 
         switch indexResult {
         case .error:
             spotlightInvalidationQueue.insert(entry.url)
-            try await handleCrawlCompletion(item: nil, changed: false, url: entry.url, content: nil, newEntries: newEntries)
+            if let db {
+                try pending.delete(url: entry.url, in: db)
+            }
+            return false
+
+        case let .wasSitemap(newEntries):
+            try await handleCrawlCompletion(item: entry, content: nil, newEntries: newEntries)
             return false
 
         case .noChange:
-            try await handleCrawlCompletion(item: entry, changed: false, url: entry.url, content: nil, newEntries: newEntries)
+            try await handleCrawlCompletion(item: entry, content: nil, newEntries: nil)
             return false
 
         case let .indexed(csEntry, createdItem, newPendingItems, content):
             spotlightQueue.append(csEntry)
-            try await handleCrawlCompletion(item: createdItem, changed: true, url: entry.url, content: content, newEntries: newPendingItems)
+            try await handleCrawlCompletion(item: createdItem, content: content, newEntries: newPendingItems)
             return true
         }
     }
@@ -360,7 +362,7 @@ final actor Crawler {
         if headResponse.statusCode >= 300 {
             if headResponse.statusCode == 304 {
                 Log.crawling(id, .info).log("No change (code 304) in \(link)")
-                return .noChange
+                return .noChange(viaServerCode: true)
             } else {
                 Log.crawling(id, .info).log("No content (code \(headResponse.statusCode)) in \(link)")
                 return .error
@@ -373,14 +375,14 @@ final actor Crawler {
 
         if let etagFromHeaders, lastEtag == etagFromHeaders {
             Log.crawling(id, .info).log("No change (same etag) in \(link)")
-            return .noChange
+            return .noChange(viaServerCode: false)
         }
 
         let lastModifiedHeaderDate: Date?
         if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
             if let lastModified, lastModified >= lm {
                 Log.crawling(id, .info).log("No change (same date) in \(link)")
-                return .noChange
+                return .noChange(viaServerCode: false)
             }
             lastModifiedHeaderDate = lm
         } else {
@@ -474,10 +476,12 @@ final actor Crawler {
 
         let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
         let creationDate = Self.isoFormatter.date(from: createdDateString) ?? Self.isoFormatter2.date(from: createdDateString) ?? Self.isoFormatter3.date(from: createdDateString)
-        let keywords = header
-            .metaNameContent(for: "keywords")?.split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            ?? Self.generateKeywords(from: condensedText)
+        let keywords = Self.generateKeywords(from: condensedText)
+
+//        let keywords = header
+//            .metaNameContent(for: "keywords")?.split(separator: ",")
+//            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+//            ?? Self.generateKeywords(from: condensedText)
 
         let lastModified: Date? = if let lastModifiedHeaderDate {
             lastModifiedHeaderDate
@@ -581,8 +585,8 @@ final actor Crawler {
             return nil
         }
         let url = res[DB.urlRow]
-        let isSitemap = res[DB.isSitemapRow] ?? false
         let etag = res[DB.etagRow]
+        let isSitemap = res[DB.isSitemapRow] ?? false
         let lastModified = res[DB.lastModifiedRow]
 
         let result: IndexEntry = if etag != nil || lastModified != nil {
@@ -593,32 +597,26 @@ final actor Crawler {
         return result
     }
 
-    private func handleCrawlCompletion(item: IndexEntry?, changed: Bool, url: String, content: IndexEntry.Content?, newEntries: Set<IndexEntry>?) async throws {
+    private func handleCrawlCompletion(item: IndexEntry, content: IndexEntry.Content?, newEntries: Set<IndexEntry>?) async throws {
         guard let db else { return }
-        try pending.delete(url: url, in: db)
+        try pending.delete(url: item.url, in: db)
 
-        let indexTask = Task { [id] in
-            if let content {
-                try await SearchDB.shared.insert(id: id, url: url, content: content)
-            }
+        if let content {
+            try await SearchDB.shared.insert(id: id, url: item.url, content: content)
+            Log.crawling(id, .info).log("Visited URL: \(item.url)")
         }
 
-        if let item {
-            try visited.append(item: item, in: db)
-            if changed {
-                Log.crawling(id, .info).log("Visited URL: \(item.url)")
-            }
-        }
+        try visited.append(item: item, in: db)
 
-        if var newEntries, newEntries.isPopulated {
-            try visited.subtract(from: &newEntries, in: db)
-            if newEntries.isPopulated {
-                Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
-                try appendPending(items: newEntries)
-            }
+        guard var newEntries, newEntries.isPopulated else {
+            return
         }
-
-        try await indexTask.value
+        try visited.subtract(from: &newEntries, in: db)
+        guard newEntries.isPopulated else {
+            return
+        }
+        Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
+        try appendPending(items: newEntries)
     }
 
     private func appendPending(_ item: IndexEntry) throws {
