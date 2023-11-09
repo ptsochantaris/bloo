@@ -36,24 +36,37 @@ final actor SearchDB {
         documentIndex.shutdown()
     }
 
-    func insert(id: String, url: String, content: IndexEntry.Content) async throws {
-        let newRowId = try indexDb.run(
-            textTable.insert(or: .replace,
-                             DB.domainRow <- id,
-                             DB.urlRow <- url,
-                             DB.titleRow <- content.title,
-                             DB.descriptionRow <- content.description,
-                             DB.contentRow <- content.condensedContent,
-                             DB.keywordRow <- content.keywords,
-                             DB.thumbnailUrlRow <- content.thumbnailUrl,
-                             DB.lastModifiedRow <- content.lastModified))
-
+    func insert(id: String, url: String, content: IndexEntry.Content, existingRowId: Int64?) async throws -> Int64 {
+        let textTableRowId: Int64
+        if let existingRowId {
+            textTableRowId = existingRowId
+            try indexDb.run(textTable
+                .where(DB.rowId == existingRowId)
+                .update(DB.rowId <- existingRowId,
+                        DB.titleRow <- content.title,
+                        DB.descriptionRow <- content.description,
+                        DB.contentRow <- content.condensedContent,
+                        DB.keywordRow <- content.keywords,
+                        DB.thumbnailUrlRow <- content.thumbnailUrl,
+                        DB.lastModifiedRow <- content.lastModified))
+        } else {
+            textTableRowId = try indexDb.run(textTable
+                .insert(DB.domainRow <- id,
+                        DB.urlRow <- url,
+                        DB.titleRow <- content.title,
+                        DB.descriptionRow <- content.description,
+                        DB.contentRow <- content.condensedContent,
+                        DB.keywordRow <- content.keywords,
+                        DB.thumbnailUrlRow <- content.thumbnailUrl,
+                        DB.lastModifiedRow <- content.lastModified))
+        }
         if let sparseContent = content.sparseContent ?? content.title, sparseContent.isPopulated,
            let document = content.condensedContent ?? content.title ?? content.description,
-           let embeddingResult = await Embedding.vector(for: document, rowId: newRowId) {
-            try documentIndex.append(embeddingResult)
+           let embeddingResult = await Embedding.vector(for: document, rowId: textTableRowId) {
+            try documentIndex.insert(embeddingResult)
             Log.crawling(id, .info).log("Added document embedding for '\(content.title ?? "<no title>")', rowId: \(embeddingResult.rowId)")
         }
+        return textTableRowId
     }
 
     func purgeDomain(id: String) throws {

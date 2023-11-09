@@ -1,6 +1,11 @@
 import Foundation
 
-struct MemoryMappedCollection<T>: Collection {
+protocol RowIdentifiable {
+    var rowId: Int64 { get }
+    static var byteOffsetOfRowIdentifier: Int { get }
+}
+
+struct MemoryMappedCollection<T: RowIdentifiable>: Collection {
     // derived from: https://github.com/akirark/MemoryMappedFileSwift
 
     enum MemoryMappedCollectionError: LocalizedError {
@@ -73,29 +78,43 @@ struct MemoryMappedCollection<T>: Collection {
         try start(minimumCapacity: minimumCapacity)
     }
 
-    mutating func append(_ item: T) throws {
-        let originalCount = count
-        let newCount = originalCount + 1
-        if newCount == capacity {
-            stop()
-            try start(minimumCapacity: newCount + 100_000)
-        }
-        buffer.storeBytes(of: item, toByteOffset: offset(for: originalCount), as: T.self)
-        count = newCount
+    mutating func insert(_ item: T) throws {
+        try insert(contentsOf: [item])
     }
 
-    mutating func append(contentsOf sequence: any Collection<T>) throws {
-        var originalCount = count
-        let newCount = originalCount + sequence.count
-        if newCount >= capacity {
+    private func index(for rowId: Int64) -> Int? { // TODO: optimise
+        let start = counterSize + T.byteOffsetOfRowIdentifier
+        let end = start + count * step
+        var index = 0
+        for i in stride(from: start, to: end, by: step) {
+            if buffer.loadUnaligned(fromByteOffset: i, as: Int64.self) == rowId {
+                return index
+            }
+            index += 1
+        }
+        return nil
+    }
+
+    mutating func insert(contentsOf sequence: any Collection<T>) throws {
+        var currentCount = count
+        let newMaxCount = currentCount + sequence.count
+        if newMaxCount >= capacity {
             stop()
-            try start(minimumCapacity: newCount + 100_000)
+            try start(minimumCapacity: newMaxCount + 100_000)
         }
+
+        let originalCount = currentCount
         for item in sequence {
-            buffer.storeBytes(of: item, toByteOffset: offset(for: originalCount), as: T.self)
-            originalCount += 1
+            if let existingIndex = index(for: item.rowId) {
+                buffer.storeBytes(of: item, toByteOffset: offset(for: existingIndex), as: T.self)
+            } else {
+                buffer.storeBytes(of: item, toByteOffset: offset(for: currentCount), as: T.self)
+                currentCount += 1
+            }
         }
-        count = newCount
+        if originalCount != currentCount {
+            count = currentCount
+        }
     }
 
     mutating func deleteAll(where condition: (T) -> Bool) {

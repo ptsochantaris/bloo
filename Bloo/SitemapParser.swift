@@ -18,9 +18,9 @@ final class SitemapParser: NSObject, XMLParserDelegate {
         var xmlUrls = Set<IndexEntry>()
         for try await url in locationHose {
             if url.pathExtension.caseInsensitiveCompare("xml") == .orderedSame {
-                xmlUrls.insert(.pending(url: url.absoluteString, isSitemap: true))
+                xmlUrls.insert(.pending(url: url.absoluteString, isSitemap: true, textRowId: nil))
             } else {
-                siteLocations.insert(.pending(url: url.absoluteString, isSitemap: false))
+                siteLocations.insert(.pending(url: url.absoluteString, isSitemap: false, textRowId: nil))
             }
         }
         return (siteLocations, xmlUrls)

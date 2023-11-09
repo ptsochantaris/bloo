@@ -16,14 +16,19 @@ struct TableWrapper: Equatable {
         try db.pluck(table)
     }
 
+    private static let itemRowSetters = { (item: IndexEntry) -> [Setter] in
+        switch item {
+        case let .pending(url, isSitemap, textRowId):
+            [DB.urlRow <- url, DB.isSitemapRow <- isSitemap, DB.textRowId <- textRowId]
+        case let .visited(url, lastModified, etag, textRowId):
+            [DB.urlRow <- url, DB.lastModifiedRow <- lastModified, DB.etagRow <- etag, DB.textRowId <- textRowId]
+        }
+    }
+
     mutating func append(item: IndexEntry, in db: Connection) throws {
         let totalChanges = db.totalChanges
-        switch item {
-        case let .pending(url, isSitemap):
-            try db.run(table.insert(or: .replace, DB.urlRow <- url, DB.isSitemapRow <- isSitemap))
-        case let .visited(url, lastModified, etag):
-            try db.run(table.insert(or: .replace, DB.urlRow <- url, DB.lastModifiedRow <- lastModified, DB.etagRow <- etag))
-        }
+        let setters = Self.itemRowSetters(item)
+        try db.run(table.insert(or: .ignore, setters))
         if totalChanges != db.totalChanges, let c = cachedCount {
             cachedCount = c + 1
         }
@@ -31,14 +36,7 @@ struct TableWrapper: Equatable {
 
     mutating func append(items: any Collection<IndexEntry>, in db: Connection) throws {
         let totalChanges = db.totalChanges
-        let setters = items.map {
-            switch $0 {
-            case let .pending(url, isSitemap):
-                [DB.urlRow <- url, DB.isSitemapRow <- isSitemap]
-            case let .visited(url, lastModified, etag):
-                [DB.urlRow <- url, DB.lastModifiedRow <- lastModified, DB.etagRow <- etag]
-            }
-        }
+        let setters = items.map { Self.itemRowSetters($0) }
         try db.run(table.insertMany(or: .ignore, setters))
         if totalChanges != db.totalChanges {
             cachedCount = nil
@@ -59,6 +57,7 @@ struct TableWrapper: Equatable {
             $0.column(DB.isSitemapRow)
             $0.column(DB.lastModifiedRow)
             $0.column(DB.etagRow)
+            $0.column(DB.textRowId)
         })
         try db.run(table.createIndex(DB.urlRow, unique: true, ifNotExists: true))
     }
@@ -67,7 +66,7 @@ struct TableWrapper: Equatable {
         let array = items.map(\.url)
         if array.isPopulated {
             let itemsToSubtract = try db.prepare(table.select([DB.urlRow]).filter(array.contains(DB.urlRow)))
-                .map { IndexEntry.pending(url: $0[DB.urlRow], isSitemap: false) }
+                .map { IndexEntry.pending(url: $0[DB.urlRow], isSitemap: false, textRowId: nil) }
             items.subtract(itemsToSubtract)
         }
     }

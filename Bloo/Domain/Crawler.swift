@@ -47,12 +47,12 @@ final actor Crawler {
     }()
 
     enum IndexResponse {
-        case noChange(viaServerCode: Bool), error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(Set<IndexEntry>?)
+        case noChange(viaServerCode: Bool), error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
     }
 
     init(id: String, url: String) async throws {
         self.id = id
-        bootupEntry = .pending(url: url, isSitemap: false)
+        bootupEntry = .pending(url: url, isSitemap: false, textRowId: nil)
 
         let path = domainPath(for: id)
         let file = path.appending(path: "crawler.sqlite3", directoryHint: .notDirectory)
@@ -170,21 +170,17 @@ final actor Crawler {
     private func parseSitemap(at url: String) async -> IndexResponse {
         guard let xmlData = await HTTP.getData(from: url)?.0 else {
             Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
-            return .wasSitemap(nil)
+            return .wasSitemap(newContentUrls: [], newSitemapUrls: [])
         }
         Log.crawling(id, .default).log("Fetched sitemap from \(url)")
         do {
-            let (newUrls, newSitemaps) = try await SitemapParser(data: xmlData).extract()
-            Log.crawling(id, .default).log("Considering \(newSitemaps.count) further sitemap URLs")
-            try handleSitemapEntries(from: url, newSitemaps: newSitemaps)
-
-            Log.crawling(id, .default).log("Considering \(newUrls.count) potential URLs from sitemap")
-            return .wasSitemap(newUrls)
+            let (newContentUrls, newSitemapUrls) = try await SitemapParser(data: xmlData).extract()
+            Log.crawling(id, .default).log("Considering \(newSitemapUrls.count) further sitemap URLs, \(newContentUrls.count) potential content URLs from sitemap")
+            return .wasSitemap(newContentUrls: newContentUrls, newSitemapUrls: newSitemapUrls)
 
         } catch {
             Log.crawling(id, .error).log("XML Parser error in \(url) - \(error.localizedDescription)")
-            try? handleSitemapEntries(from: url, newSitemaps: [])
-            return .wasSitemap(nil)
+            return .wasSitemap(newContentUrls: [], newSitemapUrls: [])
         }
     }
 
@@ -214,11 +210,11 @@ final actor Crawler {
 
         if try counts().indexed == 0 {
             let url = "https://\(id)/sitemap.xml"
-            try appendPending(.pending(url: url, isSitemap: true))
+            try appendPending(.pending(url: url, isSitemap: true, textRowId: nil))
 
             if let providedSitemaps = robots?.sitemaps {
                 let sitemapEntries = providedSitemaps
-                    .map { IndexEntry.pending(url: $0, isSitemap: true) }
+                    .map { IndexEntry.pending(url: $0, isSitemap: true, textRowId: nil) }
 
                 try appendPending(items: sitemapEntries)
             }
@@ -300,14 +296,14 @@ final actor Crawler {
 
     private func crawl(entry: IndexEntry) async throws -> Bool {
         let indexResult = switch entry {
-        case let .pending(url, isSitemap):
+        case let .pending(url, isSitemap, textRowId):
             if isSitemap {
                 await parseSitemap(at: url)
             } else {
-                try await index(page: url, lastModified: nil, lastEtag: nil)
+                try await index(page: url, lastModified: nil, lastEtag: nil, existingTextRowId: textRowId)
             }
-        case let .visited(url, lastModified, etag):
-            try await index(page: url, lastModified: lastModified, lastEtag: etag)
+        case let .visited(url, lastModified, etag, textRowId):
+            try await index(page: url, lastModified: lastModified, lastEtag: etag, existingTextRowId: textRowId)
         }
 
         switch indexResult {
@@ -318,17 +314,17 @@ final actor Crawler {
             }
             return false
 
-        case let .wasSitemap(newEntries):
-            try await handleCrawlCompletion(item: entry, content: nil, newEntries: newEntries)
+        case let .wasSitemap(newContentUrls, newSitemapUrls):
+            try await handleCrawlCompletion(item: entry, content: nil, newEntries: newContentUrls, newSitemapEntries: newSitemapUrls)
             return false
 
         case .noChange:
-            try await handleCrawlCompletion(item: entry, content: nil, newEntries: nil)
+            try await handleCrawlCompletion(item: entry, content: nil, newEntries: nil, newSitemapEntries: nil)
             return false
 
         case let .indexed(csEntry, createdItem, newPendingItems, content):
             spotlightQueue.append(csEntry)
-            try await handleCrawlCompletion(item: createdItem, content: content, newEntries: newPendingItems)
+            try await handleCrawlCompletion(item: createdItem, content: content, newEntries: newPendingItems, newSitemapEntries: nil)
             return true
         }
     }
@@ -345,7 +341,7 @@ final actor Crawler {
         await BlooCore.shared.queueSnapshot(item: item)
     }
 
-    private func index(page link: String, lastModified: Date?, lastEtag: String?) async throws -> IndexResponse {
+    private func index(page link: String, lastModified: Date?, lastEtag: String?, existingTextRowId: Int64?) async throws -> IndexResponse {
         guard let site = URL(string: link) else {
             Log.crawling(id, .error).log("Malformed URL: \(link)")
             return .error
@@ -461,7 +457,7 @@ final actor Crawler {
                 }
             } else {
                 if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrlString) ?? true {
-                    newUrls.insert(.pending(url: newUrlString, isSitemap: false))
+                    newUrls.insert(.pending(url: newUrlString, isSitemap: false, textRowId: nil))
                 } else {
                     botRejectionCache.append(newUrlString)
                     let rejectionCount = botRejectionCache.count
@@ -519,7 +515,7 @@ final actor Crawler {
                                             thumbnailUrl: thumbnailUrl?.absoluteString,
                                             lastModified: lastModified)
 
-        let indexed = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders)
+        let newEntry = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, textRowId: existingTextRowId)
 
         let attributes = CSSearchableItemAttributeSet(contentType: .url)
         attributes.keywords = keywords
@@ -528,7 +524,7 @@ final actor Crawler {
         attributes.textContent = newContent.condensedContent
         attributes.contentModificationDate = newContent.lastModified
         attributes.thumbnailURL = thumbnailUrl
-        return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), indexed, newUrls, newContent)
+        return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, newUrls, newContent)
     }
 
     private static func storeImageData(_ data: Data, for id: String, sourceUrl: String) -> URL {
@@ -588,33 +584,55 @@ final actor Crawler {
         let etag = res[DB.etagRow]
         let isSitemap = res[DB.isSitemapRow] ?? false
         let lastModified = res[DB.lastModifiedRow]
+        let textRowId = res[DB.textRowId]
 
         let result: IndexEntry = if etag != nil || lastModified != nil {
-            .visited(url: url, lastModified: lastModified, etag: etag)
+            .visited(url: url, lastModified: lastModified, etag: etag, textRowId: textRowId)
         } else {
-            .pending(url: url, isSitemap: isSitemap)
+            .pending(url: url, isSitemap: isSitemap, textRowId: textRowId)
         }
         return result
     }
 
-    private func handleCrawlCompletion(item: IndexEntry, content: IndexEntry.Content?, newEntries: Set<IndexEntry>?) async throws {
+    private func handleCrawlCompletion(item: IndexEntry, content: IndexEntry.Content?, newEntries: Set<IndexEntry>?, newSitemapEntries: Set<IndexEntry>?) async throws {
         guard let db else { return }
-        try pending.delete(url: item.url, in: db)
+
+        let itemUrl = item.url
+
+        try pending.delete(url: itemUrl, in: db)
 
         if let content {
-            try await SearchDB.shared.insert(id: id, url: item.url, content: content)
-            Log.crawling(id, .info).log("Visited URL: \(item.url)")
+            let textTableRowId = try await SearchDB.shared.insert(id: id, url: itemUrl, content: content, existingRowId: item.textRowId)
+            let updatedItem = item.withTextRowId(textTableRowId)
+            try visited.append(item: updatedItem, in: db)
+
+            Log.crawling(id, .info).log("Visited URL: \(itemUrl)")
+
+        } else {
+            try visited.append(item: item, in: db)
         }
 
-        try visited.append(item: item, in: db)
+        if var newSitemapEntries, newSitemapEntries.isPopulated {
+            let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false, textRowId: nil)
+            newSitemapEntries.remove(stubIndexEntry)
+            try visited.subtract(from: &newSitemapEntries, in: db)
+
+            if newSitemapEntries.isPopulated {
+                Log.crawling(id, .default).log("Adding \(newSitemapEntries.count) unindexed URLs from sitemap")
+                try appendPending(items: newSitemapEntries)
+            }
+        }
 
         guard var newEntries, newEntries.isPopulated else {
             return
         }
+
         try visited.subtract(from: &newEntries, in: db)
+
         guard newEntries.isPopulated else {
             return
         }
+
         Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
         try appendPending(items: newEntries)
     }
@@ -630,23 +648,5 @@ final actor Crawler {
             return
         }
         try pending.append(items: items, in: db)
-    }
-
-    private func handleSitemapEntries(from url: String, newSitemaps: Set<IndexEntry>) throws {
-        guard let db else { return }
-        try pending.delete(url: url, in: db)
-
-        var newSitemaps = newSitemaps
-
-        if newSitemaps.isPopulated {
-            let stubIndexEntry = IndexEntry.pending(url: url, isSitemap: false)
-            newSitemaps.remove(stubIndexEntry)
-            try visited.subtract(from: &newSitemaps, in: db)
-        }
-
-        if newSitemaps.isPopulated {
-            Log.crawling(id, .default).log("Adding \(newSitemaps.count) unindexed URLs from sitemap")
-            try appendPending(items: newSitemaps)
-        }
     }
 }

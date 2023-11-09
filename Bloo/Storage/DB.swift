@@ -8,6 +8,7 @@ enum DB {
     static let lastModifiedRow = Expression<Date?>("lastModified")
     static let etagRow = Expression<String?>("etag")
     static let thumbnailUrlRow = Expression<String?>("thumbnailUrl")
+    static let textRowId = Expression<Int64?>("textRowId")
 
     static let titleRow = Expression<String?>("title")
     static let descriptionRow = Expression<String?>("description")
