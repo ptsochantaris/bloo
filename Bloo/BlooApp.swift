@@ -96,19 +96,42 @@ struct BlooApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 Menu("Throttling…") {
+                    let range = Array(stride(from: 0.1, through: 10, by: 0.1))
+                    Menu("Minimum rate for new pages…") {
+                        ForEach(range, id: \.self) { value in
+                            let valueText = String(format: "%.1f sec", value)
+                            Toggle(valueText, isOn: Binding<Bool> {
+                                settings.indexingDelay == value
+                            } set: { _ in
+                                settings.indexingDelay = value
+                            })
+                        }
+                    }
+
+                    Menu("Minimum rate for checking existing pages…") {
+                        ForEach(range, id: \.self) { value in
+                            let valueText = String(format: "%.1f sec", value)
+                            Toggle(valueText, isOn: Binding<Bool> {
+                                settings.indexingScanDelay == value
+                            } set: { _ in
+                                settings.indexingScanDelay = value
+                            })
+                        }
+                    }
+
                     Toggle("Only Use Efficiency CPU Cores", isOn: Binding<Bool> {
                         settings.indexingTaskPriority == .background
                     } set: { newValue in
                         settings.indexingTaskPriority = newValue ? .background : .medium
                     })
+
                     Toggle("Minimise Network Usage", isOn: Binding<Bool> {
                         settings.maxConcurrentIndexingOperations == 1
                     } set: { newValue in
                         settings.maxConcurrentIndexingOperations = newValue ? 1 : 0
                     })
                 }
-            }
-            CommandGroup(after: .appInfo) {
+
                 Menu("All Items…") {
                     Menu("Clear all data") {
                         Button("Confirm: Clear Everything!") {

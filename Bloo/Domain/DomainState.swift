@@ -6,7 +6,24 @@ extension Domain {
         case none, start, resumeIfNeeded
     }
 
-    enum State: CaseIterable, Codable, Hashable {
+    enum State: CaseIterable, Codable, Hashable, Identifiable {
+        var id: Int {
+            switch self {
+            case .deleting:
+                1
+            case .done:
+                2
+            case .indexing:
+                3
+            case .pausing:
+                4
+            case .starting:
+                5
+            case .paused:
+                6
+            }
+        }
+
         static func == (lhs: Self, rhs: Self) -> Bool {
             lhs.title == rhs.title
         }

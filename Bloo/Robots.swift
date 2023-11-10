@@ -161,7 +161,7 @@ struct Robots {
                 _sitemaps.insert(record.value)
 
             case "crawl-delay" where agent.isPopulated:
-                let i = Int(record.value) ?? 10
+                let i = Int(record.value) ?? 1
                 if var a = _agents[agent] {
                     a.crawlDelay = i
                     _agents[agent] = a

@@ -269,7 +269,7 @@ final actor Crawler {
                     Self.requestLock.returnTicket()
                 }
 
-                let maxWait = longPause ? 1 : 0.2
+                let maxWait = longPause ? Settings.shared.indexingDelay : Settings.shared.indexingScanDelay
                 let duration = max(0, maxWait + start.timeIntervalSinceNow)
                 if duration > 0 {
                     try? await Task.sleep(for: .seconds(duration))
