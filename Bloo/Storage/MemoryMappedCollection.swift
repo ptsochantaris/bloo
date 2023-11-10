@@ -5,7 +5,7 @@ protocol RowIdentifiable {
     static var byteOffsetOfRowIdentifier: Int { get }
 }
 
-struct MemoryMappedCollection<T: RowIdentifiable>: Collection {
+struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, ContiguousBytes, MutableCollection {
     // derived from: https://github.com/akirark/MemoryMappedFileSwift
 
     enum MemoryMappedCollectionError: LocalizedError {
@@ -82,17 +82,24 @@ struct MemoryMappedCollection<T: RowIdentifiable>: Collection {
         try insert(contentsOf: [item])
     }
 
-    private func index(for rowId: Int64) -> Int? { // TODO: optimise
-        let start = counterSize + T.byteOffsetOfRowIdentifier
-        let end = start + count * step
-        var index = 0
-        for i in stride(from: start, to: end, by: step) {
-            if buffer.loadUnaligned(fromByteOffset: i, as: Int64.self) == rowId {
-                return index
+    private func index(for rowId: Int64) -> Int? {
+        var lowerIndex = 0
+        var upperIndex = count - 1
+
+        while true {
+            if lowerIndex > upperIndex {
+                return nil
             }
-            index += 1
+            let currentIndex = (lowerIndex + upperIndex) / 2
+            let currentRowId = buffer.loadUnaligned(fromByteOffset: offset(for: currentIndex), as: Int64.self)
+            if currentRowId == rowId {
+                return currentIndex
+            } else if currentRowId > rowId {
+                upperIndex = currentIndex - 1
+            } else {
+                lowerIndex = currentIndex + 1
+            }
         }
-        return nil
     }
 
     mutating func insert(contentsOf sequence: any Collection<T>) throws {
@@ -106,10 +113,16 @@ struct MemoryMappedCollection<T: RowIdentifiable>: Collection {
         let originalCount = currentCount
         for item in sequence {
             if let existingIndex = index(for: item.rowId) {
-                buffer.storeBytes(of: item, toByteOffset: offset(for: existingIndex), as: T.self)
+                self[existingIndex] = item
             } else {
-                buffer.storeBytes(of: item, toByteOffset: offset(for: currentCount), as: T.self)
+                self[currentCount] = item
+                var newItemIndex = currentCount
                 currentCount += 1
+
+                while newItemIndex > 0, item.rowId < self[newItemIndex - 1].rowId {
+                    swapAt(newItemIndex, newItemIndex - 1)
+                    newItemIndex -= 1
+                }
             }
         }
         if originalCount != currentCount {
@@ -149,7 +162,12 @@ struct MemoryMappedCollection<T: RowIdentifiable>: Collection {
     }
 
     subscript(position: Int) -> T {
-        buffer.loadUnaligned(fromByteOffset: offset(for: position), as: T.self)
+        get {
+            buffer.loadUnaligned(fromByteOffset: offset(for: position), as: T.self)
+        }
+        set(newValue) {
+            buffer.storeBytes(of: newValue, toByteOffset: offset(for: position), as: T.self)
+        }
     }
 
     private mutating func start(minimumCapacity: Int) throws {
@@ -195,5 +213,10 @@ struct MemoryMappedCollection<T: RowIdentifiable>: Collection {
     mutating func shutdown() {
         stop()
         close(fileDescriptor)
+    }
+
+    func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
+        let bufferPointer = UnsafeRawBufferPointer(start: buffer!, count: count)
+        return try body(bufferPointer)
     }
 }
