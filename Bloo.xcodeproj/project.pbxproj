@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		161992662B038066006D911F /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992652B038066006D911F /* Formatters.swift */; };
+		161992682B03DB97006D911F /* BlockList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992672B03DB97006D911F /* BlockList.swift */; };
 		1634CF912AC34D780022A8F6 /* Lista in Frameworks */ = {isa = PBXBuildFile; productRef = 1634CF902AC34D780022A8F6 /* Lista */; };
 		1634CF952AC365800022A8F6 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF942AC365800022A8F6 /* Storage.swift */; };
 		1634CF972AC365D90022A8F6 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF962AC365D90022A8F6 /* Domain.swift */; };
@@ -57,6 +58,7 @@
 
 /* Begin PBXFileReference section */
 		161992652B038066006D911F /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
+		161992672B03DB97006D911F /* BlockList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockList.swift; sourceTree = "<group>"; };
 		1634CF942AC365800022A8F6 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
 		1634CF962AC365D90022A8F6 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
 		1634CF9A2AC366D90022A8F6 /* Globals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Globals.swift; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 				16B67CED2AD4210900366266 /* Storage */,
 				16B67CF02AD4226200366266 /* Utils */,
 				161992652B038066006D911F /* Formatters.swift */,
+				161992672B03DB97006D911F /* BlockList.swift */,
 			);
 			path = Bloo;
 			sourceTree = "<group>";
@@ -343,6 +346,7 @@
 				16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */,
 				1657AACA2AE4298500503669 /* DB.swift in Sources */,
 				16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */,
+				161992682B03DB97006D911F /* BlockList.swift in Sources */,
 				1657AAC32AE41BED00503669 /* MemoryMappedCollection.swift in Sources */,
 				1634CF952AC365800022A8F6 /* Storage.swift in Sources */,
 				16FDB0FF2ADB450B003A4BBD /* TableWrapper.swift in Sources */,
