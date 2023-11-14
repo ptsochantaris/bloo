@@ -46,13 +46,22 @@ private struct FooterText: View {
 
 private struct DomainTitle: View {
     let domain: Domain
+    let subtitle: String?
 
     var body: some View {
         HStack {
             domain.state.symbol
-            Text(domain.id)
-                .font(.blooBody)
-                .bold()
+            VStack(alignment: .leading) {
+                Text(domain.id)
+                    .font(.blooBody)
+                    .bold()
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.blooCaption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }
@@ -137,7 +146,7 @@ private struct DomainRow: View {
             switch domain.state {
             case let .starting(indexed, pending):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    DomainTitle(domain: domain)
+                    DomainTitle(domain: domain, subtitle: nil)
                     Spacer(minLength: 0)
                 }
                 .frame(maxHeight: .infinity)
@@ -148,7 +157,7 @@ private struct DomainRow: View {
 
             case let .indexing(indexed, pending, url):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    DomainTitle(domain: domain)
+                    DomainTitle(domain: domain, subtitle: nil)
                     Spacer(minLength: 0)
                     HStack(spacing: 2) {
                         Text(pending, format: .number)
@@ -165,7 +174,7 @@ private struct DomainRow: View {
 
             case let .pausing(indexed, pending, _):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    DomainTitle(domain: domain)
+                    DomainTitle(domain: domain, subtitle: nil)
                     Spacer(minLength: 0)
                     Text("Pausing")
                         .font(.blooBody)
@@ -174,7 +183,7 @@ private struct DomainRow: View {
 
             case let .paused(indexed, pending, _):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    DomainTitle(domain: domain)
+                    DomainTitle(domain: domain, subtitle: nil)
                     Spacer(minLength: 0)
                     if indexed > 0 || pending > 0 {
                         HStack(spacing: 2) {
@@ -192,15 +201,21 @@ private struct DomainRow: View {
 
             case .deleting:
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    DomainTitle(domain: domain)
+                    DomainTitle(domain: domain, subtitle: nil)
                     Spacer(minLength: 0)
                     Text("Deleting")
                         .font(.blooBody)
                 }
 
-            case let .done(indexed):
+            case let .done(indexed, completionDate):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    DomainTitle(domain: domain)
+                    VStack {
+                        if let completion = Formatters.relativeTime.string(for: completionDate) {
+                            DomainTitle(domain: domain, subtitle: "Refreshed \(completion)")
+                        } else {
+                            DomainTitle(domain: domain, subtitle: nil)
+                        }
+                    }
                     Spacer(minLength: 0)
                     Text(indexed, format: .number)
                         .font(.blooBody)

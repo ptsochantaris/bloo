@@ -32,10 +32,10 @@ extension Domain {
             hasher.combine(title)
         }
 
-        case starting(Int, Int), pausing(Int, Int, Bool), paused(Int, Int, Bool), indexing(Int, Int, String), done(Int), deleting
+        case starting(Int, Int), pausing(Int, Int, Bool), paused(Int, Int, Bool), indexing(Int, Int, String), done(Int, Date?), deleting
 
         static var allCases: [Self] {
-            [.starting(0, 0), .indexing(0, 0, ""), .pausing(0, 0, false), defaultState, .done(0)]
+            [.starting(0, 0), .indexing(0, 0, ""), .pausing(0, 0, false), defaultState, .done(0, .distantPast)]
         }
 
         static var defaultState: Self {
@@ -134,7 +134,7 @@ extension Domain {
 
         var logText: String {
             switch self {
-            case let .done(count): "Completed, \(count) indexed items"
+            case let .done(count, date): "Completed on \(Formatters.relativeTime.string(for: date) ?? "<no date>"), \(count) indexed items"
             case .deleting, .indexing, .paused, .pausing, .starting: title
             }
         }

@@ -23,13 +23,6 @@ enum HTTP {
         return URLSession(configuration: config)
     }()
 
-    private static let httpModifiedSinceFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEEE, dd LLL yyyy HH:mm:ss zzz"
-        return formatter
-    }()
-
     static func getData(from link: String, lastVisited: Date? = nil, lastEtag: String? = nil) async -> (Data, HTTPURLResponse)? {
         guard let url = URL(string: link) else {
             return nil
@@ -48,7 +41,7 @@ enum HTTP {
             request.setValue(lastEtag, forHTTPHeaderField: "If-None-Match")
             request.cachePolicy = .reloadIgnoringLocalCacheData
         } else if let lastVisited {
-            let dateString = httpModifiedSinceFormatter.string(from: lastVisited)
+            let dateString = Formatters.httpModifiedSinceFormatter.string(from: lastVisited)
             request.setValue(dateString, forHTTPHeaderField: "If-Modified-Since")
             request.cachePolicy = .reloadIgnoringLocalCacheData
         }

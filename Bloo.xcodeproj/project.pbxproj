@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		161992662B038066006D911F /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992652B038066006D911F /* Formatters.swift */; };
 		1634CF912AC34D780022A8F6 /* Lista in Frameworks */ = {isa = PBXBuildFile; productRef = 1634CF902AC34D780022A8F6 /* Lista */; };
 		1634CF952AC365800022A8F6 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF942AC365800022A8F6 /* Storage.swift */; };
 		1634CF972AC365D90022A8F6 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF962AC365D90022A8F6 /* Domain.swift */; };
@@ -55,6 +56,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		161992652B038066006D911F /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 		1634CF942AC365800022A8F6 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
 		1634CF962AC365D90022A8F6 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
 		1634CF9A2AC366D90022A8F6 /* Globals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Globals.swift; sourceTree = "<group>"; };
@@ -213,6 +215,7 @@
 				16B67CEE2AD4212300366266 /* Search */,
 				16B67CED2AD4210900366266 /* Storage */,
 				16B67CF02AD4226200366266 /* Utils */,
+				161992652B038066006D911F /* Formatters.swift */,
 			);
 			path = Bloo;
 			sourceTree = "<group>";
@@ -327,6 +330,7 @@
 				16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */,
 				1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */,
 				16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */,
+				161992662B038066006D911F /* Formatters.swift in Sources */,
 				16B67CEC2AD41FA400366266 /* Search.swift in Sources */,
 				165F10C62AC880DC00442892 /* DomainSection.swift in Sources */,
 				16FBCC112AD1D7C300A5A14E /* Robots.swift in Sources */,

@@ -9,6 +9,35 @@ import SQLite
 import SwiftSoup
 import SwiftUI
 
+struct BlockList<T: Hashable> {
+    private let length: Int
+    private var cache: OrderedCollections.OrderedSet<T>
+
+    init(length: Int) {
+        self.length = length
+        cache = OrderedCollections.OrderedSet<T>()
+    }
+
+    mutating func checkForRejection(of item: T) -> Bool {
+        if let index = cache.firstIndex(of: item) {
+            let rejectionCount = cache.count
+            if rejectionCount > length {
+                cache.elements.move(fromOffsets: IndexSet(integer: index), toOffset: rejectionCount)
+            }
+            return true
+        }
+        return false
+    }
+
+    mutating func addRejection(for item: T) {
+        cache.append(item)
+        let rejectionCount = cache.count
+        if rejectionCount == (length + 100) {
+            cache = OrderedSet(cache.suffix(length - 100))
+        }
+    }
+}
+
 final actor Crawler {
     private let id: String
     private let bootupEntry: IndexEntry
@@ -16,7 +45,8 @@ final actor Crawler {
     private var spotlightQueue = [CSSearchableItem]()
     private var spotlightInvalidationQueue = Set<String>()
     private var goTask: Task<Void, Error>?
-    private var botRejectionCache = OrderedCollections.OrderedSet<String>()
+    private var botRejectionCache = BlockList<String>(length: 400)
+    private var thumbnailFailureCache = BlockList<URL>(length: 400)
     private var pending: TableWrapper
     private var visited: TableWrapper
     private var db: Connection?
@@ -24,27 +54,6 @@ final actor Crawler {
 
     @MainActor
     weak var crawlerDelegate: Domain!
-
-    private static let isoFormatter = ISO8601DateFormatter()
-
-    private static let isoFormatter2: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "YYYY-MM-DDTHH:mm:SSZ"
-        return formatter
-    }()
-
-    private static let isoFormatter3: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "YYYY-MM-DD"
-        return formatter
-    }()
-
-    private static let httpHeaderDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE',' dd' 'MMM' 'yyyy HH':'mm':'ss zzz"
-        return formatter
-    }()
 
     enum IndexResponse {
         case noChange(viaServerCode: Bool), error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
@@ -290,7 +299,7 @@ final actor Crawler {
 
         Log.crawling(id, .default).log("Stopping crawl because of completion")
         let counts = try counts()
-        await signalState(.done(counts.indexed))
+        await signalState(.done(counts.indexed, Date()))
         await snapshot()
     }
 
@@ -375,7 +384,7 @@ final actor Crawler {
         }
 
         let lastModifiedHeaderDate: Date?
-        if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Self.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
+        if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Formatters.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
             if let lastModified, lastModified >= lm {
                 Log.crawling(id, .info).log("No change (same date) in \(link)")
                 return .noChange(viaServerCode: false)
@@ -425,16 +434,34 @@ final actor Crawler {
             return .error
         }
 
-        let ogImage = header.metaPropertyContent(for: "og:image")
-        let imageFileUrl = Task<URL?, Never>.detached { [id] in
-            if let ogImage,
-               let thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false),
-               let data = await HTTP.getImageData(from: thumbnailUrl),
-               let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
-               let dataToSave = image.jpegData {
-                return Self.storeImageData(dataToSave, for: id, sourceUrl: ogImage)
+        var imageFileTask: Task<(URL?, URL), Never>?
+        if let ogImage = header.metaPropertyContent(for: "og:image"),
+           let thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false),
+           !thumbnailFailureCache.checkForRejection(of: thumbnailUrl) {
+            imageFileTask = Task { [id] in
+                let localFile = try! Self.imageDataPath(for: id, sourceUrl: thumbnailUrl)
+                let now = Date.now
+
+                let fm = FileManager.default
+                if let attributes = try? fm.attributesOfItem(atPath: localFile.path),
+                   let lastModified = attributes[.modificationDate] as? Date,
+                   now.timeIntervalSince(lastModified) < 3600 * 24 * 7 {
+                    return (localFile, thumbnailUrl)
+                }
+
+                Log.crawling(id, .info).log("Will fetch thumbnail to \(localFile.path)")
+                guard let data = await HTTP.getImageData(from: thumbnailUrl),
+                      let image = data.asImage?.limited(to: CGSize(width: 512, height: 512)),
+                      let dataToSave = image.jpegData else {
+                    Log.crawling(id, .info).log("Could not fetch thumbnail to \(localFile.path)")
+                    return (nil, thumbnailUrl)
+                }
+
+                try? dataToSave.write(to: localFile)
+                try? fm.setAttributes([.modificationDate: now], ofItemAtPath: localFile.path)
+                Log.crawling(id, .info).log("Did fetch thumbnail to \(localFile.path)")
+                return (localFile, thumbnailUrl)
             }
-            return nil
         }
 
         let summaryContent = header.metaPropertyContent(for: "og:description") ?? ""
@@ -448,30 +475,16 @@ final actor Crawler {
             .map(\.absoluteString)
             .filter { uniqued.insert($0).inserted }
 
-        for newUrlString in links ?? [] {
-            if let index = botRejectionCache.firstIndex(of: newUrlString) {
-                let rejectionCount = botRejectionCache.count
-                if rejectionCount > 400 {
-                    botRejectionCache.elements.move(fromOffsets: IndexSet(integer: index), toOffset: rejectionCount)
-                    Log.crawling(id, .default).log("\(id) promoted rejected URL: \(newUrlString) - total: \(rejectionCount)")
-                }
+        for newUrlString in links ?? [] where !botRejectionCache.checkForRejection(of: newUrlString) {
+            if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrlString) ?? true {
+                newUrls.insert(.pending(url: newUrlString, isSitemap: false, textRowId: nil))
             } else {
-                if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrlString) ?? true {
-                    newUrls.insert(.pending(url: newUrlString, isSitemap: false, textRowId: nil))
-                } else {
-                    botRejectionCache.append(newUrlString)
-                    let rejectionCount = botRejectionCache.count
-                    // log("\(id) added rejected URL: \(newUrlString) - total: \(rejectionCount)")
-                    if rejectionCount == 500 {
-                        botRejectionCache = OrderedSet(botRejectionCache.suffix(300))
-                        Log.crawling(id, .default).log("\(id) Trimmed rejection cache: \(botRejectionCache.count)")
-                    }
-                }
+                botRejectionCache.addRejection(for: newUrlString)
             }
         }
 
         let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
-        let creationDate = Self.isoFormatter.date(from: createdDateString) ?? Self.isoFormatter2.date(from: createdDateString) ?? Self.isoFormatter3.date(from: createdDateString)
+        let creationDate = Formatters.isoFormatter.date(from: createdDateString) ?? Formatters.isoFormatter2.date(from: createdDateString) ?? Formatters.isoFormatter3.date(from: createdDateString)
         let keywords = Self.generateKeywords(from: condensedText)
 
 //        let keywords = header
@@ -505,7 +518,14 @@ final actor Crawler {
             }
         }
 
-        let thumbnailUrl = await imageFileUrl.value
+        var thumbnailUrl: URL?
+        if let thumbnailUrlInfo = await imageFileTask?.value {
+            if thumbnailUrlInfo.0 == nil {
+                thumbnailFailureCache.addRejection(for: thumbnailUrlInfo.1)
+            } else {
+                thumbnailUrl = thumbnailUrlInfo.0
+            }
+        }
 
         let newContent = IndexEntry.Content(title: title,
                                             description: summaryContent,
@@ -527,8 +547,8 @@ final actor Crawler {
         return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, newUrls, newContent)
     }
 
-    private static func storeImageData(_ data: Data, for id: String, sourceUrl: String) -> URL {
-        let uuid = sourceUrl.hashString
+    private static func imageDataPath(for id: String, sourceUrl: URL) throws -> URL {
+        let uuid = sourceUrl.absoluteString.hashString
         let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 2)])
         let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 3) ... uuid.index(uuid.startIndex, offsetBy: 5)])
         let third = String(uuid.dropFirst(6))
@@ -540,11 +560,10 @@ final actor Crawler {
 
         let fm = FileManager.default
         if !fm.fileExists(atPath: location.path(percentEncoded: false)) {
-            try! fm.createDirectory(at: location, withIntermediateDirectories: true)
+            try fm.createDirectory(at: location, withIntermediateDirectories: true)
         }
-        let fileUrl = location.appendingPathComponent(third + ".jpg", isDirectory: false)
-        try! data.write(to: fileUrl)
-        return fileUrl
+
+        return location.appendingPathComponent(third + ".jpg", isDirectory: false)
     }
 
     private static func generateKeywords(from text: String) -> [String] {
