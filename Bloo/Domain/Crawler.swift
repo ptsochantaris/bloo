@@ -397,12 +397,15 @@ final actor Crawler {
         }
 
         guard let body = htmlDoc.body(),
-              let condensedText = (try? body.text(trimAndNormaliseWhitespace: true))?.removingHTMLEntities(),
-              let sparseText = (try? body.text(trimAndNormaliseWhitespace: false))?.removingHTMLEntities()
+              let condensedTextRaw = try? body.text(trimAndNormaliseWhitespace: true),
+              let sparseTextRaw = try? body.text(trimAndNormaliseWhitespace: false)
         else {
             Log.crawling(id, .error).log("Cannot parse text in \(link)")
             return .error
         }
+
+        let condensedText = condensedTextRaw.removingHTMLEntities()
+        let sparseText = sparseTextRaw.removingHTMLEntities()
 
         var imageFileTask: Task<(URL?, URL), Never>?
         if let ogImage = header.metaPropertyContent(for: "og:image"),

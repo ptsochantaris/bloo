@@ -67,6 +67,15 @@ struct BlooApp: App {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
+    private struct DelayEntry: Identifiable {
+        let id = UUID()
+        let value: Double
+
+        func label(prefix: String) -> String {
+            String(format: "%@ %.1f sec", prefix, value)
+        }
+    }
+
     var body: some Scene {
         WindowGroup("Bloo", id: "search", for: UUID.self) { $uuid in
             ContentView(model: model)
@@ -96,25 +105,26 @@ struct BlooApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 Menu("Throttling…") {
-                    let range = Array(stride(from: 0.1, through: 10, by: 0.1))
+                    let range = Array(stride(from: 0.1, through: 10, by: 0.1)).map {
+                        DelayEntry(value: $0)
+                    }
+
                     Menu("Minimum rate for new pages…") {
-                        ForEach(range, id: \.self) { value in
-                            let valueText = String(format: "%.1f sec", value)
-                            Toggle(valueText, isOn: Binding<Bool> {
-                                settings.indexingDelay == value
+                        ForEach(range) { item in
+                            Toggle(item.label(prefix: "Minimum"), isOn: Binding<Bool> {
+                                settings.indexingDelay == item.value
                             } set: { _ in
-                                settings.indexingDelay = value
+                                settings.indexingDelay = item.value
                             })
                         }
                     }
 
                     Menu("Minimum rate for checking existing pages…") {
-                        ForEach(range, id: \.self) { value in
-                            let valueText = String(format: "%.1f sec", value)
-                            Toggle(valueText, isOn: Binding<Bool> {
-                                settings.indexingScanDelay == value
+                        ForEach(range) { item in
+                            Toggle(item.label(prefix: "Delay"), isOn: Binding<Bool> {
+                                settings.indexingScanDelay == item.value
                             } set: { _ in
-                                settings.indexingScanDelay = value
+                                settings.indexingScanDelay = item.value
                             })
                         }
                     }
