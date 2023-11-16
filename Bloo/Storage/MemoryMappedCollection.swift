@@ -107,7 +107,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         let newMaxCount = currentCount + sequence.count
         if newMaxCount >= capacity {
             stop()
-            try start(minimumCapacity: newMaxCount + 100_000)
+            try start(minimumCapacity: newMaxCount + 10000)
         }
 
         let originalCount = currentCount

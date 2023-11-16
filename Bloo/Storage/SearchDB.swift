@@ -26,8 +26,8 @@ final actor SearchDB {
         """)
         indexDb = c
 
-        documentIndex = try MemoryMappedCollection(at: documentsPath.appending(path: "document.embeddings", directoryHint: .notDirectory).path,
-                                                   minimumCapacity: 1000)
+        documentIndex = try MemoryMappedCollection(at: documentsPath.appending(path: "doc.embeddings", directoryHint: .notDirectory).path,
+                                                   minimumCapacity: 10000)
 
         Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }
@@ -83,7 +83,7 @@ final actor SearchDB {
         try indexDb.run(textTable.filter(DB.domainRow == id).delete())
     }
 
-    func searchQuery(_ text: String, limit: Int) async throws -> (items: [Search.Result], count: Int) {
+    func searchQuery(_ text: String, limit: Int) async throws -> [Search.Result] {
         let start = Date.now
         defer {
             Log.search(.info).log("Search query time: \(-start.timeIntervalSinceNow) sec")
@@ -108,16 +108,15 @@ final actor SearchDB {
 
             where text_search match '\(query)' and rank match 'bm25(0, 0, 10, 0, 100)'
 
-            order by rank, lastModified desc
+            order by rank desc
 
-            limit \(3000)
+            limit \(10000)
             """))
 
         guard let searchVector = await Embedding.vector(for: text) else {
-            let res = elements.map {
-                Search.Result(element: $0, terms: searchTerms, relevantVector: nil)
+            return elements.map {
+                Search.Result(element: $0, terms: searchTerms)
             }
-            return (res, res.count)
         }
 
         let rowIds = Set(elements.map { $0[DB.rowId] })
@@ -128,14 +127,12 @@ final actor SearchDB {
             ($0.rowId, $0)
         })
 
-        let results = elements
-            .map { Search.Result(element: $0, terms: searchTerms, relevantVector: vectorLookup[$0[DB.rowId]]) }
-            .uniqued { $0.titleHashValueForResults }
-            .uniqued { $0.bodyHashValueForResults }
-
-        let searchCoordsBytes = malloc(2048)!
+        let itemCount = 512
+        let itemCount2 = vDSP_Length(itemCount)
+        let bufferCount = itemCount * 4
+        let searchCoordsBytes = malloc(bufferCount)!
         let searchCoordsBuffer = searchCoordsBytes.assumingMemoryBound(to: Float.self)
-        let comparisonBytes = malloc(2048)!
+        let comparisonBytes = malloc(bufferCount)!
         let comparisonBuffer = comparisonBytes.assumingMemoryBound(to: Float.self)
 
         defer {
@@ -144,38 +141,40 @@ final actor SearchDB {
         }
 
         let searchVectorMagnitude = searchVector.magnitude
-        withUnsafePointer(to: searchVector.coords) { _ = memcpy(searchCoordsBytes, $0, 2048) }
+        withUnsafePointer(to: searchVector.coords) { _ = memcpy(searchCoordsBytes, $0, bufferCount) }
 
-        let res = results.max(count: limit) { e1, e2 in
-            guard let v1 = vectorLookup[e1.rowId] else {
-                Log.search(.error).log("Could not find an embedding for document '\(e1.title)', at rowId \(e1.rowId)")
-                return false
+        return elements
+            .map { Search.Result(element: $0, terms: searchTerms) }
+            .uniqued { $0.titleHashValueForResults }
+            .uniqued { $0.bodyHashValueForResults }
+            .max(count: limit) { e1, e2 in
+                guard let v1 = vectorLookup[e1.rowId] else {
+                    Log.search(.error).log("Could not find an embedding for document '\(e1.title)', at rowId \(e1.rowId)")
+                    return false
+                }
+                var R1: Float = 0
+                withUnsafePointer(to: v1.coords) { _ = memcpy(comparisonBytes, $0, bufferCount) }
+                vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R1, itemCount2)
+                R1 /= (v1.magnitude * searchVectorMagnitude)
+                let d1 = e1.displayDate ?? .distantPast
+
+                guard let v2 = vectorLookup[e2.rowId] else {
+                    Log.search(.error).log("Could not find an embedding for document '\(e2.title)', at rowId \(e2.rowId)")
+                    return false
+                }
+                var R2: Float = 0
+                withUnsafePointer(to: v2.coords) { _ = memcpy(comparisonBytes, $0, bufferCount) }
+                vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R2, itemCount2)
+                R2 /= (v2.magnitude * searchVectorMagnitude)
+                let d2 = e2.displayDate ?? .distantPast
+
+                if d1 < d2 {
+                    R2 += 0.01
+                } else if d1 > d2 {
+                    R1 += 0.01
+                }
+
+                return R1 < R2
             }
-            var R1: Float = 0
-            withUnsafePointer(to: v1.coords) { _ = memcpy(comparisonBytes, $0, 2048) }
-            vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R1, 512)
-            R1 /= (v1.magnitude * searchVectorMagnitude)
-            let d1 = e1.displayDate ?? .distantPast
-
-            guard let v2 = vectorLookup[e2.rowId] else {
-                Log.search(.error).log("Could not find an embedding for document '\(e2.title)', at rowId \(e2.rowId)")
-                return false
-            }
-            var R2: Float = 0
-            withUnsafePointer(to: v2.coords) { _ = memcpy(comparisonBytes, $0, 2048) }
-            vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R2, 512)
-            R2 /= (v2.magnitude * searchVectorMagnitude)
-            let d2 = e2.displayDate ?? .distantPast
-
-            if d1 < d2 {
-                R2 += 0.01
-            } else if d1 > d2 {
-                R1 += 0.01
-            }
-
-            return R1 < R2
-        }
-
-        return (res, min(1000, results.count))
     }
 }

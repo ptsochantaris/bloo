@@ -26,8 +26,6 @@ extension Search {
             let padding = 96
             let preferredExcerptWidth = 256
 
-            var text = text
-            text.replaceSubrange(range, with: "#[BLU\(text[range])ULB]#")
             let start = text.startIndex
             let end = text.endIndex
             let distanceFromStart = text.distance(from: start, to: range.lowerBound)
@@ -54,38 +52,24 @@ extension Search {
             return "\(prefix)\(text[excerptRange])\(suffix)"
         }
 
-        init(element: Row, terms: [String], relevantVector: Vector?) {
+        init(element: Row, terms: [String]) {
+            rowId = element[DB.rowId]
+            id = terms.joined(separator: ",") + String(rowId)
             url = element[DB.urlRow]
             displayDate = element[DB.lastModifiedRow]
             thumbnailUrl = URL(string: element[DB.thumbnailUrlRow] ?? "")
             keywords = element[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? []
-            rowId = element[DB.rowId]
             self.terms = terms
 
-            let rawTitle = element[DB.titleRow]
-            let _title = rawTitle ?? ""
-            let _descriptionText = element[DB.descriptionRow] ?? ""
             let _contentText = element[DB.contentRow]
-            let _rid = String(rowId)
-
+            contentText = _contentText
             bodyHashValueForResults = _contentText.hashValue
-            titleHashValueForResults = (rawTitle?.hashValue) ?? bodyHashValueForResults
 
-            if let manuallyHighlight = relevantVector?.text {
-                id = manuallyHighlight + _rid
-                title = Self.highlightedExcerpt(_title, phrase: manuallyHighlight)
-                descriptionText = Self.highlightedExcerpt(_descriptionText, phrase: manuallyHighlight)
-                if let _contentText {
-                    contentText = Self.highlightedExcerpt(_contentText, phrase: manuallyHighlight)
-                } else {
-                    contentText = _contentText
-                }
-            } else {
-                id = _rid
-                title = _title
-                descriptionText = _descriptionText
-                contentText = _contentText
-            }
+            let _title = element[DB.titleRow]
+            title = _title ?? ""
+            titleHashValueForResults = (_title?.hashValue) ?? bodyHashValueForResults
+
+            descriptionText = element[DB.descriptionRow] ?? ""
         }
 
         var attributedTitle: AttributedString {

@@ -174,17 +174,18 @@ extension Search {
 
                 Log.search(.info).log("Total \(results.count) results")
 
-                switch results.count {
+                let count = results.count
+                switch count {
                 case 0:
                     await updateResultState(.noResults)
                 case 1 ..< smallChunkSize:
-                    await updateResultState(.results(.limited, results.items, results.count))
+                    await updateResultState(.results(.limited, results, count))
                 default:
                     switch newSearch {
                     case .none, .top:
-                        await updateResultState(.results(.top, results.items, results.count))
+                        await updateResultState(.results(.top, results, count))
                     case .full:
-                        await updateResultState(.results(.all, results.items, results.count))
+                        await updateResultState(.results(.all, results, count))
                     }
                 }
             }

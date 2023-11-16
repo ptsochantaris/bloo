@@ -15,8 +15,6 @@ enum DB {
     static let contentRow = Expression<String?>("content")
     static let keywordRow = Expression<String?>("keywords")
     static let domainRow = Expression<String>("domain")
-
-    static let resultIdentifierRow = Expression<Int64>("resultIdentifier")
     static let vectorRow = Expression<Blob>("vector")
 
     static let pragmas = """

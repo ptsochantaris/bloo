@@ -16,14 +16,15 @@ extension String {
             || hasSuffix("/feed"))
     }
 
-    private static let highlightRegex = /\#\[BLU(.+?)ULB\]\#/
-
     func highlightedAttributedString() -> AttributedString {
         var attributedString = AttributedString(self)
 
-        for match in matches(of: Self.highlightRegex).reversed() {
-            let plainStart = distance(from: startIndex, to: match.range.lowerBound)
-            let plainLength = distance(from: match.range.lowerBound, to: match.range.upperBound)
+        for match in matches(of: /\#\[BLU(.+?)ULB\]\#/).reversed() {
+            let R = match.range
+            let L = R.lowerBound
+            let U = R.upperBound
+            let plainStart = distance(from: startIndex, to: L)
+            let plainLength = distance(from: L, to: U)
             let attributedStart = attributedString.index(attributedString.startIndex, offsetByCharacters: plainStart)
             let attributedEnd = attributedString.index(attributedStart, offsetByCharacters: plainLength)
             let newRange = attributedStart ..< attributedEnd
