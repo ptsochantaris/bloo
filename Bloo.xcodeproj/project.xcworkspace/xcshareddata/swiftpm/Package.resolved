@@ -12,7 +12,7 @@
     {
       "identity" : "lista",
       "kind" : "remoteSourceControl",
-      "location" : "http://github.com/ptsochantaris/Lista",
+      "location" : "https://github.com/ptsochantaris/lista",
       "state" : {
         "branch" : "main",
         "revision" : "7d6cf8bd6aea70c08a077083474ef94bfd1e1d57"
@@ -39,7 +39,7 @@
     {
       "identity" : "semalot",
       "kind" : "remoteSourceControl",
-      "location" : "http://github.com/ptsochantaris/semalot",
+      "location" : "https://github.com/ptsochantaris/semalot",
       "state" : {
         "branch" : "main",
         "revision" : "0ae24abfce7152cda9ef2e15eea6ca5516700eee"
