@@ -9,6 +9,8 @@ Works on macOS, iOS/iPadOS, and visionOS. On non-Mac systems it won't index site
 
 It is currently a work in progress, with [an actively developed Testlfight Beta here](https://testflight.apple.com/join/MQrlEUdu) for macOS and iOS.
 
+<img src="https://ptsochantaris.github.io/trailer/BlooScreenshot.png" alt="Screenshot" width=1024>
+
 ## Packages
 Bloo uses some of my own utility packages:
 - [Lista](https://github.com/ptsochantaris/lista)
