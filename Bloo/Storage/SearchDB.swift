@@ -70,15 +70,15 @@ final actor SearchDB {
     }
 
     func purgeDomain(id: String) throws {
-        var ids = Set<Int64>()
-        for associatedRow in try indexDb.prepare(textTable.select(DB.rowId).filter(DB.domainRow == id)) {
-            let i = try associatedRow.get(DB.rowId)
-            ids.insert(i)
-        }
+        Log.crawling(id, .info).log("Purging domain of embeddings from \(id)")
 
-        documentIndex.deleteAll {
-            ids.contains($0.rowId)
-        }
+        let associatedRows = try indexDb.prepare(textTable.select(DB.rowId).filter(DB.domainRow == id))
+
+        let ids = try Set(associatedRows.map { associatedRow in
+            try associatedRow.get(DB.rowId)
+        })
+
+        documentIndex.deleteEntries(with: ids)
 
         try indexDb.run(textTable.filter(DB.domainRow == id).delete())
     }

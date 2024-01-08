@@ -4,7 +4,7 @@ import Lista
 // Based on: https://github.com/chrisakroyd/robots-txt-parser/blob/master/src/parser.js
 
 struct Robots {
-    private struct GroupMemberRecord {
+    struct GroupMemberRecord {
         let specificity: Int
         let regex: Regex<Substring>
 
@@ -15,6 +15,11 @@ struct Robots {
                 return nil
             }
             specificity = value.count
+        }
+
+        init(_ regex: Regex<Substring>, specificity: Int) {
+            self.regex = regex
+            self.specificity = specificity
         }
 
         static let regexSpecialChars = /[\-\[\]\/\{\}\(\)\+\?\.\\\^\$\|]/
@@ -47,7 +52,7 @@ struct Robots {
         }
     }
 
-    private struct Agent {
+    struct Agent {
         let allow = Lista<GroupMemberRecord>()
         let disallow = Lista<GroupMemberRecord>()
         var crawlDelay = 0
@@ -74,7 +79,7 @@ struct Robots {
         }
     }
 
-    private enum Decision {
+    enum Decision {
         case allowed, disallowed, noComment
     }
 
@@ -111,8 +116,17 @@ struct Robots {
 
     let host: String?
     let sitemaps: Set<String>
+    var agents: [String: Agent]
 
-    private let agents: [String: Agent]
+    init() {
+        self.init(host: nil, sitemaps: [], agents: [:])
+    }
+
+    init(host: String?, sitemaps: Set<String>, agents: [String: Agent]) {
+        self.host = host
+        self.sitemaps = sitemaps
+        self.agents = agents
+    }
 
     static func parse(_ rawString: String) -> Robots {
         var lines = splitOnLines(cleanSpaces(cleanComments(rawString)))
@@ -188,10 +202,10 @@ struct Robots {
             switch thisAgent.canProceedTo(to: path) {
             case .allowed:
                 return true
-            case .noComment:
-                break
             case .disallowed:
                 return false
+            case .noComment:
+                break
             }
         }
 
@@ -199,10 +213,21 @@ struct Robots {
             switch all.canProceedTo(to: path) {
             case .allowed:
                 return true
-            case .noComment:
-                break
             case .disallowed:
                 return false
+            case .noComment:
+                break
+            }
+        }
+
+        if let local = agents["_bloo_local_domain_agent"] {
+            switch local.canProceedTo(to: path) {
+            case .allowed:
+                return true
+            case .disallowed:
+                return false
+            case .noComment:
+                break
             }
         }
 

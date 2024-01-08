@@ -5,7 +5,7 @@ Bloo
 
 Bloo makes your computer the search engine. It crawls sites and adds the results the local Spotlight index, so you can search from Spotlight like you would with your favourite search engine, search directly from the UI.
 
-Works on macOS, iOS/iPadOS, and visionOS. On non-Mac systems it won't index sites when it is not in the foreground, unless the device is plugged in and charged, e.g. overnight.
+Works on macOS, iOS/iPadOS, and visionOS. On non-Mac systems it won't index sites when it is in the background, unless the device is plugged in and charged, e.g. overnight.
 
 It is currently a work in progress, with [an actively developed Testlfight Beta here](https://testflight.apple.com/join/MQrlEUdu) for macOS and iOS.
 

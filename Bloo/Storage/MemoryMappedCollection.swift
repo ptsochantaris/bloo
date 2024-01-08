@@ -130,6 +130,17 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         }
     }
 
+    mutating func deleteEntries(with ids: Set<Int64>) {
+        // fast-iterating version of deleteAll without a block capture
+        var pos = count - 1
+        while pos >= 0 {
+            if ids.contains(self[pos].rowId) {
+                delete(at: pos)
+            }
+            pos -= 1
+        }
+    }
+
     mutating func deleteAll(where condition: (T) -> Bool) {
         var pos = count - 1
         while pos >= 0 {

@@ -153,22 +153,27 @@ final actor Crawler {
         }
         Log.crawling(id, .default).log("Fetched sitemap from \(url)")
         do {
-            let (newContentUrls, newSitemapUrls) = try await SitemapParser(data: xmlData).extract()
-            Log.crawling(id, .default).log("Considering \(newSitemapUrls.count) further sitemap URLs, \(newContentUrls.count) potential content URLs from sitemap")
+            let (contentUrls, newSitemapUrls) = try await SitemapParser(data: xmlData).extract()
+            Log.crawling(id, .default).log("Considering \(newSitemapUrls.count) further sitemap URLs, \(contentUrls.count) potential content URLs from sitemap")
+
+            var newContentUrls = Set<IndexEntry>()
+            if let robots {
+                for entry in contentUrls {
+                    if robots.agent("Bloo", canProceedTo: entry.url) {
+                        newContentUrls.insert(entry)
+                    } else {
+                        Log.crawling(id, .default).log("Rejected URL: \(entry.url)")
+                        botRejectionCache.addRejection(for: entry.url)
+                    }
+                }
+            } else {
+                newContentUrls = contentUrls
+            }
             return .wasSitemap(newContentUrls: newContentUrls, newSitemapUrls: newSitemapUrls)
 
         } catch {
             Log.crawling(id, .error).log("XML Parser error in \(url) - \(error.localizedDescription)")
             return .wasSitemap(newContentUrls: [], newSitemapUrls: [])
-        }
-    }
-
-    private func scanRobots() async {
-        let url = "https://\(id)/robots.txt"
-        Log.crawling(id, .default).log("\(id) - Scanning \(url)")
-        if let data = await HTTP.getData(from: url)?.0,
-           let robotText = String(data: data, encoding: .utf8) {
-            robots = Robots.parse(robotText)
         }
     }
 
@@ -185,7 +190,24 @@ final actor Crawler {
             await signalState(.starting(counts.indexed, counts.pending))
         }
 
-        await scanRobots()
+        let robotDefaultsUrl = "https://\(id)/robots.txt"
+        Log.crawling(id, .default).log("\(id) - Scanning \(robotDefaultsUrl)")
+        if let data = await HTTP.getData(from: robotDefaultsUrl)?.0,
+           let robotText = String(data: data, encoding: .utf8) {
+            robots = Robots.parse(robotText)
+        } else {
+            robots = Robots()
+        }
+
+        /*
+          // Example for later
+         if id == "bruland.page" {
+             let agent = Robots.Agent()
+             let testRecord = Robots.GroupMemberRecord(/.+the.+/, specificity: 0)
+             agent.disallow.append(testRecord)
+             robots?.agents["_bloo_local_domain_agent"] = agent
+         }
+          */
 
         if try counts().indexed == 0 {
             let url = "https://\(id)/sitemap.xml"
@@ -220,7 +242,7 @@ final actor Crawler {
             let setPriority = Settings.shared.indexingTaskPriority
             if originalPriority != setPriority {
                 defer {
-                    Log.crawling(id, .default).log("Restarting crawler for \(id) becaues of priority change")
+                    Log.crawling(id, .default).log("Restarting crawler for \(id) because of priority change")
                     startGoTask(priority: setPriority, signalStateChange: false)
                 }
                 return
@@ -439,22 +461,29 @@ final actor Crawler {
 
         let summaryContent = header.metaPropertyContent(for: "og:description") ?? ""
 
-        var newUrls = Set<IndexEntry>()
-        var uniqued = Set<String>()
-        let links = try? htmlDoc.select("a[href]")
+        let newUrls = try? htmlDoc.select("a[href]")
             .compactMap { try? $0.attr("href").trimmingCharacters(in: .whitespacesAndNewlines) }
             .compactMap { try? URL.create(from: $0, relativeTo: site, checkExtension: true) }
             .filter { $0.host()?.hasSuffix(id) == true }
             .map(\.absoluteString)
-            .filter { uniqued.insert($0).inserted }
-
-        for newUrlString in links ?? [] where !botRejectionCache.checkForRejection(of: newUrlString) {
-            if link != newUrlString, robots?.agent("Bloo", canProceedTo: newUrlString) ?? true {
-                newUrls.insert(.pending(url: newUrlString, isSitemap: false, textRowId: nil))
-            } else {
-                botRejectionCache.addRejection(for: newUrlString)
+            .uniqued()
+            .filter { !botRejectionCache.checkForRejection(of: $0) }
+            .filter { link != $0 }
+            .compactMap { (item: String) -> IndexEntry? in
+                if link == item {
+                    return nil
+                }
+                guard let robots else {
+                    return .pending(url: item, isSitemap: false, textRowId: nil)
+                }
+                if robots.agent("Bloo", canProceedTo: item) {
+                    return .pending(url: item, isSitemap: false, textRowId: nil)
+                } else {
+                    Log.crawling(id, .default).log("Rejected URL: \(item)")
+                    botRejectionCache.addRejection(for: item)
+                    return nil
+                }
             }
-        }
 
         let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
         let creationDate = Formatters.isoFormatter.date(from: createdDateString) ?? Formatters.isoFormatter2.date(from: createdDateString) ?? Formatters.isoFormatter3.date(from: createdDateString)
@@ -517,7 +546,7 @@ final actor Crawler {
         attributes.textContent = newContent.condensedContent
         attributes.contentModificationDate = newContent.lastModified
         attributes.thumbnailURL = thumbnailUrl
-        return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, newUrls, newContent)
+        return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, Set(newUrls ?? []), newContent)
     }
 
     private static func imageDataPath(for id: String, sourceUrl: URL) throws -> URL {
