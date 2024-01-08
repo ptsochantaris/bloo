@@ -40,7 +40,12 @@ final class BlooCore {
         }
         return Domain.State.allCases.compactMap {
             if let list = buckets[$0], list.count > 0 {
-                Domain.Section(state: $0, domains: Array(list))
+                switch $0 {
+                case .deleting, .indexing, .paused, .pausing, .starting:
+                    Domain.Section(state: $0, domains: Array(list), sort: .typical)
+                case .done:
+                    Domain.Section(state: $0, domains: Array(list), sort: Settings.shared.sortDoneStyle)
+                }
             } else {
                 nil
             }

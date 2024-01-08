@@ -1,5 +1,23 @@
 import Foundation
 
+enum SortStyle: Int, CaseIterable, Identifiable {
+    case typical, newestFirst, oldestFirst
+
+    var id: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .typical: "By Name"
+        case .newestFirst: "Newly Refreshed Domains First"
+        case .oldestFirst: "Oldest Refreshed Domains First"
+        }
+    }
+
+    static var allCases: [SortStyle] {
+        [.typical, .newestFirst, .oldestFirst]
+    }
+}
+
 @Observable
 final class Settings {
     static let shared = Settings()
@@ -27,6 +45,15 @@ final class Settings {
             Settings.indexingScanDelayRaw = indexingScanDelay
         }
     }
+
+    var sortDoneStyle = SortStyle(rawValue: Settings.sortDoneStyle) ?? .typical {
+        didSet {
+            Settings.sortDoneStyle = sortDoneStyle.rawValue
+        }
+    }
+
+    @UserDefault(key: "sortDoneStyle", defaultValue: 0)
+    private static var sortDoneStyle: Int
 
     @UserDefault(key: "indexingDelayRaw", defaultValue: 2)
     private static var indexingDelayRaw: TimeInterval

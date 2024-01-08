@@ -142,6 +142,16 @@ struct BlooApp: App {
                     })
                 }
 
+                Menu("Sort \"Done\" Section…") {
+                    ForEach(SortStyle.allCases) { style in
+                        Toggle(style.title, isOn: Binding<Bool> {
+                            settings.sortDoneStyle == style
+                        } set: { _ in
+                            settings.sortDoneStyle = style
+                        })
+                    }
+                }
+
                 Menu("All Items…") {
                     Menu("Clear all data") {
                         Button("Confirm: Clear Everything!") {

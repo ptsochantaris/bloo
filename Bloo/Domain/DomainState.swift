@@ -42,6 +42,13 @@ extension Domain {
             .paused(0, 0, false)
         }
 
+        var lastRefreshDate: Date {
+            if case let .done(_, date) = self {
+                return date ?? .distantPast
+            }
+            return .distantPast
+        }
+
         @ViewBuilder
         var symbol: some View {
             switch self {
