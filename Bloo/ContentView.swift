@@ -645,12 +645,8 @@ private struct AdditionSection: View {
                     let copy = results
                     Task {
                         input = ""
-                        if copy.count == 1, let first = copy.first {
-                            await model.addDomain(first, postAddAction: .start)
-                        } else {
-                            for result in copy {
-                                await model.addDomain(result, postAddAction: .none)
-                            }
+                        for result in copy {
+                            await model.addDomain(result, postAddAction: .none)
                         }
                     }
                 } label: {

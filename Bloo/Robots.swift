@@ -128,7 +128,11 @@ struct Robots {
         self.agents = agents
     }
 
-    static func parse(_ rawString: String) -> Robots {
+    static func parse(_ rawString: String?) -> Robots {
+        guard let rawString, !rawString.isEmpty else {
+            return Robots()
+        }
+
         var lines = splitOnLines(cleanSpaces(cleanComments(rawString)))
 
         // Fallback to the record based split method if we find only one line.

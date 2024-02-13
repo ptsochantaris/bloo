@@ -26,7 +26,7 @@ final actor Crawler {
     weak var crawlerDelegate: Domain!
 
     enum IndexResponse {
-        case noChange(viaServerCode: Bool), error, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
+        case noChange(viaServerCode: Bool), error, disallowed, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
     }
 
     init(id: String, url: String) async throws {
@@ -192,22 +192,19 @@ final actor Crawler {
 
         let robotDefaultsUrl = "https://\(id)/robots.txt"
         Log.crawling(id, .default).log("\(id) - Scanning \(robotDefaultsUrl)")
-        if let data = await HTTP.getData(from: robotDefaultsUrl)?.0,
-           let robotText = String(data: data, encoding: .utf8) {
-            robots = Robots.parse(robotText)
-        } else {
-            robots = Robots()
+        var robotText = ""
+        if let data = await HTTP.getData(from: robotDefaultsUrl)?.0, let remoteText = String(data: data, encoding: .utf8) {
+            robotText.append(remoteText.trimmingCharacters(in: .whitespacesAndNewlines))
+            robotText.append("\n")
         }
 
-        /*
-          // Example for later
-         if id == "bruland.page" {
-             let agent = Robots.Agent()
-             let testRecord = Robots.GroupMemberRecord(/.+the.+/, specificity: 0)
-             agent.disallow.append(testRecord)
-             robots?.agents["_bloo_local_domain_agent"] = agent
-         }
-          */
+        let localRobotDataUrl = domainPath(for: id).appendingPathComponent("local-robots.txt", isDirectory: false)
+        if let localRobotText = try? String(contentsOf: localRobotDataUrl) {
+            robotText.append(localRobotText.trimmingCharacters(in: .whitespacesAndNewlines))
+            robotText.append("\n")
+        }
+
+        robots = Robots.parse(robotText)
 
         if try counts().indexed == 0 {
             let url = "https://\(id)/sitemap.xml"
@@ -308,7 +305,7 @@ final actor Crawler {
         }
 
         switch indexResult {
-        case .error:
+        case .disallowed, .error:
             spotlightInvalidationQueue.insert(entry.url)
             if let db {
                 try pending.delete(url: entry.url, in: db)
@@ -346,6 +343,10 @@ final actor Crawler {
         guard let site = URL(string: link) else {
             Log.crawling(id, .error).log("Malformed URL: \(link)")
             return .error
+        }
+
+        if let robots, !robots.agent("Bloo", canProceedTo: link) {
+            return .disallowed
         }
 
         let counts = try counts()
