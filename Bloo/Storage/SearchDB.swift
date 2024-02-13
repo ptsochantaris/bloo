@@ -119,10 +119,11 @@ final actor SearchDB {
             }
         }
 
-        let rowIds = Set(elements.map { $0[DB.rowId] })
+        var rowIds = Set(elements.map { $0[DB.rowId] })
+        Log.search(.info).log("Sifting through \(rowIds.count) DB suggestions")
 
         let vectorLookup = [Int64: Vector](uniqueKeysWithValues: documentIndex.filter {
-            rowIds.contains($0.rowId)
+            rowIds.remove($0.rowId) != nil // using "remove" in case there are duplicates
         }.map {
             ($0.rowId, $0)
         })
