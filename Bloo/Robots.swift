@@ -106,8 +106,8 @@ struct Robots {
     private static func parseRecord(_ line: String) -> (field: String, value: String)? {
         if let firstColonI = line.firstIndex(of: ":") {
             let field = line[line.startIndex ..< firstColonI].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let afterColor = line.index(after: firstColonI)
-            let value = line[afterColor ..< line.endIndex]
+            let afterColon = line.index(after: firstColonI)
+            let value = line[afterColon ..< line.endIndex]
             return (field: field, value: String(value))
         } else {
             return nil
