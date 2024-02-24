@@ -7,11 +7,12 @@ import Semalot
 import SQLite
 import SwiftSoup
 import SwiftUI
+import CanProceed
 
 final actor Crawler {
     private let id: String
     private let bootupEntry: IndexEntry
-    private var robots: Robots?
+    private var robotCheck: CanProceed?
     private var spotlightQueue = [CSSearchableItem]()
     private var spotlightInvalidationQueue = Set<String>()
     private var goTask: Task<Void, Error>?
@@ -157,9 +158,9 @@ final actor Crawler {
             Log.crawling(id, .default).log("Considering \(newSitemapUrls.count) further sitemap URLs, \(contentUrls.count) potential content URLs from sitemap")
 
             var newContentUrls = Set<IndexEntry>()
-            if let robots {
+            if let robotCheck {
                 for entry in contentUrls {
-                    if robots.agent("Bloo", canProceedTo: entry.url) {
+                    if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: entry.url) {
                         newContentUrls.insert(entry)
                     } else {
                         Log.crawling(id, .default).log("Rejected URL: \(entry.url)")
@@ -204,13 +205,13 @@ final actor Crawler {
             robotText.append("\n")
         }
 
-        robots = Robots.parse(robotText)
+        robotCheck = CanProceed.parse(robotText)
 
         if try counts().indexed == 0 {
             let url = "https://\(id)/sitemap.xml"
             try appendPending(.pending(url: url, isSitemap: true, textRowId: nil))
 
-            if let providedSitemaps = robots?.sitemaps {
+            if let providedSitemaps = robotCheck?.sitemaps {
                 let sitemapEntries = providedSitemaps
                     .map { IndexEntry.pending(url: $0, isSitemap: true, textRowId: nil) }
 
@@ -345,7 +346,7 @@ final actor Crawler {
             return .error
         }
 
-        if let robots, !robots.agent("Bloo", canProceedTo: link) {
+        if let robotCheck, !robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: link) {
             return .disallowed
         }
 
@@ -474,10 +475,10 @@ final actor Crawler {
                 if link == item {
                     return nil
                 }
-                guard let robots else {
+                guard let robotCheck else {
                     return .pending(url: item, isSitemap: false, textRowId: nil)
                 }
-                if robots.agent("Bloo", canProceedTo: item) {
+                if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: item) {
                     return .pending(url: item, isSitemap: false, textRowId: nil)
                 } else {
                     Log.crawling(id, .default).log("Rejected URL: \(item)")
