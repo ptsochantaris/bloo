@@ -1,4 +1,5 @@
 {
+  "originHash" : "223b19a3f2c2a936b397fe7e2d91e8b3f273ee85dc00cb9b0356e0ce6fbd65de",
   "pins" : [
     {
       "identity" : "can-proceed",
@@ -6,7 +7,7 @@
       "location" : "https://github.com/ptsochantaris/can-proceed",
       "state" : {
         "branch" : "main",
-        "revision" : "b6550ef8ed0bc50360c2da8ce2f4ac9ea6894d1a"
+        "revision" : "5d476082d14e4761b5d76c19b060224c1cb60b25"
       }
     },
     {
@@ -59,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stephencelis/SQLite.swift.git",
       "state" : {
-        "revision" : "7a2e3cd27de56f6d396e84f63beefd0267b55ccb",
-        "version" : "0.14.1"
+        "revision" : "e78ae0220e17525a15ac68c697a155eb7a672a8e",
+        "version" : "0.15.0"
       }
     },
     {
@@ -100,5 +101,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }
