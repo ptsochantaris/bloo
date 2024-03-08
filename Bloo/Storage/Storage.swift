@@ -1,7 +1,7 @@
 import CoreSpotlight
 import Foundation
 
-final class Storage {
+final actor Storage {
     private var queueContinuation: AsyncStream<Snapshot>.Continuation?
     private var loopTask: Task<Void, Never>?
 

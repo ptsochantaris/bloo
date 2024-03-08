@@ -18,6 +18,7 @@ enum SortStyle: Int, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
 @Observable
 final class Settings {
     static let shared = Settings()

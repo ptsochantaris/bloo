@@ -1,12 +1,12 @@
 import Foundation
-import SQLite
+@preconcurrency import SQLite
 
-struct TableWrapper: Equatable {
+final actor TableWrapper: Equatable, Sendable {
     private let id = UUID()
     private let table: Table
     private var cachedCount: Int?
 
-    init(table: Table, in db: Connection) throws {
+    init(table: Table, in db: Connection) async throws {
         self.table = table
         cachedCount = nil
         try create(in: db)
@@ -25,7 +25,7 @@ struct TableWrapper: Equatable {
         }
     }
 
-    mutating func append(item: IndexEntry, in db: Connection) throws {
+    func append(item: IndexEntry, in db: Connection) throws {
         let totalChanges = db.totalChanges
         let setters = Self.itemRowSetters(item)
         try db.run(table.insert(or: .ignore, setters))
@@ -34,7 +34,7 @@ struct TableWrapper: Equatable {
         }
     }
 
-    mutating func append(items: any Collection<IndexEntry>, in db: Connection) throws {
+    func append(items: [IndexEntry], in db: Connection) throws {
         let totalChanges = db.totalChanges
         let setters = items.map { Self.itemRowSetters($0) }
         try db.run(table.insertMany(or: .ignore, setters))
@@ -43,7 +43,7 @@ struct TableWrapper: Equatable {
         }
     }
 
-    mutating func delete(url: String, in db: Connection) throws {
+    func delete(url: String, in db: Connection) throws {
         let totalChanges = db.totalChanges
         try db.run(table.filter(DB.urlRow == url).delete())
         if totalChanges != db.totalChanges {
@@ -62,7 +62,7 @@ struct TableWrapper: Equatable {
         try db.run(table.createIndex(DB.urlRow, unique: true, ifNotExists: true))
     }
 
-    mutating func subtract(from items: inout Set<IndexEntry>, in db: Connection) throws {
+    func subtract(from items: inout Set<IndexEntry>, in db: Connection) throws {
         let array = items.map(\.url)
         if array.isPopulated {
             let itemsToSubtract = try db.prepare(table.select([DB.urlRow]).filter(array.contains(DB.urlRow)))
@@ -71,7 +71,7 @@ struct TableWrapper: Equatable {
         }
     }
 
-    mutating func subtract(_ otherTable: TableWrapper, in db: Connection) throws {
+    func subtract(_ otherTable: TableWrapper, in db: Connection) throws {
         let urlsToSubtract = try db.prepare(otherTable.table).map { $0[DB.urlRow] }
         if urlsToSubtract.isPopulated {
             let pendingWithUrl = table.filter(urlsToSubtract.contains(DB.urlRow))
@@ -83,11 +83,11 @@ struct TableWrapper: Equatable {
         }
     }
 
-    static func == (lhs: Self, rhs: Self) -> Bool {
+    static func == (lhs: TableWrapper, rhs: TableWrapper) -> Bool {
         lhs.id == rhs.id
     }
 
-    mutating func count(in db: Connection?) throws -> Int {
+    func count(in db: Connection?) throws -> Int {
         if let cachedCount {
             return cachedCount
         } else if let db {
@@ -99,7 +99,7 @@ struct TableWrapper: Equatable {
         }
     }
 
-    mutating func clear(purge: Bool, in db: Connection) throws {
+    func clear(purge: Bool, in db: Connection) throws {
         if purge {
             try db.run(table.drop(ifExists: true))
         } else {
@@ -108,7 +108,7 @@ struct TableWrapper: Equatable {
         cachedCount = 0
     }
 
-    mutating func cloneAndClear(as newName: TableWrapper, in db: Connection) throws {
+    func cloneAndClear(as newName: TableWrapper, in db: Connection) throws {
         try db.run(table.rename(newName.table))
         try create(in: db)
         cachedCount = 0

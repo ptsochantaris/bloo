@@ -21,13 +21,12 @@ extension Domain {
         }
 
         private func allDomains(matchingFilter: String, _ block: @escaping @Sendable (Domain) async throws -> Void) async throws {
-            try await withThrowingTaskGroup(of: Void.self) { group in
+            try await withThrowingDiscardingTaskGroup { group in
                 for domain in domains.filter({ $0.matchesFilter(matchingFilter) }) {
                     group.addTask { @MainActor in
                         try await block(domain)
                     }
                 }
-                try await group.waitForAll()
             }
             Log.crawling(id, .info).log("Action for all domains complete")
         }

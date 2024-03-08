@@ -1,22 +1,49 @@
 import Foundation
 
-final class SitemapParser: NSObject, XMLParserDelegate {
-    private let parser: XMLParser
-    private let (locationHose, continuation) = AsyncThrowingStream<URL, Error>.makeStream()
+enum SitemapParser {
+    private class Parser: NSObject, XMLParserDelegate {
+        typealias StreamType = AsyncThrowingStream<URL, Error>
+        let locationHose: StreamType
 
-    private var inLoc = false
+        private let continuation: StreamType.Continuation
+        private var inLoc = false
+        private let parser: XMLParser
 
-    init(data: Data) {
-        parser = XMLParser(data: data)
-        super.init()
-        parser.delegate = self
+        init(data: Data) {
+            (locationHose, continuation) = StreamType.makeStream()
+            parser = XMLParser(data: data)
+            super.init()
+            parser.delegate = self
+            parser.parse()
+        }
+
+        func parser(_: XMLParser, didStartElement elementName: String, namespaceURI _: String?, qualifiedName _: String?, attributes _: [String: String] = [:]) {
+            inLoc = elementName == "loc"
+        }
+
+        func parser(_: XMLParser, foundCharacters string: String) {
+            guard inLoc else {
+                return
+            }
+            if let url = try? URL.create(from: string, relativeTo: nil, checkExtension: false) {
+                continuation.yield(url)
+            }
+        }
+
+        func parser(_: XMLParser, parseErrorOccurred parseError: Error) {
+            continuation.finish(throwing: parseError)
+        }
+
+        func parserDidEndDocument(_: XMLParser) {
+            continuation.finish()
+        }
     }
 
-    func extract() async throws -> (siteLocations: Set<IndexEntry>, xmlLocations: Set<IndexEntry>) {
-        parser.parse()
+    static func extract(from data: Data) async throws -> (siteLocations: Set<IndexEntry>, xmlLocations: Set<IndexEntry>) {
+        let parser = Parser(data: data)
         var siteLocations = Set<IndexEntry>()
         var xmlUrls = Set<IndexEntry>()
-        for try await url in locationHose {
+        for try await url in parser.locationHose {
             if url.pathExtension.caseInsensitiveCompare("xml") == .orderedSame {
                 xmlUrls.insert(.pending(url: url.absoluteString, isSitemap: true, textRowId: nil))
             } else {
@@ -24,26 +51,5 @@ final class SitemapParser: NSObject, XMLParserDelegate {
             }
         }
         return (siteLocations, xmlUrls)
-    }
-
-    func parser(_: XMLParser, didStartElement elementName: String, namespaceURI _: String?, qualifiedName _: String?, attributes _: [String: String] = [:]) {
-        inLoc = elementName == "loc"
-    }
-
-    func parser(_: XMLParser, foundCharacters string: String) {
-        guard inLoc else {
-            return
-        }
-        if let url = try? URL.create(from: string, relativeTo: nil, checkExtension: false) {
-            continuation.yield(url)
-        }
-    }
-
-    func parser(_: XMLParser, parseErrorOccurred parseError: Error) {
-        continuation.finish(throwing: parseError)
-    }
-
-    func parserDidEndDocument(_: XMLParser) {
-        continuation.finish()
     }
 }

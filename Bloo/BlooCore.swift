@@ -1,4 +1,4 @@
-import CoreSpotlight
+@preconcurrency import CoreSpotlight
 import Foundation
 import Lista
 import SwiftUI
@@ -57,8 +57,8 @@ final class BlooCore {
     private let snapshotter = Storage()
     private var initialisedViaLaunch = false
 
-    func queueSnapshot(item: Storage.Snapshot) {
-        snapshotter.queue(item)
+    func queueSnapshot(item: Storage.Snapshot) async {
+        await snapshotter.queue(item)
     }
 
     func clearDomainSpotlight(for domainId: String) {
@@ -79,28 +79,26 @@ final class BlooCore {
     func resetAll() async throws {
         clearSearches.toggle()
 
-        try await withThrowingTaskGroup(of: Void.self) { group in
+        try await withThrowingDiscardingTaskGroup { group in
             for section in domainSections {
                 group.addTask {
                     try await section.pauseAll(resumable: false, matchingFilter: "")
                     try await section.restartAll(wipingExistingData: true, matchingFilter: "")
                 }
             }
-            try await group.waitForAll()
         }
     }
 
     func removeAll() async throws {
         clearSearches.toggle()
 
-        try await withThrowingTaskGroup(of: Void.self) { group in
+        try await withThrowingDiscardingTaskGroup { group in
             for section in domainSections {
                 group.addTask {
                     try await section.pauseAll(resumable: false, matchingFilter: "")
                     try await section.removeAll(matchingFilter: "")
                 }
             }
-            try await group.waitForAll()
         }
 
         domains.removeAll()
@@ -118,7 +116,7 @@ final class BlooCore {
 
         initialisedViaLaunch = true
         runState = .running
-        snapshotter.start()
+        await snapshotter.start()
 
         for domain in domains where domain.state.shouldResume {
             try? await domain.crawler.start()
@@ -159,13 +157,12 @@ final class BlooCore {
             runState = .stopped
         }
 
-        try await withThrowingTaskGroup(of: Void.self) { group in
+        try await withThrowingDiscardingTaskGroup { group in
             for section in domainSections where section.state.canStop {
                 group.addTask {
                     try await section.pauseAll(resumable: true, matchingFilter: "")
                 }
             }
-            try await group.waitForAll()
         }
         Log.app(.default).log("All domains are shut down")
         await snapshotter.shutdown()

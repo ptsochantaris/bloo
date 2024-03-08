@@ -21,8 +21,8 @@ extension Element {
         meta(for: tag, attribute: "name")
     }
 
-    private static let dateTimePublishedRegex = /\"dateTimePublished\"\:\s*?\"(.+?)\"/
-    private static let datePublishedRegex = /\"datePublished\"\:\s*?\"(.+?)\"/
+    private nonisolated(unsafe) static let dateTimePublishedRegex = /\"dateTimePublished\"\:\s*?\"(.+?)\"/
+    private nonisolated(unsafe) static let datePublishedRegex = /\"datePublished\"\:\s*?\"(.+?)\"/
     var datePublished: String? {
         guard let html = try? html() else {
             return nil
