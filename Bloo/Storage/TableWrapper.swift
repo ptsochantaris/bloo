@@ -1,33 +1,48 @@
 import Foundation
-@preconcurrency import SQLite
+import SQLite
 
-final actor TableWrapper: Equatable, Sendable {
+final class TableWrapper: Equatable {
     private let id = UUID()
     private let table: Table
-    private var cachedCount: Int?
 
-    init(table: Table, in db: Connection) async throws {
+    var cachedCount: Int?
+
+    var count: ScalarQuery<Int> {
+        table.count
+    }
+
+    init(table: Table, in db: Connection) throws {
         self.table = table
         cachedCount = nil
         try create(in: db)
+    }
+
+    func setCachedCount(_ newCount: Int) {
+        cachedCount = newCount
     }
 
     func next(in db: Connection) throws -> Row? {
         try db.pluck(table)
     }
 
-    private static let itemRowSetters = { (item: IndexEntry) -> [Setter] in
+    private static func itemRowSetters(for item: IndexEntry) -> [Setter] {
         switch item {
         case let .pending(url, isSitemap, textRowId):
-            [DB.urlRow <- url, DB.isSitemapRow <- isSitemap, DB.textRowId <- textRowId]
+            [DB.urlRow <- url,
+             DB.isSitemapRow <- isSitemap,
+             DB.textRowId <- textRowId]
+
         case let .visited(url, lastModified, etag, textRowId):
-            [DB.urlRow <- url, DB.lastModifiedRow <- lastModified, DB.etagRow <- etag, DB.textRowId <- textRowId]
+            [DB.urlRow <- url,
+             DB.lastModifiedRow <- lastModified,
+             DB.etagRow <- etag,
+             DB.textRowId <- textRowId]
         }
     }
 
     func append(item: IndexEntry, in db: Connection) throws {
         let totalChanges = db.totalChanges
-        let setters = Self.itemRowSetters(item)
+        let setters = Self.itemRowSetters(for: item)
         try db.run(table.insert(or: .ignore, setters))
         if totalChanges != db.totalChanges, let c = cachedCount {
             cachedCount = c + 1
@@ -36,7 +51,7 @@ final actor TableWrapper: Equatable, Sendable {
 
     func append(items: [IndexEntry], in db: Connection) throws {
         let totalChanges = db.totalChanges
-        let setters = items.map { Self.itemRowSetters($0) }
+        let setters = items.map { Self.itemRowSetters(for: $0) }
         try db.run(table.insertMany(or: .ignore, setters))
         if totalChanges != db.totalChanges {
             cachedCount = nil
@@ -83,20 +98,8 @@ final actor TableWrapper: Equatable, Sendable {
         }
     }
 
-    static func == (lhs: TableWrapper, rhs: TableWrapper) -> Bool {
+    nonisolated static func == (lhs: TableWrapper, rhs: TableWrapper) -> Bool {
         lhs.id == rhs.id
-    }
-
-    func count(in db: Connection?) throws -> Int {
-        if let cachedCount {
-            return cachedCount
-        } else if let db {
-            let result = try db.scalar(table.count)
-            cachedCount = result
-            return result
-        } else {
-            return 0
-        }
     }
 
     func clear(purge: Bool, in db: Connection) throws {

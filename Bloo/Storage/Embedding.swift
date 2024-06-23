@@ -31,7 +31,7 @@ private final actor Rental<T: Sendable> {
 }
 
 enum Embedding {
-    nonisolated(unsafe) private static let vectorEngines = Rental<NLContextualEmbedding> { @Sendable in
+    private static let vectorEngines = Rental<NLContextualEmbedding> { @Sendable in
         let newEngine = NLContextualEmbedding(language: .english)!
         if !newEngine.hasAvailableAssets {
             try await newEngine.requestAssets()
@@ -75,6 +75,7 @@ enum Embedding {
                 }
                 return true
             }
+
             if added {
                 return Vector(coordVector: vector.map { Float($0) }, rowId: rowId)
             }

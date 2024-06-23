@@ -5,7 +5,7 @@ protocol RowIdentifiable {
     static var byteOffsetOfRowIdentifier: Int { get }
 }
 
-struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, ContiguousBytes, MutableCollection {
+final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, ContiguousBytes, MutableCollection {
     // derived from: https://github.com/akirark/MemoryMappedFileSwift
 
     enum MemoryMappedCollectionError: LocalizedError {
@@ -78,7 +78,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         try start(minimumCapacity: minimumCapacity)
     }
 
-    mutating func insert(_ item: T) throws {
+    func insert(_ item: T) throws {
         try insert(contentsOf: [item])
     }
 
@@ -102,7 +102,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         }
     }
 
-    mutating func insert(contentsOf sequence: any Collection<T>) throws {
+    func insert(contentsOf sequence: any Collection<T>) throws {
         var currentCount = count
         let newMaxCount = currentCount + sequence.count
         if newMaxCount >= capacity {
@@ -119,18 +119,22 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
                 var newItemIndex = currentCount
                 currentCount += 1
 
-                while newItemIndex > 0, item.rowId < self[newItemIndex - 1].rowId {
-                    swapAt(newItemIndex, newItemIndex - 1)
+                let previousIndex = newItemIndex - 1
+                while newItemIndex > 0, item.rowId < self[previousIndex].rowId {
+                    let previous = self[previousIndex]
+                    self[previousIndex] = self[newItemIndex]
+                    self[newItemIndex] = previous
                     newItemIndex -= 1
                 }
             }
         }
+
         if originalCount != currentCount {
             count = currentCount
         }
     }
 
-    mutating func deleteEntries(with ids: Set<Int64>) {
+    func deleteEntries(with ids: Set<Int64>) {
         // fast-iterating version of deleteAll without a block capture
         var pos = count - 1
         while pos >= 0 {
@@ -141,7 +145,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         }
     }
 
-    mutating func deleteAll(where condition: (T) -> Bool) {
+    func deleteAll(where condition: (T) -> Bool) {
         var pos = count - 1
         while pos >= 0 {
             if condition(self[pos]) {
@@ -155,7 +159,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         MemoryMappedIterator(buffer: buffer, stride: step, counterSize: counterSize)
     }
 
-    mutating func delete(at index: Int) {
+    func delete(at index: Int) {
         if index >= count {
             return
         }
@@ -181,7 +185,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         }
     }
 
-    private mutating func start(minimumCapacity: Int) throws {
+    private func start(minimumCapacity: Int) throws {
         if buffer != nil {
             return
         }
@@ -211,7 +215,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         Log.storage(.info).log("Memory mapped index size: \(Double(mappedSize) / 1_000_000_000) Gb")
     }
 
-    private mutating func stop() {
+    private func stop() {
         guard let buf = buffer else {
             return
         }
@@ -221,7 +225,7 @@ struct MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, Conti
         mappedSize = 0
     }
 
-    mutating func shutdown() {
+    func shutdown() {
         stop()
         close(fileDescriptor)
     }

@@ -38,14 +38,7 @@ struct Vector: Sendable, RowIdentifiable {
 
     init(coordVector: [Float], rowId: Int64) {
         self.rowId = rowId
-
         magnitude = sqrt(vDSP.sumOfSquares(coordVector))
-
-        coords = coordVector.withUnsafeBytes { pointer in
-            let t = UnsafeMutablePointer<VectorTuple>.allocate(capacity: 1)
-            defer { t.deallocate() }
-            memcpy(t, pointer.baseAddress!, Self.vectorTupleSize)
-            return t.pointee
-        }
+        coords = coordVector.withUnsafeBytes { $0.load(as: VectorTuple.self) }
     }
 }

@@ -139,6 +139,7 @@ extension Domain {
             }
         }
 
+        @MainActor
         var logText: String {
             switch self {
             case let .done(count, date): "Completed on \(Formatters.relativeTime.string(for: date) ?? "<no date>"), \(count) indexed items"

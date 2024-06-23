@@ -9,10 +9,10 @@ final actor SearchDB {
     private let textTable = VirtualTable("text_search")
     private let indexDb: Connection
 
-    private var documentIndex: MemoryMappedCollection<Vector>
+    private let documentIndex: MemoryMappedCollection<Vector>
 
     init() throws {
-        let file = documentsPath.appending(path: "index.sqlite3", directoryHint: .notDirectory)
+        let file = documentsPath.appending(path: "index.sqlite3")
         let fm = FileManager.default
         if !fm.fileExists(atPath: documentsPath.path) {
             try! fm.createDirectory(atPath: documentsPath.path, withIntermediateDirectories: true)
@@ -38,6 +38,7 @@ final actor SearchDB {
 
     func insert(id: String, url: String, content: IndexEntry.Content, existingRowId: Int64?) async throws -> Int64 {
         let textTableRowId: Int64
+
         if let existingRowId {
             textTableRowId = existingRowId
             try indexDb.run(textTable
@@ -60,6 +61,7 @@ final actor SearchDB {
                         DB.thumbnailUrlRow <- content.thumbnailUrl,
                         DB.lastModifiedRow <- content.lastModified))
         }
+
         if let sparseContent = content.sparseContent ?? content.title, sparseContent.isPopulated,
            let document = content.condensedContent ?? content.title ?? content.description,
            let embeddingResult = await Embedding.vector(for: document, rowId: textTableRowId) {

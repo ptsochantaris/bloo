@@ -5,7 +5,7 @@ import HTMLString
 import Maintini
 import NaturalLanguage
 import Semalot
-@preconcurrency import SQLite
+import SQLite
 import SwiftSoup
 import SwiftUI
 
@@ -18,10 +18,12 @@ final actor Crawler {
     private var goTask: Task<Void, Error>?
     private var botRejectionCache = BlockList<String>(length: 400)
     private var thumbnailFailureCache = BlockList<URL>(length: 400)
+    private static let requestLock = Semalot(tickets: 1)
+
+    private var db: Connection?
+
     private var pending: TableWrapper
     private var visited: TableWrapper
-    private var db: Connection?
-    private static let requestLock = Semalot(tickets: 1)
 
     @MainActor
     weak var crawlerDelegate: Domain!
@@ -30,7 +32,7 @@ final actor Crawler {
         case noChange(viaServerCode: Bool), error, disallowed, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
     }
 
-    init(id: String, url: String) async throws {
+    init(id: String, url: String) throws {
         self.id = id
         bootupEntry = .pending(url: url, isSitemap: false, textRowId: nil)
 
@@ -42,15 +44,16 @@ final actor Crawler {
         }
         let c = try Connection(file.path)
         try c.run(DB.pragmas)
-        db = c
 
         let tableId = id.replacingOccurrences(of: ".", with: "_")
 
         let pendingTable = Table("pending_\(tableId)")
-        pending = try await TableWrapper(table: pendingTable, in: c)
+        pending = try TableWrapper(table: pendingTable, in: c)
 
         let visitedTable = Table("visited_\(tableId)")
-        visited = try await TableWrapper(table: visitedTable, in: c)
+        visited = try TableWrapper(table: visitedTable, in: c)
+
+        db = c
     }
 
     deinit {
@@ -73,17 +76,16 @@ final actor Crawler {
         }
     }
 
-    private func signalState(_ state: Domain.State, onlyIfActive: Bool = false) async {
-        await MainActor.run {
-            if !onlyIfActive || crawlerDelegate.state.isStartingOrIndexing {
-                if crawlerDelegate.state != state {
-                    // category change, animate
-                    withAnimation {
-                        crawlerDelegate.state = state
-                    }
-                } else {
+    @MainActor
+    private func signalState(_ state: Domain.State, onlyIfActive: Bool = false) {
+        if !onlyIfActive || crawlerDelegate.state.isStartingOrIndexing {
+            if crawlerDelegate.state != state {
+                // category change, animate
+                withAnimation {
                     crawlerDelegate.state = state
                 }
+            } else {
+                crawlerDelegate.state = state
             }
         }
     }
@@ -94,7 +96,7 @@ final actor Crawler {
     }
 
     func start() async throws {
-        let counts = try await counts()
+        let counts = try counts()
         await signalState(.starting(counts.indexed, counts.pending))
         await startGoTask(priority: Settings.shared.indexingTaskPriority, signalStateChange: true)
     }
@@ -113,7 +115,7 @@ final actor Crawler {
     func pause(resumable: Bool) async throws {
         if let g = goTask {
             Log.crawling(id, .info).log("Pausing")
-            let counts = try await counts()
+            let counts = try counts()
             let newState = Domain.State.pausing(counts.indexed, counts.pending, resumable)
             await signalState(newState)
             goTask = nil
@@ -132,8 +134,8 @@ final actor Crawler {
             await BlooCore.shared.clearDomainSpotlight(for: id)
         } else {
             if let db {
-                try await pending.clear(purge: true, in: db)
-                try await visited.cloneAndClear(as: pending, in: db)
+                try pending.clear(purge: true, in: db)
+                try visited.cloneAndClear(as: pending, in: db)
             }
         }
         try await start()
@@ -187,7 +189,7 @@ final actor Crawler {
         }
 
         if signalStateChange {
-            let counts = try await counts()
+            let counts = try counts()
             await signalState(.starting(counts.indexed, counts.pending))
         }
 
@@ -207,36 +209,36 @@ final actor Crawler {
 
         robotCheck = CanProceed.parse(robotText)
 
-        if try await counts().indexed == 0 {
+        if try counts().indexed == 0 {
             let url = "https://\(id)/sitemap.xml"
-            try await appendPending(.pending(url: url, isSitemap: true, textRowId: nil))
+            try appendPending(.pending(url: url, isSitemap: true, textRowId: nil))
 
             if let providedSitemaps = robotCheck?.sitemaps {
                 let sitemapEntries = providedSitemaps
                     .map { IndexEntry.pending(url: $0, isSitemap: true, textRowId: nil) }
 
-                try await appendPending(items: sitemapEntries)
+                try appendPending(items: sitemapEntries)
             }
 
-            try await appendPending(bootupEntry)
+            try appendPending(bootupEntry)
         }
 
         if let db {
-            try await pending.subtract(visited, in: db)
+            try pending.subtract(visited, in: db)
         }
 
-        if try await counts().pending == 0 {
-            try await appendPending(bootupEntry)
+        if try counts().pending == 0 {
+            try appendPending(bootupEntry)
         }
 
         if signalStateChange {
-            let counts = try await counts()
+            let counts = try counts()
             await signalState(.starting(counts.indexed, counts.pending))
         }
 
         var operationCount = 0
         let originalPriority = await Settings.shared.indexingTaskPriority
-        while let next = try await nextPending() {
+        while let next = try nextPending() {
             let setPriority = await Settings.shared.indexingTaskPriority
             if originalPriority != setPriority {
                 defer {
@@ -253,7 +255,8 @@ final actor Crawler {
 
             let start = Date()
             let longPause = try await crawl(entry: next)
-            let counts = try await counts()
+            let counts = try counts()
+
             await signalState(.indexing(counts.indexed, counts.pending, next.url), onlyIfActive: true)
 
             // Detect stop
@@ -288,7 +291,7 @@ final actor Crawler {
         }
 
         Log.crawling(id, .default).log("Stopping crawl because of completion")
-        let counts = try await counts()
+        let counts = try counts()
         await signalState(.done(counts.indexed, Date()))
         await snapshot()
     }
@@ -304,12 +307,11 @@ final actor Crawler {
         case let .visited(url, lastModified, etag, textRowId):
             try await index(page: url, lastModified: lastModified, lastEtag: etag, existingTextRowId: textRowId)
         }
-
         switch indexResult {
         case .disallowed, .error:
             spotlightInvalidationQueue.insert(entry.url)
             if let db {
-                try await pending.delete(url: entry.url, in: db)
+                try pending.delete(url: entry.url, in: db)
             }
             return false
 
@@ -350,7 +352,7 @@ final actor Crawler {
             return .disallowed
         }
 
-        let counts = try await counts()
+        let counts = try counts()
         await signalState(.indexing(counts.indexed, counts.pending, link), onlyIfActive: true)
 
         var headRequest = URLRequest(url: site)
@@ -488,7 +490,7 @@ final actor Crawler {
             }
 
         let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
-        let creationDate = Formatters.isoFormatter.date(from: createdDateString) ?? Formatters.isoFormatter2.date(from: createdDateString) ?? Formatters.isoFormatter3.date(from: createdDateString)
+        let creationDate = Formatters.tryParsingCreatedDate(createdDateString)
         let keywords = Self.generateKeywords(from: condensedText)
 
 //        let keywords = header
@@ -553,9 +555,9 @@ final actor Crawler {
 
     private static func imageDataPath(for id: String, sourceUrl: URL) throws -> URL {
         let uuid = sourceUrl.absoluteString.hashString
-        let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 2)])
-        let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 3) ... uuid.index(uuid.startIndex, offsetBy: 5)])
-        let third = String(uuid.dropFirst(6))
+        let first = String(uuid[uuid.startIndex ... uuid.index(uuid.startIndex, offsetBy: 1)])
+        let second = String(uuid[uuid.index(uuid.startIndex, offsetBy: 2) ... uuid.index(uuid.startIndex, offsetBy: 3)])
+        let third = String(uuid.dropFirst(4))
 
         let domainPath = domainPath(for: id)
         let location = domainPath.appendingPathComponent("thumbnails", isDirectory: true)
@@ -587,20 +589,32 @@ final actor Crawler {
         return Array(Set(res))
     }
 
-    private func counts() async throws -> (indexed: Int, pending: Int) {
-        try await (visited.count(in: db), pending.count(in: db))
+    private func count(table: TableWrapper) throws -> Int {
+        if let cachedCount = table.cachedCount {
+            return cachedCount
+        } else if let db {
+            let result = try db.scalar(table.count)
+            table.setCachedCount(result)
+            return result
+        } else {
+            return 0
+        }
+    }
+
+    private func counts() throws -> (indexed: Int, pending: Int) {
+        try (count(table: visited), count(table: pending))
     }
 
     private func removeAll(purge: Bool) async throws {
         if let db {
-            try await visited.clear(purge: purge, in: db)
-            try await pending.clear(purge: purge, in: db)
+            try visited.clear(purge: purge, in: db)
+            try pending.clear(purge: purge, in: db)
         }
         try await SearchDB.shared.purgeDomain(id: id)
     }
 
-    private func nextPending() async throws -> IndexEntry? {
-        guard let db, let res = try await pending.next(in: db) else {
+    private func nextPending() throws -> IndexEntry? {
+        guard let db, let res = try pending.next(in: db) else {
             return nil
         }
         let url = res[DB.urlRow]
@@ -622,27 +636,27 @@ final actor Crawler {
 
         let itemUrl = item.url
 
-        try await pending.delete(url: itemUrl, in: db)
+        try pending.delete(url: itemUrl, in: db)
 
         if let content {
             let textTableRowId = try await SearchDB.shared.insert(id: id, url: itemUrl, content: content, existingRowId: item.textRowId)
             let updatedItem = item.withTextRowId(textTableRowId)
-            try await visited.append(item: updatedItem, in: db)
+            try visited.append(item: updatedItem, in: db)
 
             Log.crawling(id, .info).log("Visited URL: \(itemUrl)")
 
         } else {
-            try await visited.append(item: item, in: db)
+            try visited.append(item: item, in: db)
         }
 
         if var newSitemapEntries, newSitemapEntries.isPopulated {
             let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false, textRowId: nil)
             newSitemapEntries.remove(stubIndexEntry)
-            try await visited.subtract(from: &newSitemapEntries, in: db)
+            try visited.subtract(from: &newSitemapEntries, in: db)
 
             if newSitemapEntries.isPopulated {
                 Log.crawling(id, .default).log("Adding \(newSitemapEntries.count) unindexed URLs from sitemap")
-                try await appendPending(items: newSitemapEntries)
+                try appendPending(items: newSitemapEntries)
             }
         }
 
@@ -650,26 +664,26 @@ final actor Crawler {
             return
         }
 
-        try await visited.subtract(from: &newEntries, in: db)
+        try visited.subtract(from: &newEntries, in: db)
 
         guard newEntries.isPopulated else {
             return
         }
 
         Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
-        try await appendPending(items: newEntries)
+        try appendPending(items: newEntries)
     }
 
-    private func appendPending(_ item: IndexEntry) async throws {
+    private func appendPending(_ item: IndexEntry) throws {
         guard let db else { return }
-        try await pending.append(item: item, in: db)
-        try await visited.delete(url: item.url, in: db)
+        try pending.append(item: item, in: db)
+        try visited.delete(url: item.url, in: db)
     }
 
-    private func appendPending(items: any Collection<IndexEntry>) async throws {
+    private func appendPending(items: any Collection<IndexEntry>) throws {
         guard let db, items.isPopulated else {
             return
         }
-        try await pending.append(items: Array(items), in: db)
+        try pending.append(items: Array(items), in: db)
     }
 }

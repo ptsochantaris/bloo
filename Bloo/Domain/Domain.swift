@@ -23,7 +23,7 @@ final class Domain: Identifiable, Sendable {
         }
 
         self.id = id
-        crawler = try await Crawler(id: id, url: url.absoluteString)
+        crawler = try Crawler(id: id, url: url.absoluteString)
         crawler.crawlerDelegate = self
         try await crawler.loadFromSnapshot(postAddAction: postAddAction)
     }

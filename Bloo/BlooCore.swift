@@ -1,4 +1,4 @@
-@preconcurrency import CoreSpotlight
+import CoreSpotlight
 import Foundation
 import Lista
 import SwiftUI
