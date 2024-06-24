@@ -32,6 +32,14 @@ final actor SearchDB {
         Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }
 
+    func pause() {
+        documentIndex.pause()
+    }
+
+    func resume() throws {
+        try documentIndex.resume()
+    }
+
     func shutdown() {
         documentIndex.shutdown()
     }

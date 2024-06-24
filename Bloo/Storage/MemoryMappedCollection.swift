@@ -225,6 +225,14 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         mappedSize = 0
     }
 
+    func pause() {
+        stop()
+    }
+
+    func resume() throws {
+        try start(minimumCapacity: 0)
+    }
+
     func shutdown() {
         stop()
         close(fileDescriptor)

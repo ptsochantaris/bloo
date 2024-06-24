@@ -109,14 +109,19 @@ final class BlooCore {
         }
     }
 
-    func start(fromInitialiser: Bool = false) async {
+    func start(fromInitialiser: Bool = false) async throws {
         guard fromInitialiser || initialisedViaLaunch, runState != .running else {
             return
         }
 
+        let restoring = runState == .backgrounded
+
         initialisedViaLaunch = true
         runState = .running
         await snapshotter.start()
+        if restoring {
+            try await SearchDB.shared.resume()
+        }
 
         for domain in domains where domain.state.shouldResume {
             try? await domain.crawler.start()
@@ -167,8 +172,13 @@ final class BlooCore {
         Log.app(.default).log("All domains are shut down")
         await snapshotter.shutdown()
         Log.app(.default).log("Storage now shut down")
-        await SearchDB.shared.shutdown()
-        Log.app(.default).log("Search DB shut down")
+        if runState != .backgrounded {
+            await SearchDB.shared.shutdown()
+            Log.app(.default).log("Search DB shut down")
+        } else {
+            await SearchDB.shared.pause()
+            Log.app(.default).log("Search DB paused")
+        }
         try? await Task.sleep(for: .milliseconds(100))
     }
 
@@ -194,7 +204,7 @@ final class BlooCore {
 
     init() {
         Task {
-            await start(fromInitialiser: true)
+            try! await start(fromInitialiser: true)
 
             let directoryList = (try? FileManager.default.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
             let domainIds = directoryList
@@ -223,7 +233,7 @@ final class BlooCore {
             }
             Task { [weak self] in
                 guard let self else { return }
-                await start()
+                try! await start()
                 await waitForIndexingToEnd()
                 if UIApplication.shared.applicationState == .background {
                     try await shutdown(backgrounded: false)

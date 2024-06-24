@@ -175,7 +175,7 @@ struct BlooApp: App {
             switch new {
             case .active:
                 Task {
-                    await model.start()
+                    try! await model.start()
                 }
 
             case .background:
