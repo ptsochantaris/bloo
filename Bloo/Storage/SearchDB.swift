@@ -120,7 +120,7 @@ final actor SearchDB {
 
             order by rank desc
 
-            limit \(10000)
+            limit \(3000)
             """))
 
         guard let searchVector = await Embedding.vector(for: text) else {

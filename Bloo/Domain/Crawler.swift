@@ -165,8 +165,7 @@ final actor Crawler {
                     if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: entry.url) {
                         newContentUrls.insert(entry)
                     } else {
-                        Log.crawling(id, .default).log("Rejected URL: \(entry.url)")
-                        botRejectionCache.addRejection(for: entry.url)
+                        reject(link: entry.url)
                     }
                 }
             } else {
@@ -177,6 +176,24 @@ final actor Crawler {
         } catch {
             Log.crawling(id, .error).log("XML Parser error in \(url) - \(error.localizedDescription)")
             return .wasSitemap(newContentUrls: [], newSitemapUrls: [])
+        }
+    }
+
+    private var localRobotDataUrl: URL {
+        domainPath(for: id).appendingPathComponent("local-robots.txt", isDirectory: false)
+    }
+
+    var localRobotText: String? {
+        get {
+            if let text = try? String(contentsOf: localRobotDataUrl).trimmingCharacters(in: .whitespacesAndNewlines) {
+                return text + "\n"
+            }
+            return nil
+        }
+        set {
+            if let clean = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                try? clean.write(to: localRobotDataUrl, atomically: true, encoding: .utf8)
+            }
         }
     }
 
@@ -195,16 +212,15 @@ final actor Crawler {
 
         let robotDefaultsUrl = "https://\(id)/robots.txt"
         Log.crawling(id, .default).log("\(id) - Scanning \(robotDefaultsUrl)")
+
         var robotText = ""
         if let data = await HTTP.getData(from: robotDefaultsUrl)?.0, let remoteText = String(data: data, encoding: .utf8) {
             robotText.append(remoteText.trimmingCharacters(in: .whitespacesAndNewlines))
             robotText.append("\n")
         }
 
-        let localRobotDataUrl = domainPath(for: id).appendingPathComponent("local-robots.txt", isDirectory: false)
-        if let localRobotText = try? String(contentsOf: localRobotDataUrl) {
-            robotText.append(localRobotText.trimmingCharacters(in: .whitespacesAndNewlines))
-            robotText.append("\n")
+        if let localRobotText {
+            robotText.append(localRobotText)
         }
 
         robotCheck = CanProceed.parse(robotText)
@@ -342,6 +358,11 @@ final actor Crawler {
         await BlooCore.shared.queueSnapshot(item: item)
     }
 
+    private func reject(link: String) {
+        Log.crawling(id, .default).log("Rejected URL: \(link)")
+        botRejectionCache.addRejection(for: link)
+    }
+
     private func index(page link: String, lastModified: Date?, lastEtag: String?, existingTextRowId: Int64?) async throws -> IndexResponse {
         guard let site = URL(string: link) else {
             Log.crawling(id, .error).log("Malformed URL: \(link)")
@@ -349,6 +370,7 @@ final actor Crawler {
         }
 
         if let robotCheck, !robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: link) {
+            reject(link: link)
             return .disallowed
         }
 
@@ -483,8 +505,7 @@ final actor Crawler {
                 if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: item) {
                     return .pending(url: item, isSitemap: false, textRowId: nil)
                 } else {
-                    Log.crawling(id, .default).log("Rejected URL: \(item)")
-                    botRejectionCache.addRejection(for: item)
+                    reject(link: item)
                     return nil
                 }
             }

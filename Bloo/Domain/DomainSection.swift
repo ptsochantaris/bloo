@@ -23,7 +23,7 @@ extension Domain {
         private func allDomains(matchingFilter: String, _ block: @escaping @Sendable (Domain) async throws -> Void) async throws {
             try await withThrowingDiscardingTaskGroup { group in
                 for domain in domains.filter({ $0.matchesFilter(matchingFilter) }) {
-                    group.addTask { @MainActor in
+                    group.addTask {
                         try await block(domain)
                     }
                 }
