@@ -26,8 +26,8 @@ final actor SearchDB {
         """)
         indexDb = c
 
-        documentIndex = try MemoryMappedCollection(at: documentsPath.appending(path: "doc.embeddings", directoryHint: .notDirectory).path,
-                                                   minimumCapacity: 10000)
+        let embeddingPath = documentsPath.appending(path: "doc.embeddings", directoryHint: .notDirectory).path
+        documentIndex = try MemoryMappedCollection(at: embeddingPath, minimumCapacity: 10000)
 
         Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }
@@ -120,7 +120,7 @@ final actor SearchDB {
 
             order by rank desc
 
-            limit \(3000)
+            limit \(10000)
             """))
 
         guard let searchVector = await Embedding.vector(for: text) else {
@@ -138,21 +138,8 @@ final actor SearchDB {
             ($0.rowId, $0)
         })
 
-        let itemCount = 512
-        let itemCount2 = vDSP_Length(itemCount)
-        let bufferCount = itemCount * 4
-        let searchCoordsBytes = malloc(bufferCount)!
-        let searchCoordsBuffer = searchCoordsBytes.assumingMemoryBound(to: Float.self)
-        let comparisonBytes = malloc(bufferCount)!
-        let comparisonBuffer = comparisonBytes.assumingMemoryBound(to: Float.self)
-
-        defer {
-            free(searchCoordsBytes)
-            free(comparisonBytes)
-        }
-
         let searchVectorMagnitude = searchVector.magnitude
-        withUnsafePointer(to: searchVector.coords) { _ = memcpy(searchCoordsBytes, $0, bufferCount) }
+        let searchVectorAccelBuffer = searchVector.accelerateBuffer
 
         return elements
             .map { Search.Result(element: $0, terms: searchTerms) }
@@ -163,29 +150,30 @@ final actor SearchDB {
                     Log.search(.error).log("Could not find an embedding for document '\(e1.title)', at rowId \(e1.rowId)")
                     return false
                 }
-                var R1: Float = 0
-                withUnsafePointer(to: v1.coords) { _ = memcpy(comparisonBytes, $0, bufferCount) }
-                vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R1, itemCount2)
-                R1 /= (v1.magnitude * searchVectorMagnitude)
-                let d1 = e1.displayDate ?? .distantPast
 
                 guard let v2 = vectorLookup[e2.rowId] else {
                     Log.search(.error).log("Could not find an embedding for document '\(e2.title)', at rowId \(e2.rowId)")
                     return false
                 }
-                var R2: Float = 0
-                withUnsafePointer(to: v2.coords) { _ = memcpy(comparisonBytes, $0, bufferCount) }
-                vDSP_dotpr(searchCoordsBuffer, 1, comparisonBuffer, 1, &R2, itemCount2)
-                R2 /= (v2.magnitude * searchVectorMagnitude)
+
+                let d1 = e1.displayDate ?? .distantPast
                 let d2 = e2.displayDate ?? .distantPast
+                let ms1 = v1.magnitude * searchVectorMagnitude
+                let ms2 = v2.magnitude * searchVectorMagnitude
+                let a1 = v1.accelerateBuffer
+                let a2 = v2.accelerateBuffer
+                let R1 = vDSP.dot(searchVectorAccelBuffer, a1) / ms1
+                let R2 = vDSP.dot(searchVectorAccelBuffer, a2) / ms2
 
                 if d1 < d2 {
-                    R2 += 0.01
-                } else if d1 > d2 {
-                    R1 += 0.01
-                }
+                    return R1 < (R2 + 0.1)
 
-                return R1 < R2
+                } else if d1 > d2 {
+                    return (R1 + 0.1) < R2
+
+                } else {
+                    return R1 < R2
+                }
             }
     }
 }
