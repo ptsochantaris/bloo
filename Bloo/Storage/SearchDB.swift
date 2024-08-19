@@ -2,6 +2,7 @@ import Accelerate
 import Algorithms
 import Foundation
 import SQLite
+import MemoryMappedCollection
 
 final actor SearchDB {
     static let shared = try! SearchDB()

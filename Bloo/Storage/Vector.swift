@@ -1,5 +1,6 @@
 import Accelerate
 import Foundation
+import MemoryMappedCollection
 
 typealias VectorTuple = (
     Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,

@@ -1,10 +1,10 @@
 import Foundation
 
-protocol RowIdentifiable {
+public protocol RowIdentifiable {
     var rowId: Int64 { get }
 }
 
-final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, ContiguousBytes, MutableCollection {
+public final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, ContiguousBytes, MutableCollection {
     // derived from: https://github.com/akirark/MemoryMappedFileSwift
 
     enum MemoryMappedCollectionError: LocalizedError {
@@ -18,7 +18,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         }
     }
 
-    struct MemoryMappedIterator: IteratorProtocol {
+    public struct MemoryMappedIterator: IteratorProtocol {
         private let buffer: UnsafeMutableRawPointer
         private let step: Int
         private let end: Int
@@ -32,7 +32,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
             end = counterSize + buffer.loadUnaligned(as: Int.self) * stride
         }
 
-        mutating func next() -> T? {
+        public mutating func next() -> T? {
             if position == end {
                 return nil
             }
@@ -46,7 +46,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
     private let step = MemoryLayout<T>.stride
     private let counterSize = MemoryLayout<Int>.stride
 
-    var count: Int {
+    public var count: Int {
         get {
             buffer.loadUnaligned(as: Int.self)
         }
@@ -55,21 +55,21 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         }
     }
 
-    let startIndex = 0
-    var endIndex: Int { count }
+    public let startIndex = 0
+    public var endIndex: Int { count }
 
     private var capacity = 0
     private let fileDescriptor: Int32
     private var buffer: UnsafeMutableRawPointer!
     private var mappedSize = 0
 
-    func index(after i: Int) -> Int { i + 1 }
+    public func index(after i: Int) -> Int { i + 1 }
 
     private func offset(for index: Int) -> Int {
         counterSize + step * index
     }
 
-    init(at path: String, minimumCapacity: Int) throws {
+    public init(at path: String, minimumCapacity: Int) throws {
         fileDescriptor = open(path, O_CREAT | O_RDWR, S_IREAD | S_IWRITE)
         if fileDescriptor == 0 {
             throw MemoryMappedCollectionError.ioError("Could not create or open file at \(path)")
@@ -77,7 +77,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         try start(minimumCapacity: minimumCapacity)
     }
 
-    func append(_ item: T) throws {
+    public func append(_ item: T) throws {
         try append(contentsOf: [item])
     }
 
@@ -101,7 +101,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         }
     }
 
-    func append(contentsOf sequence: any Collection<T>) throws {
+    public func append(contentsOf sequence: any Collection<T>) throws {
         var currentCount = count
         let newMaxCount = currentCount + sequence.count
         if newMaxCount >= capacity {
@@ -114,16 +114,18 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
             if let existingIndex = index(for: item.rowId) {
                 self[existingIndex] = item
             } else {
-                self[currentCount] = item
                 var newItemIndex = currentCount
+                var previousIndex = newItemIndex - 1
                 currentCount += 1
 
-                let previousIndex = newItemIndex - 1
+                self[newItemIndex] = item
+
                 while newItemIndex > 0, item.rowId < self[previousIndex].rowId {
                     let previous = self[previousIndex]
                     self[previousIndex] = self[newItemIndex]
                     self[newItemIndex] = previous
                     newItemIndex -= 1
+                    previousIndex -= 1
                 }
             }
         }
@@ -133,7 +135,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         }
     }
 
-    func deleteEntries(with ids: Set<Int64>) {
+    public func deleteEntries(with ids: Set<Int64>) {
         // fast-iterating version of deleteAll without a block capture
         var pos = count - 1
         while pos >= 0 {
@@ -144,7 +146,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         }
     }
 
-    func deleteAll(where condition: (T) -> Bool) {
+    public func deleteAll(where condition: (T) -> Bool) {
         var pos = count - 1
         while pos >= 0 {
             if condition(self[pos]) {
@@ -154,16 +156,17 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         }
     }
 
-    func makeIterator() -> MemoryMappedIterator {
+    public func makeIterator() -> MemoryMappedIterator {
         MemoryMappedIterator(buffer: buffer, stride: step, counterSize: counterSize)
     }
 
-    func delete(at index: Int) {
-        if index >= count {
+    public func delete(at index: Int) {
+        let existingCount = count
+        if index >= existingCount {
             return
         }
 
-        let highestIndex = count - 1
+        let highestIndex = existingCount - 1
         if index == highestIndex {
             count -= 1
             return
@@ -171,11 +174,12 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
 
         let itemOffset = offset(for: index)
         let highestItemOffset = offset(for: highestIndex)
-        memcpy(buffer.advanced(by: itemOffset), buffer.advanced(by: highestItemOffset), step)
+        let byteCount = highestItemOffset - itemOffset
+        buffer.advanced(by: itemOffset).copyMemory(from: buffer.advanced(by: itemOffset + step), byteCount: byteCount)
         count -= 1
     }
 
-    subscript(position: Int) -> T {
+    public subscript(position: Int) -> T {
         get {
             buffer.loadUnaligned(fromByteOffset: offset(for: position), as: T.self)
         }
@@ -211,7 +215,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         capacity = (mappedSize - counterSize) / step
         buffer = mmap(UnsafeMutableRawPointer(mutating: nil), mappedSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, 0)
 
-        Log.storage(.info).log("Memory mapped index size: \(Double(mappedSize) / 1_000_000_000) Gb")
+        // print("Memory mapped index size: \(Double(mappedSize) / 1_000_000_000) Gb")
     }
 
     private func stop() {
@@ -224,20 +228,20 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         mappedSize = 0
     }
 
-    func pause() {
+    public func pause() {
         stop()
     }
 
-    func resume() throws {
+    public func resume() throws {
         try start(minimumCapacity: 0)
     }
 
-    func shutdown() {
+    public func shutdown() {
         stop()
         close(fileDescriptor)
     }
 
-    func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
+    public func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
         let bufferPointer = UnsafeRawBufferPointer(start: buffer!, count: count)
         return try body(bufferPointer)
     }
