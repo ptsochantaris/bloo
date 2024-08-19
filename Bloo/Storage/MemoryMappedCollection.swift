@@ -2,7 +2,6 @@ import Foundation
 
 protocol RowIdentifiable {
     var rowId: Int64 { get }
-    static var byteOffsetOfRowIdentifier: Int { get }
 }
 
 final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, ContiguousBytes, MutableCollection {
@@ -78,8 +77,8 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         try start(minimumCapacity: minimumCapacity)
     }
 
-    func insert(_ item: T) throws {
-        try insert(contentsOf: [item])
+    func append(_ item: T) throws {
+        try append(contentsOf: [item])
     }
 
     private func index(for rowId: Int64) -> Int? {
@@ -102,7 +101,7 @@ final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessCollection, 
         }
     }
 
-    func insert(contentsOf sequence: any Collection<T>) throws {
+    func append(contentsOf sequence: any Collection<T>) throws {
         var currentCount = count
         let newMaxCount = currentCount + sequence.count
         if newMaxCount >= capacity {

@@ -73,7 +73,7 @@ final actor SearchDB {
         if let sparseContent = content.sparseContent ?? content.title, sparseContent.isPopulated,
            let document = content.condensedContent ?? content.title ?? content.description,
            let embeddingResult = await Embedding.vector(for: document, rowId: textTableRowId) {
-            try documentIndex.insert(embeddingResult)
+            try documentIndex.append(embeddingResult)
             Log.crawling(id, .info).log("Added document embedding for '\(content.title ?? "<no title>")', rowId: \(embeddingResult.rowId)")
         }
         return textTableRowId

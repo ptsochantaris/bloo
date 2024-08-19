@@ -32,8 +32,6 @@ struct Vector: Sendable, RowIdentifiable {
     let magnitude: Float
     let coords: VectorTuple
 
-    static let byteOffsetOfRowIdentifier = 0
-
     private static let vectorTupleSize = MemoryLayout<VectorTuple>.size
 
     var accelerateBuffer: [Float] {
