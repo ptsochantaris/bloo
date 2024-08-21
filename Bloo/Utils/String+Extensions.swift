@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 // Swift warning workaround
-extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute>: @unchecked Sendable {}
+extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute>: @retroactive @unchecked Sendable {}
 
 extension String {
     var isSaneLink: Bool {

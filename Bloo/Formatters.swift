@@ -3,26 +3,26 @@ import Foundation
 enum Formatters {
     nonisolated(unsafe) static let isoFormatter = ISO8601DateFormatter()
 
-    nonisolated(unsafe) static let isoFormatter2: DateFormatter = {
+    static let isoFormatter2: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "YYYY-MM-DDTHH:mm:SSZ"
         return formatter
     }()
 
-    nonisolated(unsafe) static let isoFormatter3: DateFormatter = {
+    static let isoFormatter3: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "YYYY-MM-DD"
         return formatter
     }()
 
-    nonisolated(unsafe) static let httpHeaderDateFormatter: DateFormatter = {
+    static let httpHeaderDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "EEE',' dd' 'MMM' 'yyyy HH':'mm':'ss zzz"
         return formatter
     }()
 
-    nonisolated(unsafe) static let httpModifiedSinceFormatter: DateFormatter = {
+    static let httpModifiedSinceFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "EEEE, dd LLL yyyy HH:mm:ss zzz"
