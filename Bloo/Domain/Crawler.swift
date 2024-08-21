@@ -9,33 +9,6 @@ import SQLite
 @preconcurrency import SwiftSoup
 import SwiftUI
 
-private final class BackgroundQueueExecutor: SerialExecutor {
-    private let ggmlQueue = DispatchQueue(label: "build.bru.executor.background", qos: .utility)
-
-    func enqueue(_ job: consuming ExecutorJob) {
-        let j = UnownedJob(job)
-        let e = asUnownedSerialExecutor()
-        ggmlQueue.async {
-            j.runSynchronously(on: e)
-        }
-    }
-}
-
-final actor Parser { // restrict to one efficiency core, optimising locality and capping maximum memory load
-    static let shared = Parser()
-
-    private static let executor = BackgroundQueueExecutor()
-    static let sharedUnownedExecutor = executor.asUnownedSerialExecutor()
-
-    nonisolated var unownedExecutor: UnownedSerialExecutor {
-        Self.sharedUnownedExecutor
-    }
-
-    func parse(_ documentText: String, _ link: String) throws -> Document {
-        try SwiftSoup.parse(documentText, link)
-    }
-}
-
 final actor Crawler {
     private let id: String
     private let bootupEntry: IndexEntry
@@ -451,7 +424,7 @@ final actor Crawler {
             return .error
         }
 
-        guard let htmlDoc = try? await Parser.shared.parse(documentText, link) else {
+        guard let htmlDoc = try? SwiftSoup.parse(documentText, link) else {
             Log.crawling(id, .error).log("Cannot parse HTML from \(link)")
             return .error
         }
