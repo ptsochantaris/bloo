@@ -211,7 +211,7 @@ final class BlooCore {
                 .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
                 .map { "https://\($0.lastPathComponent)" }
 
-            await withTaskGroup(of: Void.self) { group in
+            await withDiscardingTaskGroup { group in
                 for domainId in domainIds {
                     group.addTask {
                         await self.addDomain(domainId, postAddAction: .resumeIfNeeded)
