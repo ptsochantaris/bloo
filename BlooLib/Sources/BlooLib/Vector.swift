@@ -1,8 +1,7 @@
 import Accelerate
 import Foundation
-import MemoryMappedCollection
 
-typealias VectorTuple = (
+private typealias VectorTuple = (
     Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
     Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
 
@@ -28,24 +27,22 @@ typealias VectorTuple = (
     Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float
 )
 
-struct Vector: Sendable, RowIdentifiable {
-    let rowId: Int64
-    let magnitude: Float
-    let coords: VectorTuple
+public struct Vector: Sendable, RowIdentifiable {
+    public let rowId: Int64
+    public let magnitude: Float
+    private let coords: VectorTuple
 
     private static let vectorTupleSize = MemoryLayout<VectorTuple>.size
 
-    var accelerateBuffer: [Float] {
+    public var accelerateBuffer: [Float] {
         var res = [Float](repeating: 0, count: 512)
-        withUnsafePointer(to: coords.0) {
-            _ = memcpy(&res, $0, Self.vectorTupleSize)
-        }
+        res.withUnsafeMutableBytes { $0.storeBytes(of: coords, as: VectorTuple.self) }
         return res
     }
 
-    init(coordVector: [Float], rowId: Int64) {
+    public init(coordVector: [Float], rowId: Int64) {
         self.rowId = rowId
         magnitude = sqrt(vDSP.sumOfSquares(coordVector))
-        coords = coordVector.withUnsafeBytes { $0.load(as: VectorTuple.self) }
+        coords = coordVector.withUnsafeBytes { $0.loadUnaligned(as: VectorTuple.self) }
     }
 }

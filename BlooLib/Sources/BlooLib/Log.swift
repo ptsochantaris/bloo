@@ -1,10 +1,10 @@
 import Foundation
 import OSLog
 
-enum Log {
+public enum Log {
     case storage(OSLogType), crawling(String, OSLogType), app(OSLogType), search(OSLogType)
 
-    func log(_ text: String) {
+    public func log(_ text: String) {
         switch self {
         case let .app(level):
             os_log(level, "General: %{public}@", text)

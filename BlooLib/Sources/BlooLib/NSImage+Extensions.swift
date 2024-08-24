@@ -1,13 +1,13 @@
 #if canImport(AppKit)
     import AppKit
 
-    extension Data {
+    public extension Data {
         var asImage: NSImage? {
             NSImage(data: self)
         }
     }
 
-    extension NSImage {
+    public extension NSImage {
         var jpegData: Data? {
             guard let cg = cgImage(forProposedRect: nil, context: nil, hints: nil) else {
                 return nil

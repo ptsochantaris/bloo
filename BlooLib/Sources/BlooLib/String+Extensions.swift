@@ -4,7 +4,7 @@ import SwiftUI
 // Swift warning workaround
 extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute>: @retroactive @unchecked Sendable {}
 
-extension String {
+public extension String {
     var isSaneLink: Bool {
         !(self == "/"
             || contains("/feed/")
@@ -29,7 +29,7 @@ extension String {
             let attributedEnd = attributedString.index(attributedStart, offsetByCharacters: plainLength)
             let newRange = attributedStart ..< attributedEnd
             var replacement = AttributedString(match.output.1)
-            replacement.foregroundColor = .accent
+            replacement.foregroundColor = .accentColor
             attributedString.replaceSubrange(newRange, with: replacement)
         }
 

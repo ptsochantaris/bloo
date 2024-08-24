@@ -3,13 +3,13 @@ import Foundation
 #if canImport(UIKit)
     import UIKit
 
-    extension Data {
+    public extension Data {
         var asImage: UIImage? {
             UIImage(data: self)
         }
     }
 
-    extension UIImage {
+    public extension UIImage {
         var jpegData: Data? {
             jpegData(compressionQuality: 0.7)
         }

@@ -1,6 +1,6 @@
 import Foundation
 
-extension Collection {
+public extension Collection {
     var isPopulated: Bool {
         !isEmpty
     }

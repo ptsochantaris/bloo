@@ -5,6 +5,7 @@ import SwiftUI
 #if os(iOS)
     import BackgroundTasks
 #endif
+import BlooLib
 
 @MainActor
 @Observable

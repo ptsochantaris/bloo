@@ -1,12 +1,6 @@
 import Foundation
 import SwiftUI
 
-enum Blooper: Error {
-    case malformedUrl
-    case coreSpotlightNotEnabled
-    case blockedUrl
-}
-
 let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("storage.noindex", isDirectory: true)
 
 func domainPath(for id: String) -> URL {

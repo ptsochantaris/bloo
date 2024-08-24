@@ -1,6 +1,6 @@
 import Foundation
 
-extension URL {
+public extension URL {
     static func create(from text: String, relativeTo: URL?, checkExtension: Bool) throws -> URL {
         guard text.isPopulated,
               text.isSaneLink,
@@ -50,7 +50,7 @@ extension URL {
     }
 }
 
-extension URLResponse {
+public extension URLResponse {
     var guessedEncoding: String.Encoding {
         if let encodingName = textEncodingName {
             let cfEncoding = CFStringConvertIANACharSetNameToEncoding(encodingName as CFString)

@@ -102,11 +102,11 @@ public final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessColle
         print("Validation complete - checked \(count) records")
     }
 
-    public func append(_ item: T) throws {
-        try append(contentsOf: [item])
+    public func insert(_ item: T) throws {
+        try insert(contentsOf: [item])
     }
 
-    private func index(for rowId: Int64) -> Int? {
+    public func index(for rowId: Int64) -> Int? {
         var lowerIndex = 0
         var upperIndex = count - 1
 
@@ -126,7 +126,7 @@ public final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessColle
         }
     }
 
-    public func append(contentsOf sequence: any Collection<T>) throws {
+    public func insert(contentsOf sequence: any Collection<T>) throws {
         var currentCount = count
         let newMaxCount = currentCount + sequence.count
         if newMaxCount >= capacity {

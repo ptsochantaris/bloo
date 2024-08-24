@@ -30,13 +30,13 @@ private final actor Rental<T: Sendable> {
     }
 }
 
-enum Embedding {
+public enum Embedding {
     private static let vectorEngines = Rental<NLContextualEmbedding> { @Sendable in
         let newEngine = NLContextualEmbedding(language: .english)!
         if !newEngine.hasAvailableAssets {
             try await newEngine.requestAssets()
-            try newEngine.load()
         }
+        try newEngine.load()
         return newEngine
     }
 
@@ -47,7 +47,7 @@ enum Embedding {
 
     private static let charsetForTrimming = CharacterSet.alphanumerics.inverted.union(.whitespacesAndNewlines)
 
-    static func generateDate(from text: String) async -> Date? {
+    public static func generateDate(from text: String) async -> Date? {
         guard let engine = try? await detectors.reserve() else {
             return nil
         }
@@ -57,30 +57,39 @@ enum Embedding {
         return engine.firstMatch(in: text, range: text.wholeNSRange)?.date
     }
 
-    static func vector(for text: String, rowId: Int64 = 0) async -> Vector? {
+    public static func vector(for text: String) async -> [Float]? {
         guard let engine = try? await vectorEngines.reserve() else {
             return nil
         }
+
         defer {
             vectorEngines.release(item: engine)
         }
 
         if let coordResult = try? engine.embeddingResult(for: text, language: .english) {
             var vector = [Double](repeating: 0, count: 512)
-            var added = false
-            coordResult.enumerateTokenVectors(in: text.wholeRange) { vec, range in
-                if !range.isEmpty {
-                    vDSP.maximum(vector, vec, result: &vector)
-                    added = true
-                }
-                return true
+            var addedCount = 0
+            coordResult.enumerateTokenVectors(in: text.wholeRange) { vec, _ in
+                vector = vDSP.add(vector, vec)
+                addedCount += 1
+                return false
             }
-
-            if added {
-                return Vector(coordVector: vector.map { Float($0) }, rowId: rowId)
+            if addedCount > 1 {
+                vector = vDSP.divide(vector, Double(addedCount))
+            }
+            if addedCount > 0 {
+                return vector.map { Float($0) }
             }
         }
 
         return nil
+    }
+
+    public static func distance(between firstVector: Vector, and secondVector: Vector) -> Float {
+        distance(between: firstVector.accelerateBuffer, firstMagnitude: firstVector.magnitude, and: secondVector.accelerateBuffer, secondMagnitude: secondVector.magnitude)
+    }
+
+    public static func distance(between firstEmbedding: [Float], firstMagnitude: Float, and secondEmbedding: [Float], secondMagnitude: Float) -> Float {
+        vDSP.dot(firstEmbedding, secondEmbedding) / (firstMagnitude * secondMagnitude)
     }
 }
