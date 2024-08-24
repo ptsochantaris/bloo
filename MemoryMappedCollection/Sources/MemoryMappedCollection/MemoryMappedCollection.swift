@@ -9,11 +9,14 @@ public final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessColle
 
     enum MemoryMappedCollectionError: LocalizedError {
         case ioError(String)
+        case validationFailed(String)
 
         var errorDescription: String? {
             switch self {
             case let .ioError(text):
                 "IO Error: \(text)"
+            case let .validationFailed(text):
+                "Validation Error: \(text)"
             }
         }
     }
@@ -69,12 +72,34 @@ public final class MemoryMappedCollection<T: RowIdentifiable>: RandomAccessColle
         counterSize + step * index
     }
 
-    public init(at path: String, minimumCapacity: Int) throws {
+    public init(at path: String, minimumCapacity: Int, validateOrder: Bool) throws {
         fileDescriptor = open(path, O_CREAT | O_RDWR, S_IREAD | S_IWRITE)
         if fileDescriptor == 0 {
             throw MemoryMappedCollectionError.ioError("Could not create or open file at \(path)")
         }
+
         try start(minimumCapacity: minimumCapacity)
+
+        if validateOrder {
+            try runValidation()
+        }
+    }
+
+    private func runValidation() throws {
+        print("Validating memory mapped collection…")
+        var previousRowId: Int64?
+        for row in self {
+            let rowId = row.rowId
+            if let previousRowId, rowId <= previousRowId {
+                if rowId == previousRowId {
+                    throw MemoryMappedCollectionError.validationFailed("Duplicate row ID [\(rowId)]")
+                } else {
+                    throw MemoryMappedCollectionError.validationFailed("Rows are not sorted by rowId - [\(rowId)] came after [\(previousRowId)]")
+                }
+            }
+            previousRowId = rowId
+        }
+        print("Validation complete - checked \(count) records")
     }
 
     public func append(_ item: T) throws {

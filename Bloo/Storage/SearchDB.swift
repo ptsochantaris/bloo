@@ -28,7 +28,7 @@ final actor SearchDB {
         indexDb = c
 
         let embeddingPath = documentsPath.appending(path: "doc.embeddings", directoryHint: .notDirectory).path
-        documentIndex = try MemoryMappedCollection(at: embeddingPath, minimumCapacity: 10000)
+        documentIndex = try MemoryMappedCollection(at: embeddingPath, minimumCapacity: 10000, validateOrder: false)
 
         Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }

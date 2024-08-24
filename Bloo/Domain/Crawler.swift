@@ -9,6 +9,28 @@ import SQLite
 @preconcurrency import SwiftSoup
 import SwiftUI
 
+final actor KeywordGenerator {
+    static let shared = KeywordGenerator()
+
+    private let tagger = NLTagger(tagSchemes: [.nameType])
+
+    func generateKeywords(from text: String) -> [String] {
+        tagger.string = text
+        let range = text.wholeRange
+        let results = tagger.tags(in: range, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitOther, .omitPunctuation])
+        let res = results.compactMap { token -> String? in
+            guard let tag = token.0 else { return nil }
+            switch tag {
+            case .noun, .organizationName, .personalName, .placeName:
+                return String(text[token.1])
+            default:
+                return nil
+            }
+        }
+        return Array(res.uniqued())
+    }
+}
+
 final actor Crawler {
     private let id: String
     private let bootupEntry: IndexEntry
@@ -512,12 +534,12 @@ final actor Crawler {
 
         let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
         let creationDate = Formatters.tryParsingCreatedDate(createdDateString)
-        let keywords = Self.generateKeywords(from: condensedText)
+        let keywords = await KeywordGenerator.shared.generateKeywords(from: condensedText)
 
 //        let keywords = header
 //            .metaNameContent(for: "keywords")?.split(separator: ",")
 //            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-//            ?? Self.generateKeywords(from: condensedText)
+//            ?? await KeywordGenerator.shared.generateKeywords(from: condensedText)
 
         let lastModified: Date? = if let lastModifiedHeaderDate {
             lastModifiedHeaderDate
@@ -525,24 +547,6 @@ final actor Crawler {
             creationDate
         } else {
             await Embedding.generateDate(from: condensedText)
-        }
-
-        var numberOfKeywordsInTitle = 0
-        var numberOfKeywordsInDescription = 0
-        var numberOfKeywordsInContent = 0
-
-        for keyword in keywords {
-            if title.localizedCaseInsensitiveContains(keyword) {
-                numberOfKeywordsInTitle += 1
-            }
-
-            if summaryContent.localizedCaseInsensitiveContains(keyword) {
-                numberOfKeywordsInDescription += 1
-            }
-
-            if condensedText.localizedCaseInsensitiveContains(keyword) {
-                numberOfKeywordsInContent += 1
-            }
         }
 
         var thumbnailUrl: URL?
@@ -591,23 +595,6 @@ final actor Crawler {
         }
 
         return location.appendingPathComponent(third + ".jpg", isDirectory: false)
-    }
-
-    private static func generateKeywords(from text: String) -> [String] {
-        let tagger = NLTagger(tagSchemes: [.nameType])
-        tagger.string = text
-        let range = text.wholeRange
-        let results = tagger.tags(in: range, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitOther, .omitPunctuation])
-        let res = results.compactMap { token -> String? in
-            guard let tag = token.0 else { return nil }
-            switch tag {
-            case .noun, .organizationName, .personalName, .placeName:
-                return String(text[token.1])
-            default:
-                return nil
-            }
-        }
-        return Array(Set(res))
     }
 
     private func count(table: TableWrapper) throws -> Int {
