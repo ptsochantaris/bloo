@@ -16,29 +16,29 @@ struct TestType: RowIdentifiable, Equatable {
     let test1 = try #require(await Embedding.vector(for: "This is a test"))
     let t1 = try #require(Vector(coordVector: test1, rowId: 3))
 
-    let test2 = try #require(await Embedding.vector(for: "This is a test document"))
-    let t2 = try #require(Vector(coordVector: test2, rowId: 4))
-
     let embedding1 = try #require(await Embedding.vector(for: "This is a test document"))
     let v1 = Vector(coordVector: embedding1, rowId: 0)
     let d1 = try #require(Embedding.distance(between: v1, and: t1))
+
+    let test2 = try #require(await Embedding.vector(for: "This is a test document"))
+    let t2 = try #require(Vector(coordVector: test2, rowId: 4))
     let dI = try #require(Embedding.distance(between: v1, and: t2))
-    #expect(d1 < dI)
+    #expect(d1 > dI)
 
     let embedding2 = try #require(await Embedding.vector(for: "This is a book"))
     let v2 = Vector(coordVector: embedding2, rowId: 1)
     let d2 = try #require(Embedding.distance(between: v2, and: t1))
-    #expect(d2 < d1)
+    #expect(d2 > d1)
 
     let embedding3 = try #require(await Embedding.vector(for: "This is a dog"))
     let v3 = Vector(coordVector: embedding3, rowId: 2)
     let d3 = try #require(Embedding.distance(between: v3, and: t1))
-    #expect(d3 < d2)
+    #expect(d3 > d2)
 
     let embedding4 = try #require(await Embedding.vector(for: "Wuuuuuut"))
     let v4 = Vector(coordVector: embedding4, rowId: 3)
     let d4 = try #require(Embedding.distance(between: v4, and: t1))
-    #expect(d4 < d3)
+    #expect(d4 > d3)
 }
 
 @Test func mappedColletion() async throws {

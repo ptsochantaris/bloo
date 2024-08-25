@@ -90,6 +90,7 @@ public enum Embedding {
     }
 
     public static func distance(between firstEmbedding: [Float], firstMagnitude: Float, and secondEmbedding: [Float], secondMagnitude: Float) -> Float {
-        vDSP.dot(firstEmbedding, secondEmbedding) / (firstMagnitude * secondMagnitude)
+        let res = vDSP.dot(firstEmbedding, secondEmbedding) / (firstMagnitude * secondMagnitude)
+        return 1 - pow(res, 2)
     }
 }

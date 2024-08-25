@@ -120,12 +120,10 @@ final actor SearchDB {
             .min(count: vectorLimit) { v1, v2 in
                 let R1 = Embedding.distance(between: v1.accelerateBuffer, firstMagnitude: v1.magnitude, and: searchVectorAccelBuffer, secondMagnitude: searchVectorMagnitude)
                 let R2 = Embedding.distance(between: v2.accelerateBuffer, firstMagnitude: v2.magnitude, and: searchVectorAccelBuffer, secondMagnitude: searchVectorMagnitude)
-                return R1 > R2
+                return R1 < R2
             }
             .map { String($0.rowId) }
             .joined(separator: ",")
-
-        // Log.search(.debug).log("Closest ids (limit: \(limit): \(idList)")
 
         let elements = try indexDb.prepareRowIterator(
             """
@@ -159,7 +157,7 @@ final actor SearchDB {
                 let v2 = documentIndex[i2]
                 let R2 = Embedding.distance(between: v2.accelerateBuffer, firstMagnitude: v2.magnitude, and: searchVectorAccelBuffer, secondMagnitude: searchVectorMagnitude)
 
-                return R1 > R2
+                return R1 < R2
             }.map {
                 let i1 = documentIndex.index(for: $0.rowId)!
                 let v1 = documentIndex[i1]
