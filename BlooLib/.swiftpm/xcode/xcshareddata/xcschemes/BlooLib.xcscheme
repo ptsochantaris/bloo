@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "MemoryMappedCollection"
-               BuildableName = "MemoryMappedCollection"
-               BlueprintName = "MemoryMappedCollection"
+               BlueprintIdentifier = "BlooLib"
+               BuildableName = "BlooLib"
+               BlueprintName = "BlooLib"
                ReferencedContainer = "container:">
             </BuildableReference>
          </BuildActionEntry>
@@ -34,9 +34,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "MemoryMappedCollectionTests"
-               BuildableName = "MemoryMappedCollectionTests"
-               BlueprintName = "MemoryMappedCollectionTests"
+               BlueprintIdentifier = "BlooLibTests"
+               BuildableName = "BlooLibTests"
+               BlueprintName = "BlooLibTests"
                ReferencedContainer = "container:">
             </BuildableReference>
          </TestableReference>
@@ -62,9 +62,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "MemoryMappedCollection"
-            BuildableName = "MemoryMappedCollection"
-            BlueprintName = "MemoryMappedCollection"
+            BlueprintIdentifier = "BlooLib"
+            BuildableName = "BlooLib"
+            BlueprintName = "BlooLib"
             ReferencedContainer = "container:">
          </BuildableReference>
       </MacroExpansion>

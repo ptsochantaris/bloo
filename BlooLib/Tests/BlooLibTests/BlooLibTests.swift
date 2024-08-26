@@ -1,6 +1,8 @@
 @testable import BlooLib
 import Foundation
 import Testing
+import SwiftSoup
+import Accelerate
 
 struct TestType: RowIdentifiable, Equatable {
     let rowId: Int64
@@ -12,32 +14,97 @@ struct TestType: RowIdentifiable, Equatable {
     }
 }
 
+private func calculateDistance(of phrase: String, to vector: Vector) async throws -> Float {
+    let e = try #require(await Embedding.vector(for: phrase))
+    let v = Vector(coordVector: e.map { Float($0) }, rowId: 0)
+    return try #require(Embedding.distance(between: v, and: vector))
+}
+
+private func textBlocks(from file: String) -> [String] {
+    let htmlPath = Bundle.module.url(forResource: file, withExtension: "html", subdirectory: "Resources")!
+    let data = try! Data(contentsOf: htmlPath)
+    let htmlString = String(decoding: data, as: UTF8.self)
+    let souped = try! SwiftSoup.Parser.parse(htmlString, "")
+    #expect(souped.body() != nil)
+
+    var textBlocks = [String]()
+    for child in try! souped.body()!.getAllElements() {
+        if let text = try? child.text(),
+           text.count > 10,
+           child.tag().getName() == "div" {
+            textBlocks.append(text)
+        }
+    }
+
+    return textBlocks
+}
+
+@Test func htmlFromStackOverFlow() async throws {
+    let textBlocks = textBlocks(from: "stack-overflow-sample")
+    let documentVector = await Embedding.vector(for: textBlocks)!
+    let dv = Vector(coordVector: documentVector.map { Float($0) }, rowId: 0)
+
+    let d0 = try await calculateDistance(of: "How to embed resources in swift package manager", to: dv)
+    let d1 = try await calculateDistance(of: "How to make apps", to: dv)
+    #expect(d0 < d1)
+
+    let d2 = try await calculateDistance(of: "How to code in Swift", to: dv)
+    #expect(d1 < d2)
+
+    let d3 = try await calculateDistance(of: "Swift is fun", to: dv)
+    #expect(d2 < d3)
+
+    let d4 = try await calculateDistance(of: "I'm a little teapot", to: dv)
+    #expect(d3 < d4)
+
+    let d5 = try await calculateDistance(of: "Swimming is fun", to: dv)
+    #expect(d4 < d5)
+
+    let d6 = try await calculateDistance(of: "The quick brown fox jumps over the lazy dog", to: dv)
+    #expect(d5 < d6)
+}
+
+@Test func htmlFromBruland() async throws {
+    let textBlocks = textBlocks(from: "bruland-sample")
+    let documentVector = await Embedding.vector(for: textBlocks)!
+    let dv = Vector(coordVector: documentVector.map { Float($0) }, rowId: 0)
+
+    let d0 = try await calculateDistance(of: "Rainy evening", to: dv)
+    let d1 = try await calculateDistance(of: "Refrigeration", to: dv)
+    #expect(d0 < d1)
+
+    let d2 = try await calculateDistance(of: "Timelines", to: dv)
+    #expect(d1 < d2)
+
+    let d3 = try await calculateDistance(of: "Beer", to: dv)
+    #expect(d2 < d3)
+
+    let d4 = try await calculateDistance(of: "Government", to: dv)
+    #expect(d3 < d4)
+
+    let d5 = try await calculateDistance(of: "Racist drunk guy", to: dv)
+    #expect(d4 < d5)
+
+    let d6 = try await calculateDistance(of: "Swimming is fun", to: dv)
+    #expect(d5 < d6)
+}
+
 @Test func embedding() async throws {
     let test1 = try #require(await Embedding.vector(for: "This is a test"))
-    let t1 = try #require(Vector(coordVector: test1, rowId: 3))
+    let t1 = try #require(Vector(coordVector: test1.map { Float($0) }, rowId: 0))
 
-    let embedding1 = try #require(await Embedding.vector(for: "This is a test document"))
-    let v1 = Vector(coordVector: embedding1, rowId: 0)
-    let d1 = try #require(Embedding.distance(between: v1, and: t1))
+    let d0 = try await calculateDistance(of: "This is a test", to: t1)
 
-    let test2 = try #require(await Embedding.vector(for: "This is a test document"))
-    let t2 = try #require(Vector(coordVector: test2, rowId: 4))
-    let dI = try #require(Embedding.distance(between: v1, and: t2))
-    #expect(d1 > dI)
+    let d1 = try await calculateDistance(of: "This is a test document", to: t1)
+    #expect(d1 > d0)
 
-    let embedding2 = try #require(await Embedding.vector(for: "This is a book"))
-    let v2 = Vector(coordVector: embedding2, rowId: 1)
-    let d2 = try #require(Embedding.distance(between: v2, and: t1))
+    let d2 = try await calculateDistance(of: "This is a book", to: t1)
     #expect(d2 > d1)
 
-    let embedding3 = try #require(await Embedding.vector(for: "This is a dog"))
-    let v3 = Vector(coordVector: embedding3, rowId: 2)
-    let d3 = try #require(Embedding.distance(between: v3, and: t1))
+    let d3 = try await calculateDistance(of: "This is a dog", to: t1)
     #expect(d3 > d2)
 
-    let embedding4 = try #require(await Embedding.vector(for: "Wuuuuuut"))
-    let v4 = Vector(coordVector: embedding4, rowId: 3)
-    let d4 = try #require(Embedding.distance(between: v4, and: t1))
+    let d4 = try await calculateDistance(of: "Wuuuuuut", to: t1)
     #expect(d4 > d3)
 }
 

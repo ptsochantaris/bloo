@@ -57,32 +57,64 @@ public enum Embedding {
         return engine.firstMatch(in: text, range: text.wholeNSRange)?.date
     }
 
-    public static func vector(for text: String) async -> [Float]? {
+    public static func vector(for text: String) async -> [Double]? {
         guard let engine = try? await vectorEngines.reserve() else {
             return nil
         }
 
-        defer {
-            vectorEngines.release(item: engine)
+        let coordResult = try? engine.embeddingResult(for: text, language: .english)
+        vectorEngines.release(item: engine)
+
+        guard let coordResult else {
+            return nil
         }
 
-        if let coordResult = try? engine.embeddingResult(for: text, language: .english) {
-            var vector = [Double](repeating: 0, count: 512)
-            var addedCount = 0
-            coordResult.enumerateTokenVectors(in: text.wholeRange) { vec, _ in
+        var vector = [Double](repeating: 0, count: 512)
+        var addedCount = 0
+        coordResult.enumerateTokenVectors(in: text.wholeRange) { vec, range in
+            if !range.isEmpty {
                 vector = vDSP.add(vector, vec)
                 addedCount += 1
-                return false
             }
-            if addedCount > 1 {
-                vector = vDSP.divide(vector, Double(addedCount))
-            }
-            if addedCount > 0 {
-                return vector.map { Float($0) }
-            }
+            return true
+        }
+        if addedCount > 1 {
+            vector = vDSP.divide(vector, Double(addedCount))
+        }
+        if addedCount > 0 {
+            return vector
         }
 
         return nil
+    }
+
+    public static func vector(for textBlocks: [String]) async -> [Double]? {
+        var count = 0
+        var documentVector = [Double](repeating: 0, count: 512)
+        var sentences = Set<String>()
+
+        for text in textBlocks {
+            text.enumerateSubstrings(in: text.wholeRange, options: .bySentences) { substring, _, _, _ in
+                if let substring {
+                    sentences.insert(substring)
+                }
+            }
+        }
+
+        for sentence in sentences {
+            if let vector = await Embedding.vector(for: sentence) {
+                documentVector = vDSP.add(documentVector, vector)
+                count += 1
+            }
+        }
+
+        return if count > 1 {
+            vDSP.divide(documentVector, Double(count))
+        } else if count > 0 {
+            documentVector
+        } else {
+            nil
+        }
     }
 
     public static func distance(between firstVector: Vector, and secondVector: Vector) -> Float {
@@ -90,7 +122,8 @@ public enum Embedding {
     }
 
     public static func distance(between firstEmbedding: [Float], firstMagnitude: Float, and secondEmbedding: [Float], secondMagnitude: Float) -> Float {
-        let res = vDSP.dot(firstEmbedding, secondEmbedding) / (firstMagnitude * secondMagnitude)
-        return 1 - pow(res, 2)
+        //let cosineSimilarity = vDSP.dot(firstEmbedding, secondEmbedding) / (firstMagnitude * secondMagnitude)
+        //return 1 - pow(cosineSimilarity, 2)
+        vDSP.distanceSquared(firstEmbedding, secondEmbedding)
     }
 }

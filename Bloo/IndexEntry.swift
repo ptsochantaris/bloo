@@ -5,14 +5,14 @@ enum IndexEntry: Hashable, Sendable {
     struct Content {
         let title: String?
         let description: String?
-        let sparseContent: String?
         let condensedContent: String?
+        let textBlocks: [String]
         let keywords: String?
         let thumbnailUrl: String?
         let lastModified: Date?
 
         var hasItems: Bool {
-            title != nil || description != nil || condensedContent != nil || sparseContent != nil || keywords != nil
+            title != nil || description != nil || condensedContent != nil || keywords != nil || textBlocks.isPopulated
         }
     }
 

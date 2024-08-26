@@ -468,15 +468,13 @@ final actor Crawler {
         }
 
         guard let body = htmlDoc.body(),
-              let condensedTextRaw = try? body.text(trimAndNormaliseWhitespace: true),
-              let sparseTextRaw = try? body.text(trimAndNormaliseWhitespace: false)
+              let condensedTextRaw = try? body.text(trimAndNormaliseWhitespace: true)
         else {
             Log.crawling(id, .error).log("Cannot parse text in \(link)")
             return .error
         }
 
         let condensedText = condensedTextRaw.removingHTMLEntities()
-        let sparseText = sparseTextRaw.removingHTMLEntities()
 
         var imageFileTask: Task<(URL?, URL), Never>?
         if let ogImage = header.metaPropertyContent(for: "og:image"),
@@ -559,10 +557,21 @@ final actor Crawler {
             }
         }
 
+        let textBlocks: [String]
+        do {
+            textBlocks = try body.textBlocks
+        } catch {
+            return .error
+        }
+
+        if textBlocks.isEmpty {
+            return .error
+        }
+
         let newContent = IndexEntry.Content(title: title,
                                             description: summaryContent,
-                                            sparseContent: sparseText,
                                             condensedContent: condensedText,
+                                            textBlocks: textBlocks,
                                             keywords: keywords.joined(separator: ", "),
                                             thumbnailUrl: thumbnailUrl?.absoluteString,
                                             lastModified: lastModified)

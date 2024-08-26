@@ -1,7 +1,22 @@
 import Foundation
 import SwiftSoup
+import HTMLString
 
-extension Element {
+public extension Element {
+    var textBlocks: [String] {
+        get throws {
+            try getAllElements().compactMap { child in
+                if child.tag().getName() == "div" {
+                    let text = try child.text().removingHTMLEntities()
+                    if text.count > 10 {
+                        return text
+                    }
+                }
+                return nil
+            }
+        }
+    }
+
     private func meta(for tag: String, attribute: String) -> String? {
         if let metaTags = try? select("meta[\(attribute)=\"\(tag)\"]") {
             for node in metaTags {

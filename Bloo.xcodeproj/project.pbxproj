@@ -41,11 +41,8 @@
 		16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* BlooApp.swift */; };
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
 		16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */; };
-		16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 16E8A0F72AC1F9B500CCB10D /* SwiftSoup */; };
-		16F8D1D92AE92E530005A01D /* HTMLString in Frameworks */ = {isa = PBXBuildFile; productRef = 16F8D1D82AE92E530005A01D /* HTMLString */; };
 		16FD23352AC3A5A600751A85 /* Maintini in Frameworks */ = {isa = PBXBuildFile; productRef = 16FD23342AC3A5A600751A85 /* Maintini */; };
 		16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */ = {isa = PBXBuildFile; productRef = 16FD23372AC43D0F00751A85 /* PopTimer */; };
-		16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */; };
 		16FDB0FF2ADB450B003A4BBD /* TableWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FDB0FE2ADB450B003A4BBD /* TableWrapper.swift */; };
 /* End PBXBuildFile section */
 
@@ -81,7 +78,6 @@
 		16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		16E8A0F02AC1F96600CCB10D /* Bloo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Bloo.entitlements; sourceTree = "<group>"; };
 		16E8A0F92AC2161000CCB10D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSoup+Extensions.swift"; sourceTree = "<group>"; };
 		16FDB0FE2ADB450B003A4BBD /* TableWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableWrapper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -98,8 +94,6 @@
 				160F0F542C7A98E1006D0BB8 /* BlooLib in Frameworks */,
 				164418172C752A8100183EE1 /* Algorithms in Frameworks */,
 				1644180E2C752A2F00183EE1 /* SQLite in Frameworks */,
-				16F8D1D92AE92E530005A01D /* HTMLString in Frameworks */,
-				16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -152,7 +146,6 @@
 			children = (
 				1634CF9A2AC366D90022A8F6 /* Globals.swift */,
 				16B67CF32AD4229400366266 /* Settings.swift */,
-				16FD233F2AC5CD9600751A85 /* SwiftSoup+Extensions.swift */,
 				16B67CF12AD4227800366266 /* UserDefault.swift */,
 			);
 			path = Utils;
@@ -218,10 +211,8 @@
 			);
 			name = Bloo;
 			packageProductDependencies = (
-				16E8A0F72AC1F9B500CCB10D /* SwiftSoup */,
 				16FD23342AC3A5A600751A85 /* Maintini */,
 				16FD23372AC43D0F00751A85 /* PopTimer */,
-				16F8D1D82AE92E530005A01D /* HTMLString */,
 				16BD524E2B27F89000529462 /* Semalot */,
 				1650910F2C71132B0003BFAB /* CanProceed */,
 				1644180D2C752A2F00183EE1 /* SQLite */,
@@ -259,10 +250,8 @@
 			);
 			mainGroup = 16E8A0DB2AC1F96500CCB10D;
 			packageReferences = (
-				16E8A0F62AC1F9B500CCB10D /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 				16FD23332AC3A5A600751A85 /* XCRemoteSwiftPackageReference "maintini" */,
 				16FD23362AC43D0F00751A85 /* XCRemoteSwiftPackageReference "pop-timer" */,
-				16F8D1D72AE92E530005A01D /* XCRemoteSwiftPackageReference "HTMLString" */,
 				16BD524D2B27F89000529462 /* XCRemoteSwiftPackageReference "semalot" */,
 				1650910E2C71132B0003BFAB /* XCRemoteSwiftPackageReference "can-proceed" */,
 				1644180C2C752A2F00183EE1 /* XCRemoteSwiftPackageReference "SQLite" */,
@@ -305,7 +294,6 @@
 				165F10C82AC8810D00442892 /* EngineState.swift in Sources */,
 				16ACD37E2AF979BF00993099 /* Crawler.swift in Sources */,
 				165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */,
-				16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */,
 				165091122C7113E40003BFAB /* RobotEditor.swift in Sources */,
 				1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */,
 				16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */,
@@ -604,22 +592,6 @@
 				kind = branch;
 			};
 		};
-		16E8A0F62AC1F9B500CCB10D /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/scinfu/SwiftSoup";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.6.1;
-			};
-		};
-		16F8D1D72AE92E530005A01D /* XCRemoteSwiftPackageReference "HTMLString" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/alexisakers/HTMLString";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 6.0.1;
-			};
-		};
 		16FD23332AC3A5A600751A85 /* XCRemoteSwiftPackageReference "maintini" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ptsochantaris/maintini";
@@ -667,16 +639,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 16BD524D2B27F89000529462 /* XCRemoteSwiftPackageReference "semalot" */;
 			productName = Semalot;
-		};
-		16E8A0F72AC1F9B500CCB10D /* SwiftSoup */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 16E8A0F62AC1F9B500CCB10D /* XCRemoteSwiftPackageReference "SwiftSoup" */;
-			productName = SwiftSoup;
-		};
-		16F8D1D82AE92E530005A01D /* HTMLString */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 16F8D1D72AE92E530005A01D /* XCRemoteSwiftPackageReference "HTMLString" */;
-			productName = HTMLString;
 		};
 		16FD23342AC3A5A600751A85 /* Maintini */ = {
 			isa = XCSwiftPackageProductDependency;
