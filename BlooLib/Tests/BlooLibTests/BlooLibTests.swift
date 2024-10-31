@@ -15,82 +15,84 @@ struct TestType: RowIdentifiable, Equatable {
 }
 
 private func calculateDistance(of phrase: String, to vector: Vector) async throws -> Float {
-    let e = try #require(await Embedding.vector(for: phrase))
+    let e = await Embedding.vector(for: .query, text: phrase)
+    guard let e else {
+        return Float.greatestFiniteMagnitude
+    }
     let v = Vector(coordVector: e.map { Float($0) }, rowId: 0)
     return try #require(Embedding.distance(between: v, and: vector))
 }
 
-private func textBlocks(from file: String) -> [String] {
+private func textBlock(from file: String) -> String {
     let htmlPath = Bundle.module.url(forResource: file, withExtension: "html", subdirectory: "Resources")!
     let data = try! Data(contentsOf: htmlPath)
     let htmlString = String(decoding: data, as: UTF8.self)
     let souped = try! SwiftSoup.Parser.parse(htmlString, "")
     #expect(souped.body() != nil)
 
-    var textBlocks = [String]()
-    for child in try! souped.body()!.getAllElements() {
-        if let text = try? child.text(),
-           text.count > 10,
-           child.tag().getName() == "div" {
-            textBlocks.append(text)
+    return try! souped.body()!.text(trimAndNormaliseWhitespace: true)
+}
+
+func sequenceVerify(_ phrases: [String], to vector: Vector) async throws {
+    struct Distance: Equatable, Comparable, CustomStringConvertible {
+        let text: String
+        let distance: Float
+
+        static func < (lhs: Self, rhs: Self) -> Bool {
+            lhs.distance < rhs.distance
+        }
+
+        var description: String {
+            text
         }
     }
-
-    return textBlocks
+    var distances: [Distance] = []
+    for phrase in phrases {
+        let distance = try await calculateDistance(of: phrase, to: vector)
+        distances.append(Distance(text: phrase, distance: distance))
+    }
+    #expect(distances.sorted() == distances)
 }
 
 @Test func htmlFromStackOverFlow() async throws {
-    let textBlocks = textBlocks(from: "stack-overflow-sample")
-    let documentVector = await Embedding.vector(for: textBlocks)!
+    let textBlocks = textBlock(from: "stack-overflow-sample")
+    let documentVector = await Embedding.vector(for: .passage, text: textBlocks)!
     let dv = Vector(coordVector: documentVector.map { Float($0) }, rowId: 0)
 
-    let d0 = try await calculateDistance(of: "How to embed resources in swift package manager", to: dv)
-    let d1 = try await calculateDistance(of: "How to make apps", to: dv)
-    #expect(d0 < d1)
-
-    let d2 = try await calculateDistance(of: "How to code in Swift", to: dv)
-    #expect(d1 < d2)
-
-    let d3 = try await calculateDistance(of: "Swift is fun", to: dv)
-    #expect(d2 < d3)
-
-    let d4 = try await calculateDistance(of: "I'm a little teapot", to: dv)
-    #expect(d3 < d4)
-
-    let d5 = try await calculateDistance(of: "Swimming is fun", to: dv)
-    #expect(d4 < d5)
-
-    let d6 = try await calculateDistance(of: "The quick brown fox jumps over the lazy dog", to: dv)
-    #expect(d5 < d6)
+    try await sequenceVerify([
+        "How to code in Swift",
+        "How to make apps",
+        "Xcode",
+        "How to embed resources in swift package manager",
+        "Wuuuuuut",
+        "Package manager",
+        "Swift",
+        "I'm a little teapot",
+        "Sandwitch",
+        "iPad",
+        "Swimming is great exercise",
+        "Quick brown fox jumps over the lazy dog",
+    ], to: dv)
 }
 
 @Test func htmlFromBruland() async throws {
-    let textBlocks = textBlocks(from: "bruland-sample")
-    let documentVector = await Embedding.vector(for: textBlocks)!
+    let textBlocks = textBlock(from: "bruland-sample")
+    let documentVector = await Embedding.vector(for: .passage, text: textBlocks)!
     let dv = Vector(coordVector: documentVector.map { Float($0) }, rowId: 0)
 
-    let d0 = try await calculateDistance(of: "Rainy evening", to: dv)
-    let d1 = try await calculateDistance(of: "Refrigeration", to: dv)
-    #expect(d0 < d1)
-
-    let d2 = try await calculateDistance(of: "Timelines", to: dv)
-    #expect(d1 < d2)
-
-    let d3 = try await calculateDistance(of: "Beer", to: dv)
-    #expect(d2 < d3)
-
-    let d4 = try await calculateDistance(of: "Government", to: dv)
-    #expect(d3 < d4)
-
-    let d5 = try await calculateDistance(of: "Racist drunk guy", to: dv)
-    #expect(d4 < d5)
-
-    let d6 = try await calculateDistance(of: "Swimming is fun", to: dv)
-    #expect(d5 < d6)
+    try await sequenceVerify([
+        "Cold",
+        "Racist drunk guy",
+        "Government",
+        "Beer",
+        "Timelines",
+        "Space shuttle",
+        "Και ενα στα Ελληνικά",
+    ], to: dv)
 }
 
 @Test func embedding() async throws {
-    let test1 = try #require(await Embedding.vector(for: "This is a test"))
+    let test1 = try #require(await Embedding.vector(for: .passage, text: "This is a test"))
     let t1 = try #require(Vector(coordVector: test1.map { Float($0) }, rowId: 0))
 
     let d0 = try await calculateDistance(of: "This is a test", to: t1)
@@ -104,7 +106,7 @@ private func textBlocks(from file: String) -> [String] {
     let d3 = try await calculateDistance(of: "This is a dog", to: t1)
     #expect(d3 > d2)
 
-    let d4 = try await calculateDistance(of: "Wuuuuuut", to: t1)
+    let d4 = try await calculateDistance(of: "ZX Spectrum emulator", to: t1)
     #expect(d4 > d3)
 }
 

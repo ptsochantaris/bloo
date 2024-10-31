@@ -17,7 +17,9 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ptsochantaris/lista", branch: "main"),
         .package(url: "https://github.com/scinfu/SwiftSoup", from: "2.0.0"),
-        .package(url: "https://github.com/alexisakers/HTMLString", from: "6.0.0")
+        .package(url: "https://github.com/alexisakers/HTMLString", from: "6.0.0"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0")
     ],
     targets: [
         .target(
@@ -25,7 +27,9 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftSoup", package: "SwiftSoup"),
                 .product(name: "HTMLString", package: "HTMLString"),
-                .product(name: "Lista", package: "lista")
+                .product(name: "Lista", package: "lista"),
+                .product(name: "Algorithms", package: "swift-algorithms"),
+                .product(name: "Collections", package: "swift-collections")
             ]
         ),
         .testTarget(
@@ -37,4 +41,3 @@ let package = Package(
         )
     ]
 )
-

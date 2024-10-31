@@ -46,9 +46,9 @@ final actor SearchDB {
     }
 
     func insert(id: String, url: String, content: IndexEntry.Content, existingRowId: Int64?) async throws -> Int64? {
-        let textBlocks = content.textBlocks
-
-        guard let embeddingResult = await Embedding.vector(for: textBlocks)?.map({ Float($0) }) else {
+        guard let condensedContent = content.condensedContent,
+              let embeddingResult = await Embedding.vector(prefix: "passage", for: condensedContent)?.map({ Float($0) })
+        else {
             return nil
         }
 
@@ -109,7 +109,7 @@ final actor SearchDB {
         }
 
         let vectorLimit = min(limit, documentIndex.count)
-        guard vectorLimit > 0, let searchVectorFloats = await Embedding.vector(for: text)?.map({ Float($0) }) else {
+        guard vectorLimit > 0, let searchVectorFloats = await Embedding.vector(prefix: "query", for: text)?.map({ Float($0) }) else {
             return []
         }
 

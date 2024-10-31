@@ -557,21 +557,9 @@ final actor Crawler {
             }
         }
 
-        let textBlocks: [String]
-        do {
-            textBlocks = try body.textBlocks
-        } catch {
-            return .error
-        }
-
-        if textBlocks.isEmpty {
-            return .error
-        }
-
         let newContent = IndexEntry.Content(title: title,
                                             description: summaryContent,
                                             condensedContent: condensedText,
-                                            textBlocks: textBlocks,
                                             keywords: keywords.joined(separator: ", "),
                                             thumbnailUrl: thumbnailUrl?.absoluteString,
                                             lastModified: lastModified)

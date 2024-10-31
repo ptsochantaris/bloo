@@ -16,8 +16,6 @@
 		1634CF9D2AC367760022A8F6 /* BlooCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9C2AC367760022A8F6 /* BlooCore.swift */; };
 		163C45F42ACF610C00103BEA /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163C45F32ACF610C00103BEA /* Engine.swift */; };
 		1644180E2C752A2F00183EE1 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 1644180D2C752A2F00183EE1 /* SQLite */; };
-		164418142C752A6700183EE1 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 164418132C752A6700183EE1 /* Collections */; };
-		164418172C752A8100183EE1 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 164418162C752A8100183EE1 /* Algorithms */; };
 		165091102C71132B0003BFAB /* CanProceed in Frameworks */ = {isa = PBXBuildFile; productRef = 1650910F2C71132B0003BFAB /* CanProceed */; };
 		165091122C7113E40003BFAB /* RobotEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165091112C7113DE0003BFAB /* RobotEditor.swift */; };
 		1657AACA2AE4298500503669 /* DB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1657AAC92AE4298500503669 /* DB.swift */; };
@@ -88,11 +86,9 @@
 			files = (
 				16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */,
 				165091102C71132B0003BFAB /* CanProceed in Frameworks */,
-				164418142C752A6700183EE1 /* Collections in Frameworks */,
 				16FD23352AC3A5A600751A85 /* Maintini in Frameworks */,
 				16BD524F2B27F89000529462 /* Semalot in Frameworks */,
 				160F0F542C7A98E1006D0BB8 /* BlooLib in Frameworks */,
-				164418172C752A8100183EE1 /* Algorithms in Frameworks */,
 				1644180E2C752A2F00183EE1 /* SQLite in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -216,8 +212,6 @@
 				16BD524E2B27F89000529462 /* Semalot */,
 				1650910F2C71132B0003BFAB /* CanProceed */,
 				1644180D2C752A2F00183EE1 /* SQLite */,
-				164418132C752A6700183EE1 /* Collections */,
-				164418162C752A8100183EE1 /* Algorithms */,
 				160F0F532C7A98E1006D0BB8 /* BlooLib */,
 			);
 			productName = Nibbel;
@@ -255,8 +249,6 @@
 				16BD524D2B27F89000529462 /* XCRemoteSwiftPackageReference "semalot" */,
 				1650910E2C71132B0003BFAB /* XCRemoteSwiftPackageReference "can-proceed" */,
 				1644180C2C752A2F00183EE1 /* XCRemoteSwiftPackageReference "SQLite" */,
-				164418122C752A6700183EE1 /* XCRemoteSwiftPackageReference "swift-collections" */,
-				164418152C752A8100183EE1 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 			);
 			productRefGroup = 16E8A0E52AC1F96500CCB10D /* Products */;
 			projectDirPath = "";
@@ -560,22 +552,6 @@
 				minimumVersion = 0.15.3;
 			};
 		};
-		164418122C752A6700183EE1 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-collections.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.1.2;
-			};
-		};
-		164418152C752A8100183EE1 /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-algorithms.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.0;
-			};
-		};
 		1650910E2C71132B0003BFAB /* XCRemoteSwiftPackageReference "can-proceed" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ptsochantaris/can-proceed";
@@ -619,16 +595,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1644180C2C752A2F00183EE1 /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
-		};
-		164418132C752A6700183EE1 /* Collections */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 164418122C752A6700183EE1 /* XCRemoteSwiftPackageReference "swift-collections" */;
-			productName = Collections;
-		};
-		164418162C752A8100183EE1 /* Algorithms */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 164418152C752A8100183EE1 /* XCRemoteSwiftPackageReference "swift-algorithms" */;
-			productName = Algorithms;
 		};
 		1650910F2C71132B0003BFAB /* CanProceed */ = {
 			isa = XCSwiftPackageProductDependency;

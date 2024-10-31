@@ -6,13 +6,12 @@ enum IndexEntry: Hashable, Sendable {
         let title: String?
         let description: String?
         let condensedContent: String?
-        let textBlocks: [String]
         let keywords: String?
         let thumbnailUrl: String?
         let lastModified: Date?
 
         var hasItems: Bool {
-            title != nil || description != nil || condensedContent != nil || keywords != nil || textBlocks.isPopulated
+            title != nil || description != nil || condensedContent != nil || keywords != nil
         }
     }
 
