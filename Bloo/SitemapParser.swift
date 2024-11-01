@@ -2,14 +2,14 @@ import Foundation
 
 enum SitemapParser {
     private class Parser: NSObject, XMLParserDelegate {
-        typealias StreamType = AsyncThrowingStream<URL, Error>
-        let locationHose: StreamType
+        fileprivate typealias StreamType = AsyncThrowingStream<URL, Error>
+        fileprivate let locationHose: StreamType
 
         private let continuation: StreamType.Continuation
         private var inLoc = false
         private let parser: XMLParser
 
-        init(data: Data) {
+        fileprivate init(data: Data) {
             (locationHose, continuation) = StreamType.makeStream()
             parser = XMLParser(data: data)
             super.init()

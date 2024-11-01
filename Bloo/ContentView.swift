@@ -210,7 +210,8 @@ private struct DomainRow: View {
             case let .done(indexed, completionDate):
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     VStack {
-                        if let completion = Formatters.relativeTime.string(for: completionDate) {
+                        if let completionDate {
+                            let completion = Formatters.relativeTime(since: completionDate)
                             DomainTitle(domain: domain, subtitle: "Refreshed \(completion)")
                         } else {
                             DomainTitle(domain: domain, subtitle: nil)

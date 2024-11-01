@@ -1,45 +1,55 @@
 import Foundation
 
 enum Formatters {
-    nonisolated(unsafe) static let isoFormatter = ISO8601DateFormatter()
+    private static let posixLocale = Locale(identifier: "en_US_POSIX")
 
-    static let isoFormatter2: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "YYYY-MM-DDTHH:mm:SSZ"
-        return formatter
-    }()
+    private static let relativeStyle = Date.RelativeFormatStyle(presentation: .named, unitsStyle: .wide, locale: .autoupdatingCurrent, calendar: .autoupdatingCurrent, capitalizationContext: .standalone)
+    private static let httpModifiedSinceStyle = Date.VerbatimFormatStyle(format: "\(weekday: .abbreviated), \(day: .twoDigits) \(month: .abbreviated) \(year: .defaultDigits) \(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits) GMT", locale: posixLocale, timeZone: .gmt, calendar: .autoupdatingCurrent)
 
-    static let isoFormatter3: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "YYYY-MM-DD"
-        return formatter
-    }()
+    private static let httpHeaderParseStrategy = httpModifiedSinceStyle.parseStrategy
 
-    static let httpHeaderDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE',' dd' 'MMM' 'yyyy HH':'mm':'ss zzz"
-        return formatter
-    }()
+    private static let isoParseStrategy1 = Date.ISO8601FormatStyle()
+    private static let isoParseStrategy4 = Date.VerbatimFormatStyle(format: "\(year: .defaultDigits)", locale: posixLocale, timeZone: .autoupdatingCurrent, calendar: .autoupdatingCurrent).parseStrategy
+    private static let isoParseStrategy10 = Date.VerbatimFormatStyle(format: "\(year: .defaultDigits)-\(month: .twoDigits)-\(day: .twoDigits)", locale: posixLocale, timeZone: .autoupdatingCurrent, calendar: .autoupdatingCurrent).parseStrategy
+    private static let isoParseStrategy17 = Date.VerbatimFormatStyle(format: "\(year: .defaultDigits)-\(month: .twoDigits)-\(day: .twoDigits)T\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)Z", locale: posixLocale, timeZone: .gmt, calendar: .autoupdatingCurrent).parseStrategy
+    private static let isoParseStrategy19 = Date.VerbatimFormatStyle(format: "\(year: .defaultDigits)-\(month: .twoDigits)-\(day: .twoDigits)T\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits)Z", locale: posixLocale, timeZone: .gmt, calendar: .autoupdatingCurrent).parseStrategy
 
-    static let httpModifiedSinceFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEEE, dd LLL yyyy HH:mm:ss zzz"
-        return formatter
-    }()
+    static func relativeTime(since date: Date) -> String {
+        relativeStyle.format(date)
+    }
 
-    nonisolated(unsafe) static let relativeTime: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.dateTimeStyle = .named
-        formatter.formattingContext = .standalone
-        formatter.unitsStyle = .full
-        return formatter
-    }()
+    static func httpModifiedSinceString(from date: Date) -> String {
+        httpModifiedSinceStyle.format(date)
+    }
 
-    nonisolated(unsafe) static func tryParsingCreatedDate(_ dateString: String) -> Date? {
-        isoFormatter.date(from: dateString)
-            ?? isoFormatter2.date(from: dateString)
-            ?? isoFormatter3.date(from: dateString)
+    static func httpHeaderDate(from dateString: String) -> Date? {
+        do {
+            return try Date(dateString, strategy: httpHeaderParseStrategy)
+        } catch {
+            Log.app(.error).log("Warning, header date parsing failed: \(dateString), count: \(dateString.count), error: \(error)")
+            return nil
+        }
+    }
+
+    static func tryParsingCreatedDate(_ dateString: String) -> Date? {
+        do {
+            switch dateString.count {
+            case 0:
+                return nil
+            case 4:
+                return try isoParseStrategy4.parse(dateString)
+            case 10:
+                return try isoParseStrategy10.parse(dateString)
+            case 17:
+                return try isoParseStrategy17.parse(dateString)
+            case 19:
+                return try isoParseStrategy19.parse(dateString)
+            default:
+                return try isoParseStrategy1.parse(dateString)
+            }
+        } catch {
+            Log.app(.error).log("Warning, date parsing failed: \(dateString), count: \(dateString.count), error: \(error)")
+            return nil
+        }
     }
 }

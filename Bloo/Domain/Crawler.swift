@@ -424,7 +424,7 @@ final actor Crawler {
         }
 
         let lastModifiedHeaderDate: Date?
-        if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Formatters.httpHeaderDateFormatter.date(from: lastModifiedHeaderString) {
+        if let lastModifiedHeaderString = (headers["Last-Modified"] ?? headers["last-modified"]) as? String, let lm = Formatters.httpHeaderDate(from: lastModifiedHeaderString) {
             if let lastModified, lastModified >= lm {
                 Log.crawling(id, .info).log("No change (same date) in \(link)")
                 return .noChange(viaServerCode: false)

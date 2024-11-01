@@ -1,13 +1,22 @@
 {
-  "originHash" : "7a02e476391c3faf04b009f58e141332f77c997ce1357b28deb00672629a579b",
+  "originHash" : "bc2014ea0a32d467dea2fecb9d6443b6070e6ce52622c620dacd1d4765306172",
   "pins" : [
+    {
+      "identity" : "akashic-table",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ptsochantaris/akashic-table",
+      "state" : {
+        "branch" : "main",
+        "revision" : "ad674305f50765371d7a91e51f16e120640d9d5b"
+      }
+    },
     {
       "identity" : "can-proceed",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ptsochantaris/can-proceed",
       "state" : {
         "branch" : "main",
-        "revision" : "f88d24f2404343c46ebb9bb9cda1d420c558436a"
+        "revision" : "e11714d73db9c1087faa9e285d77efb7342097e5"
       }
     },
     {
@@ -25,7 +34,7 @@
       "location" : "https://github.com/ptsochantaris/lista",
       "state" : {
         "branch" : "main",
-        "revision" : "7d6cf8bd6aea70c08a077083474ef94bfd1e1d57"
+        "revision" : "588790a0bef7f4f6cdfcc8d072e37a4b0c5e2ba9"
       }
     },
     {
@@ -34,7 +43,7 @@
       "location" : "https://github.com/ptsochantaris/maintini",
       "state" : {
         "branch" : "main",
-        "revision" : "c95ee8487f0019f4570198ffca14cf78a905e429"
+        "revision" : "fa3c7d1b5ee1ac78842e78857707e2f97f42cbb4"
       }
     },
     {
@@ -43,7 +52,7 @@
       "location" : "https://github.com/ptsochantaris/pop-timer",
       "state" : {
         "branch" : "main",
-        "revision" : "09a2b89dcef86151fc30cfc6000154b3645170b1"
+        "revision" : "976417188ba25b95ef9e469927502e722f2eca68"
       }
     },
     {
@@ -52,7 +61,7 @@
       "location" : "https://github.com/ptsochantaris/semalot",
       "state" : {
         "branch" : "main",
-        "revision" : "0ae24abfce7152cda9ef2e15eea6ca5516700eee"
+        "revision" : "1073882d28e2c4f51233d74ab485513161762d60"
       }
     },
     {
@@ -78,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
       "state" : {
-        "revision" : "3d2dc41a01f9e49d84f0a3925fb858bed64f702d",
-        "version" : "1.1.2"
+        "revision" : "671108c96644956dddcd89dd59c203dcdb36cec7",
+        "version" : "1.1.4"
       }
     },
     {

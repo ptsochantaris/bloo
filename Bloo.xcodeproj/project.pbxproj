@@ -28,10 +28,9 @@
 		165F10C42AC8803C00442892 /* Result.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C32AC8803C00442892 /* Result.swift */; };
 		165F10C62AC880DC00442892 /* DomainSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C52AC880DC00442892 /* DomainSection.swift */; };
 		165F10C82AC8810D00442892 /* EngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C72AC8810D00442892 /* EngineState.swift */; };
-		166F71F12C73E5180031FFFE /* MemoryMappedCollection in Resources */ = {isa = PBXBuildFile; fileRef = 166F71F02C73E5180031FFFE /* MemoryMappedCollection */; };
-		166F71F32C73F15B0031FFFE /* MemoryMappedCollection in Frameworks */ = {isa = PBXBuildFile; productRef = 166F71F22C73F15B0031FFFE /* MemoryMappedCollection */; };
 		1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1697539E2ACA350B00C2281D /* Snapshot.swift */; };
 		16ACD37E2AF979BF00993099 /* Crawler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16ACD37D2AF979BF00993099 /* Crawler.swift */; };
+		16B024612CD4EF3100D29CD0 /* AkashicTable in Frameworks */ = {isa = PBXBuildFile; productRef = 16B024602CD4EF3100D29CD0 /* AkashicTable */; };
 		16B43D252AC7B05D00EB4815 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D232AC7B05D00EB4815 /* README.md */; };
 		16B43D262AC7B05D00EB4815 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 16B43D242AC7B05D00EB4815 /* LICENSE */; };
 		16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B43D2B2AC8548200EB4815 /* UIImage+Extensions.swift */; };
@@ -76,7 +75,6 @@
 		165F10C32AC8803C00442892 /* Result.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Result.swift; sourceTree = "<group>"; };
 		165F10C52AC880DC00442892 /* DomainSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainSection.swift; sourceTree = "<group>"; };
 		165F10C72AC8810D00442892 /* EngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineState.swift; sourceTree = "<group>"; };
-		166F71F02C73E5180031FFFE /* MemoryMappedCollection */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MemoryMappedCollection; sourceTree = "<group>"; };
 		1697539E2ACA350B00C2281D /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
 		16ACD37D2AF979BF00993099 /* Crawler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Crawler.swift; sourceTree = "<group>"; };
 		16B43D232AC7B05D00EB4815 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -107,12 +105,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				16B024612CD4EF3100D29CD0 /* AkashicTable in Frameworks */,
 				16FD23382AC43D0F00751A85 /* PopTimer in Frameworks */,
 				165091102C71132B0003BFAB /* CanProceed in Frameworks */,
 				164418142C752A6700183EE1 /* Collections in Frameworks */,
 				16BD524C2B27F87800529462 /* Lista in Frameworks */,
 				16FD23352AC3A5A600751A85 /* Maintini in Frameworks */,
-				166F71F32C73F15B0031FFFE /* MemoryMappedCollection in Frameworks */,
 				16BD524F2B27F89000529462 /* Semalot in Frameworks */,
 				164418172C752A8100183EE1 /* Algorithms in Frameworks */,
 				1644180E2C752A2F00183EE1 /* SQLite in Frameworks */,
@@ -187,7 +185,6 @@
 		16E8A0DB2AC1F96500CCB10D = {
 			isa = PBXGroup;
 			children = (
-				166F71F02C73E5180031FFFE /* MemoryMappedCollection */,
 				16B43D242AC7B05D00EB4815 /* LICENSE */,
 				16B43D232AC7B05D00EB4815 /* README.md */,
 				16E8A0E62AC1F96500CCB10D /* Bloo */,
@@ -251,10 +248,10 @@
 				16BD524B2B27F87800529462 /* Lista */,
 				16BD524E2B27F89000529462 /* Semalot */,
 				1650910F2C71132B0003BFAB /* CanProceed */,
-				166F71F22C73F15B0031FFFE /* MemoryMappedCollection */,
 				1644180D2C752A2F00183EE1 /* SQLite */,
 				164418132C752A6700183EE1 /* Collections */,
 				164418162C752A8100183EE1 /* Algorithms */,
+				16B024602CD4EF3100D29CD0 /* AkashicTable */,
 			);
 			productName = Nibbel;
 			productReference = 16E8A0E42AC1F96500CCB10D /* Bloo.app */;
@@ -296,6 +293,7 @@
 				1644180C2C752A2F00183EE1 /* XCRemoteSwiftPackageReference "SQLite" */,
 				164418122C752A6700183EE1 /* XCRemoteSwiftPackageReference "swift-collections" */,
 				164418152C752A8100183EE1 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
+				16B0245F2CD4EF3100D29CD0 /* XCRemoteSwiftPackageReference "akashic-table" */,
 			);
 			productRefGroup = 16E8A0E52AC1F96500CCB10D /* Products */;
 			projectDirPath = "";
@@ -313,7 +311,6 @@
 			files = (
 				16B43D262AC7B05D00EB4815 /* LICENSE in Resources */,
 				16B43D252AC7B05D00EB4815 /* README.md in Resources */,
-				166F71F12C73E5180031FFFE /* MemoryMappedCollection in Resources */,
 				16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -632,6 +629,14 @@
 				kind = branch;
 			};
 		};
+		16B0245F2CD4EF3100D29CD0 /* XCRemoteSwiftPackageReference "akashic-table" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ptsochantaris/akashic-table";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		16BD524A2B27F87800529462 /* XCRemoteSwiftPackageReference "lista" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ptsochantaris/lista";
@@ -703,9 +708,10 @@
 			package = 1650910E2C71132B0003BFAB /* XCRemoteSwiftPackageReference "can-proceed" */;
 			productName = CanProceed;
 		};
-		166F71F22C73F15B0031FFFE /* MemoryMappedCollection */ = {
+		16B024602CD4EF3100D29CD0 /* AkashicTable */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = MemoryMappedCollection;
+			package = 16B0245F2CD4EF3100D29CD0 /* XCRemoteSwiftPackageReference "akashic-table" */;
+			productName = AkashicTable;
 		};
 		16BD524B2B27F87800529462 /* Lista */ = {
 			isa = XCSwiftPackageProductDependency;

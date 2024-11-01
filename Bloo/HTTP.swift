@@ -42,7 +42,7 @@ enum HTTP {
             request.setValue(lastEtag, forHTTPHeaderField: "If-None-Match")
             request.cachePolicy = .reloadIgnoringLocalCacheData
         } else if let lastVisited {
-            let dateString = Formatters.httpModifiedSinceFormatter.string(from: lastVisited)
+            let dateString = Formatters.httpModifiedSinceString(from: lastVisited)
             request.setValue(dateString, forHTTPHeaderField: "If-Modified-Since")
             request.cachePolicy = .reloadIgnoringLocalCacheData
         }

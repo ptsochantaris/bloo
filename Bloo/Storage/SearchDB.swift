@@ -1,8 +1,8 @@
 import Accelerate
+import AkashicTable
 import Algorithms
 import Foundation
 import SQLite
-import MemoryMappedCollection
 
 final actor SearchDB {
     static let shared = try! SearchDB()
@@ -10,7 +10,7 @@ final actor SearchDB {
     private let textTable = VirtualTable("text_search")
     private let indexDb: Connection
 
-    private let documentIndex: MemoryMappedCollection<Vector>
+    private let documentIndex: AkashicTable<Vector>
 
     init() throws {
         let file = documentsPath.appending(path: "index.sqlite3")
@@ -28,7 +28,7 @@ final actor SearchDB {
         indexDb = c
 
         let embeddingPath = documentsPath.appending(path: "doc.embeddings", directoryHint: .notDirectory).path
-        documentIndex = try MemoryMappedCollection(at: embeddingPath, minimumCapacity: 10000, validateOrder: false)
+        documentIndex = try AkashicTable(at: embeddingPath, minimumCapacity: 10000, validateOrder: false)
 
         Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }

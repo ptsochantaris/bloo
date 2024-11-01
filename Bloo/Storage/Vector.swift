@@ -1,6 +1,6 @@
 import Accelerate
+import AkashicTable
 import Foundation
-import MemoryMappedCollection
 
 typealias VectorTuple = (
     Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,

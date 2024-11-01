@@ -16,6 +16,7 @@ Bloo uses some of my own utility packages:
 - [Lista](https://github.com/ptsochantaris/lista)
 - [Maintini](https://github.com/ptsochantaris/maintini)
 - [PopTimer](https://github.com/ptsochantaris/pop-timer)
+- [Akashic Table](http://github.com/ptsochantaris/akashic-table)
 
 And the following (not my own but) brilliant packages:
 - [SwiftSoup](https://github.com/scinfu/SwiftSoup)
@@ -28,4 +29,4 @@ Released under the terms of the MIT license, see the [LICENSE](LICENSE.txt) file
 
 ## Copyright
 
-Copyright (c) 2023 Paul Tsochantaris
+Copyright (c) 2023-2024 Paul Tsochantaris

@@ -142,8 +142,14 @@ extension Domain {
         @MainActor
         var logText: String {
             switch self {
-            case let .done(count, date): "Completed on \(Formatters.relativeTime.string(for: date) ?? "<no date>"), \(count) indexed items"
-            case .deleting, .indexing, .paused, .pausing, .starting: title
+            case let .done(count, date):
+                if let date {
+                    "Completed \(Formatters.relativeTime(since: date)), \(count) indexed items"
+                } else {
+                    "Completed on unknown date, \(count) indexed items"
+                }
+            case .deleting, .indexing, .paused, .pausing, .starting:
+                title
             }
         }
     }
