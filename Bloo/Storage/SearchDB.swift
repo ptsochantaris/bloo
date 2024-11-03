@@ -34,7 +34,7 @@ final actor SearchDB {
     }
 
     func pause() {
-        documentIndex.pause()
+        documentIndex.shutdown()
     }
 
     func resume() throws {
