@@ -102,7 +102,7 @@ final actor SearchDB {
 
         let searchTerms = text.split(separator: " ").map { String($0) }
         let terms = searchTerms.map { $0.lowercased().sqlSafe }.joined(separator: " ")
-        let query = searchTerms.count == 1 ? terms : "NEAR(\(terms))"
+        let query = searchTerms.count == 1 ? terms : "NEAR(\(terms), 0)"
         let elements = try Array(indexDb.prepareRowIterator(
             """
             select

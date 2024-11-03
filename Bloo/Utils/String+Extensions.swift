@@ -16,21 +16,25 @@ extension String {
             || hasSuffix("/feed"))
     }
 
-    func highlightedAttributedString() -> AttributedString {
-        var attributedString = AttributedString(self)
+    private nonisolated(unsafe) static let regex = /\#\[BLU(.+?)ULB\]\#/.dotMatchesNewlines()
 
-        for match in matches(of: /\#\[BLU(.+?)ULB\]\#/).reversed() {
-            let R = match.range
-            let L = R.lowerBound
-            let U = R.upperBound
-            let plainStart = distance(from: startIndex, to: L)
-            let plainLength = distance(from: L, to: U)
+    func highlightedAttributedString() -> AttributedString {
+        let text = String(unicodeScalars.filter { !$0.properties.isJoinControl })
+        var attributedString = AttributedString(text)
+
+        for match in text.matches(of: Self.regex).reversed() {
+            let L = match.range.lowerBound
+            let plainStart = text.distance(from: text.startIndex, to: L)
+
+            let U = match.range.upperBound
+            let plainLength = text.distance(from: L, to: U)
+
             let attributedStart = attributedString.index(attributedString.startIndex, offsetByCharacters: plainStart)
             let attributedEnd = attributedString.index(attributedStart, offsetByCharacters: plainLength)
-            let newRange = attributedStart ..< attributedEnd
+
             var replacement = AttributedString(match.output.1)
             replacement.foregroundColor = .accent
-            attributedString.replaceSubrange(newRange, with: replacement)
+            attributedString.replaceSubrange(attributedStart ..< attributedEnd, with: replacement)
         }
 
         return attributedString

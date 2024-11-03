@@ -35,12 +35,15 @@ private let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 640))]
 
 private struct FooterText: View {
     let text: String
+    @State var minHeight: CGFloat = 0
 
     var body: some View {
         Text(text)
             .lineLimit(2, reservesSpace: true)
             .font(.blooCaption2)
             .foregroundStyle(.secondary)
+            .frame(minHeight: minHeight)
+            .trackingHeight(to: $minHeight)
     }
 }
 
@@ -63,17 +66,6 @@ private struct DomainTitle: View {
                 }
             }
         }
-    }
-}
-
-private struct Triangle: View {
-    var body: some View {
-        Image(systemName: "arrowtriangle.forward.fill")
-            .imageScale(.small)
-            .font(.blooBody)
-            .foregroundColor(.secondary)
-            .scaleEffect(x: 0.6, y: 0.9)
-            .opacity(0.8)
     }
 }
 
@@ -138,6 +130,31 @@ private struct DomainContextMenu: View {
     }
 }
 
+private struct Counter: View {
+    let pending: Int
+    let indexed: Int
+
+    @State private var minIndexedWidth: CGFloat = 0
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(pending, format: .number)
+                .foregroundColor(.secondary)
+
+            Image(systemName: "arrowtriangle.forward.fill")
+                .imageScale(.small)
+                .foregroundColor(.secondary)
+                .scaleEffect(x: 0.6, y: 0.9)
+                .opacity(0.8)
+
+            Text(indexed, format: .number)
+                .frame(minWidth: minIndexedWidth)
+                .trackingWidth(to: $minIndexedWidth)
+        }
+        .font(.blooBody.bold())
+    }
+}
+
 private struct DomainRow: View {
     let domain: Domain
 
@@ -159,15 +176,7 @@ private struct DomainRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     DomainTitle(domain: domain, subtitle: nil)
                     Spacer(minLength: 0)
-                    HStack(spacing: 2) {
-                        Text(pending, format: .number)
-                            .font(.blooBody).bold()
-                            .foregroundColor(.secondary)
-                        Triangle()
-                        Text(indexed, format: .number)
-                            .font(.blooBody).bold()
-                            .bold()
-                    }
+                    Counter(pending: pending, indexed: indexed)
                 }
                 ProgressView(value: Double(indexed) / max(1, Double(pending + indexed)))
                 FooterText(text: url)
@@ -186,15 +195,7 @@ private struct DomainRow: View {
                     DomainTitle(domain: domain, subtitle: nil)
                     Spacer(minLength: 0)
                     if indexed > 0 || pending > 0 {
-                        HStack(spacing: 2) {
-                            Text(pending, format: .number)
-                                .font(.blooBody).bold()
-                                .foregroundColor(.secondary)
-                            Triangle()
-                            Text(indexed, format: .number)
-                                .font(.blooBody).bold()
-                                .bold()
-                        }
+                        Counter(pending: pending, indexed: indexed)
                     }
                 }
                 ProgressView(value: Double(indexed) / max(1, Double(pending + indexed)))
