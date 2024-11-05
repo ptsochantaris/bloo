@@ -169,17 +169,25 @@ final class BlooCore {
                 }
             }
         }
+
         Log.app(.default).log("All domains are shut down")
-        await snapshotter.shutdown()
-        Log.app(.default).log("Storage now shut down")
-        if runState != .backgrounded {
-            await SearchDB.shared.shutdown()
-            Log.app(.default).log("Search DB shut down")
-        } else {
-            await SearchDB.shared.pause()
-            Log.app(.default).log("Search DB paused")
+
+        try await withThrowingDiscardingTaskGroup { group in
+            group.addTask { [snapshotter] in
+                await snapshotter.shutdown()
+            }
+            group.addTask { [runState] in
+                if runState != .backgrounded {
+                    await SearchDB.shared.shutdown()
+                } else {
+                    await SearchDB.shared.pause()
+                }
+            }
         }
+
         try? await Task.sleep(for: .milliseconds(100))
+
+        Log.app(.default).log("Shutdown complete")
     }
 
     func contains(domain: String) -> Bool {
@@ -224,19 +232,23 @@ final class BlooCore {
     }
 
     #if os(iOS)
-        func backgroundTask(_ task: BGProcessingTask) {
+        nonisolated func backgroundTask(_ task: BGProcessingTask) {
             task.expirationHandler = {
                 Task { [weak self] in
                     guard let self else { return }
                     try await shutdown(backgrounded: true)
                 }
             }
-            Task { [weak self] in
-                guard let self else { return }
-                try! await start()
-                await waitForIndexingToEnd()
-                if UIApplication.shared.applicationState == .background {
-                    try await shutdown(backgrounded: false)
+
+            Task {
+                do {
+                    try await start()
+                    await waitForIndexingToEnd()
+                    if await MainActor.run(body: { UIApplication.shared.applicationState }) == .background {
+                        try await shutdown(backgrounded: false)
+                    }
+                } catch {
+                    Log.app(.error).log("Error starting background task: \(error.localizedDescription)")
                 }
                 Log.app(.default).log("Background task complete")
                 task.setTaskCompleted(success: true)
@@ -244,3 +256,7 @@ final class BlooCore {
         }
     #endif
 }
+
+#if os(iOS)
+    extension BGProcessingTask: @retroactive @unchecked Sendable {}
+#endif

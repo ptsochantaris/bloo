@@ -35,6 +35,7 @@ final actor SearchDB {
 
     func pause() {
         documentIndex.shutdown()
+        Log.search(.default).log("Search DB paused")
     }
 
     func resume() throws {
@@ -43,6 +44,7 @@ final actor SearchDB {
 
     func shutdown() {
         documentIndex.shutdown()
+        Log.search(.default).log("Search DB shut down")
     }
 
     func insert(id: String, url: String, content: IndexEntry.Content, existingRowId: Int64?) async throws -> Int64 {

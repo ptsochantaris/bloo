@@ -73,6 +73,7 @@ final actor Storage {
             loopTask = nil
             await l.value
         }
+        Log.storage(.default).log("Storage shut down")
     }
 
     func queue(_ item: Snapshot) {

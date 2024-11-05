@@ -51,7 +51,7 @@ final actor Crawler {
     weak var crawlerDelegate: Domain!
 
     enum IndexResponse {
-        case noChange(viaServerCode: Bool), error, disallowed, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
+        case noChange(viaServerCode: Bool), error, disallowed, cancelled, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
     }
 
     init(id: String, url: String) throws {
@@ -141,6 +141,7 @@ final actor Crawler {
             let newState = Domain.State.pausing(counts.indexed, counts.pending, resumable)
             await signalState(newState)
             goTask = nil
+            g.cancel()
             try await g.value
         }
         Log.crawling(id, .info).log("Paused")
@@ -173,6 +174,7 @@ final actor Crawler {
 
     private func parseSitemap(at url: String) async -> IndexResponse {
         guard let xmlData = await HTTP.getData(from: url)?.0 else {
+            if Task.isCancelled { return .cancelled }
             Log.crawling(id, .error).log("Failed to fetch sitemap data from \(url)")
             return .wasSitemap(newContentUrls: [], newSitemapUrls: [])
         }
@@ -241,6 +243,10 @@ final actor Crawler {
             robotText.append("\n")
         }
 
+        if Task.isCancelled {
+            return
+        }
+
         if let localRobotText {
             robotText.append(localRobotText)
         }
@@ -293,9 +299,11 @@ final actor Crawler {
 
             let start = Date()
             let longPause = try await crawl(entry: next)
-            let counts = try counts()
 
-            await signalState(.indexing(counts.indexed, counts.pending, next.url), onlyIfActive: true)
+            if !Task.isCancelled {
+                let counts = try counts()
+                await signalState(.indexing(counts.indexed, counts.pending, next.url), onlyIfActive: true)
+            }
 
             // Detect stop
             let currentState = await currentState
@@ -345,7 +353,12 @@ final actor Crawler {
         case let .visited(url, lastModified, etag, textRowId):
             try await index(page: url, lastModified: lastModified, lastEtag: etag, existingTextRowId: textRowId)
         }
+
         switch indexResult {
+        case .cancelled:
+            Log.crawling(id, .default).log("Crawl operation cancelled because of pausing")
+            return false
+
         case .disallowed, .error:
             spotlightInvalidationQueue.insert(entry.url)
             if let db {
@@ -440,6 +453,10 @@ final actor Crawler {
         }
 
         let contentResult = await HTTP.getData(from: site)
+
+        if Task.isCancelled {
+            return .cancelled
+        }
 
         guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
             Log.crawling(id, .error).log("Cannot decode text from \(link)")

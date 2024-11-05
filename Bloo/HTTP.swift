@@ -63,7 +63,7 @@ enum HTTP {
                     Log.app(.info).log("Too many redirects to \(location), giving up")
                     return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: [:])!)
                 } else if Task.isCancelled {
-                    Log.app(.info).log("Task was cancelled to \(location), giving up")
+                    Log.app(.info).log("Call cancelled for \(location)")
                     return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: [:])!)
                 } else {
                     Log.app(.error).log("Connection error to \(location), retrying in a moment: \(error.localizedDescription) - code: \(code)")
