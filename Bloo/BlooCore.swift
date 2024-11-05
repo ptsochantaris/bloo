@@ -232,11 +232,11 @@ final class BlooCore {
     }
 
     #if os(iOS)
-        nonisolated func backgroundTask(_ task: BGProcessingTask) {
-            task.expirationHandler = {
-                Task { [weak self] in
+        func backgroundTask(_ task: BGProcessingTask) {
+            task.expirationHandler = { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    try await shutdown(backgrounded: true)
+                    try await self.shutdown(backgrounded: true)
                 }
             }
 
@@ -244,7 +244,7 @@ final class BlooCore {
                 do {
                     try await start()
                     await waitForIndexingToEnd()
-                    if await MainActor.run(body: { UIApplication.shared.applicationState }) == .background {
+                    if UIApplication.shared.applicationState == .background {
                         try await shutdown(backgrounded: false)
                     }
                 } catch {
@@ -256,7 +256,3 @@ final class BlooCore {
         }
     #endif
 }
-
-#if os(iOS)
-    extension BGProcessingTask: @retroactive @unchecked Sendable {}
-#endif

@@ -50,7 +50,7 @@ struct BlooApp: App {
         final class AppDelegate: NSObject, UIApplicationDelegate {
             func application(_: UIApplication, willFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
                 Maintini.setup()
-                BGTaskScheduler.shared.register(forTaskWithIdentifier: "build.bru.bloo.background", using: nil) { task in
+                BGTaskScheduler.shared.register(forTaskWithIdentifier: "build.bru.bloo.background", using: DispatchQueue.main) { task in
                     BlooCore.shared.backgroundTask(task as! BGProcessingTask)
                 }
                 return true
