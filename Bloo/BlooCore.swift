@@ -2,7 +2,8 @@ import CoreSpotlight
 import Foundation
 import Lista
 import SwiftUI
-#if os(iOS)
+import Maintini
+#if canImport(BackgroundTasks)
     import BackgroundTasks
 #endif
 
@@ -143,8 +144,13 @@ final class BlooCore {
             return
         }
 
+        Maintini.startMaintaining()
+        defer {
+            Maintini.endMaintaining()
+        }
+
         if backgrounded {
-            #if os(iOS)
+            #if canImport(BackgroundTasks)
                 if isRunningAndBusy {
                     do {
                         let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")

@@ -137,11 +137,12 @@ final actor Crawler {
     func pause(resumable: Bool) async throws {
         if let g = goTask {
             Log.crawling(id, .info).log("Pausing")
+            goTask = nil
+            g.cancel()
+            await Task.yield() // let other tasks start cancelling if this is a mass pause
             let counts = try counts()
             let newState = Domain.State.pausing(counts.indexed, counts.pending, resumable)
             await signalState(newState)
-            goTask = nil
-            g.cancel()
             try await g.value
         }
         Log.crawling(id, .info).log("Paused")
@@ -399,6 +400,12 @@ final actor Crawler {
     }
 
     private func index(page link: String, lastModified: Date?, lastEtag: String?, existingTextRowId: Int64?) async throws -> IndexResponse {
+        let indexStart = Date.now
+        defer {
+            let duration = 0 - indexStart.timeIntervalSinceNow
+            Log.crawling(id, .debug).log("Index time: \(duration)s")
+        }
+
         guard let site = URL(string: link) else {
             Log.crawling(id, .error).log("Malformed URL: \(link)")
             return .error
@@ -454,9 +461,7 @@ final actor Crawler {
 
         let contentResult = await HTTP.getData(from: site)
 
-        if Task.isCancelled {
-            return .cancelled
-        }
+        if Task.isCancelled { return .cancelled }
 
         guard let documentText = String(data: contentResult.0, encoding: contentResult.1.guessedEncoding) else {
             Log.crawling(id, .error).log("Cannot decode text from \(link)")
@@ -483,16 +488,34 @@ final actor Crawler {
             return .error
         }
 
-        guard let body = htmlDoc.body(),
-              let condensedTextRaw = try? body.text(trimAndNormaliseWhitespace: true),
-              let sparseTextRaw = try? body.text(trimAndNormaliseWhitespace: false)
-        else {
-            Log.crawling(id, .error).log("Cannot parse text in \(link)")
+        guard let body = htmlDoc.body() else {
+            Log.crawling(id, .error).log("Cannot parse HTML in \(link)")
             return .error
         }
 
+        if Task.isCancelled { return .cancelled }
+
+        let condensedTextRaw: String
+        do {
+            condensedTextRaw = try body.text(trimAndNormaliseWhitespace: true)
+            if Task.isCancelled { return .cancelled }
+        } catch {
+            Log.crawling(id, .error).log("Cannot parse text in \(link): \(error.localizedDescription)")
+            return .error
+        }
         let condensedText = condensedTextRaw.removingHTMLEntities()
+        if Task.isCancelled { return .cancelled }
+
+        let sparseTextRaw: String
+        do {
+            sparseTextRaw = try body.text(trimAndNormaliseWhitespace: false)
+            if Task.isCancelled { return .cancelled }
+        } catch {
+            Log.crawling(id, .error).log("Cannot parse text in \(link): \(error.localizedDescription)")
+            return .error
+        }
         let sparseText = sparseTextRaw.removingHTMLEntities()
+        if Task.isCancelled { return .cancelled }
 
         var imageFileTask: Task<(URL?, URL), Never>?
         if let ogImage = header.metaPropertyContent(for: "og:image"),
@@ -566,6 +589,8 @@ final actor Crawler {
             await Embedding.generateDate(from: condensedText)
         }
 
+        if Task.isCancelled { return .cancelled }
+
         var thumbnailUrl: URL?
         if let thumbnailUrlInfo = await imageFileTask?.value {
             if thumbnailUrlInfo.0 == nil {
@@ -574,6 +599,8 @@ final actor Crawler {
                 thumbnailUrl = thumbnailUrlInfo.0
             }
         }
+
+        if Task.isCancelled { return .cancelled }
 
         let newContent = IndexEntry.Content(title: title,
                                             description: summaryContent,

@@ -62,6 +62,9 @@ enum HTTP {
                 } else if code == -1007 { // too many redirects
                     Log.app(.info).log("Too many redirects to \(location), giving up")
                     return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: [:])!)
+                } else if code == -1202 { // ssl error
+                    Log.app(.info).log("SSL validation error for \(location), giving up")
+                    return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: [:])!)
                 } else if Task.isCancelled {
                     Log.app(.info).log("Call cancelled for \(location)")
                     return (Data(), HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: [:])!)

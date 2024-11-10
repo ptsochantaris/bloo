@@ -28,7 +28,12 @@ final actor SearchDB {
         indexDb = c
 
         let embeddingPath = documentsPath.appending(path: "doc.embeddings", directoryHint: .notDirectory).path
-        documentIndex = try AkashicTable(at: embeddingPath, minimumCapacity: 10000, validateOrder: false)
+        #if os(macOS)
+        let useCache = true
+        #else
+        let useCache = false
+        #endif
+        documentIndex = try AkashicTable(at: embeddingPath, minimumCapacity: 10000, useCache: useCache, validateOrder: false)
 
         Log.search(.info).log("Loaded document index with \(documentIndex.count) entries")
     }
@@ -40,6 +45,7 @@ final actor SearchDB {
 
     func resume() throws {
         try documentIndex.resume()
+        Log.search(.default).log("Search DB resumed")
     }
 
     func shutdown() {
