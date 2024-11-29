@@ -1,8 +1,8 @@
 import CoreSpotlight
 import Foundation
 import Lista
-import SwiftUI
 import Maintini
+import SwiftUI
 #if canImport(BackgroundTasks)
     import BackgroundTasks
 #endif
@@ -150,7 +150,7 @@ final class BlooCore {
         }
 
         if backgrounded {
-            #if canImport(BackgroundTasks)
+            #if !os(macOS) && canImport(BackgroundTasks)
                 if isRunningAndBusy {
                     do {
                         let request = BGProcessingTaskRequest(identifier: "build.bru.bloo.background")
@@ -242,7 +242,7 @@ final class BlooCore {
             task.expirationHandler = { [weak self] in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    try await self.shutdown(backgrounded: true)
+                    try await shutdown(backgrounded: true)
                 }
             }
 

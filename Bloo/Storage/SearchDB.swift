@@ -29,9 +29,9 @@ final actor SearchDB {
 
         let embeddingPath = documentsPath.appending(path: "doc.embeddings", directoryHint: .notDirectory).path
         #if os(macOS)
-        let useCache = true
+            let useCache = true
         #else
-        let useCache = false
+            let useCache = false
         #endif
         documentIndex = try AkashicTable(at: embeddingPath, minimumCapacity: 10000, useCache: useCache, validateOrder: false)
 

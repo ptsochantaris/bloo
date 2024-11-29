@@ -15,7 +15,7 @@ extension URL {
         let result: URL
         if relativeTo == nil {
             result = url
-        } else if let resolved = URL(string: url.absoluteString) {
+        } else if let resolved = URL(string: url.absoluteString.replacing("/../", with: "/")) {
             result = resolved
         } else {
             throw Blooper.malformedUrl

@@ -612,11 +612,13 @@ final actor Crawler {
 
         let newEntry = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, textRowId: existingTextRowId)
 
-        let attributes = CSSearchableItemAttributeSet(contentType: .url)
-        attributes.keywords = keywords
+        let attributes = CSSearchableItemAttributeSet(contentType: .text)
+        attributes.contentType = UTType.text.identifier
         attributes.title = newContent.title
-        attributes.contentDescription = newContent.description
         attributes.textContent = newContent.condensedContent
+        attributes.url = site
+        attributes.keywords = keywords
+        attributes.contentDescription = newContent.description
         attributes.contentModificationDate = newContent.lastModified
         attributes.thumbnailURL = thumbnailUrl
         return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, Set(newUrls ?? []), newContent)

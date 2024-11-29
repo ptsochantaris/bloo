@@ -23,23 +23,44 @@ final actor Storage {
         }.value
     }
 
-    private static func commitData(for item: Snapshot) async {
+    private func commitData(for item: Snapshot) async {
         let domainPath = domainPath(for: item.id)
+
+        let index = CSSearchableIndex.isIndexingAvailable() ? CSSearchableIndex.default() : nil
 
         if item.state == .deleting {
             Log.storage(.default).log("Removing domain \(item.id)")
+
             let fm = FileManager.default
             if fm.fileExists(atPath: domainPath.path) {
                 try! fm.removeItem(at: domainPath)
             }
+
+            if let index {
+                do {
+                    try await index.deleteSearchableItems(withDomainIdentifiers: [item.id])
+                    Log.storage(.default).log("Cleared spotlight data for domain \(item.id)")
+                } catch {
+                    Log.storage(.error).log("Error clearing domain \(item.id): \(error.localizedDescription)")
+                }
+            }
+
             Log.storage(.default).log("Removed domain \(item.id)")
-            return
+
+        } else {
+            if let index {
+                if item.removedItems.isPopulated {
+                    try? await index.deleteSearchableItems(withIdentifiers: Array(item.removedItems))
+                }
+                if item.items.isPopulated {
+                    try? await index.indexSearchableItems(item.items)
+                }
+            }
+
+            let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
+            try! JSONEncoder().encode(item).write(to: path, options: .atomic)
+            Log.storage(.default).log("Saved checkpoint for \(item.id)")
         }
-
-        let path = domainPath.appendingPathComponent("snapshot.json", isDirectory: false)
-        try! JSONEncoder().encode(item).write(to: path, options: .atomic)
-
-        Log.storage(.default).log("Saved checkpoint for \(item.id)")
     }
 
     func start() {
@@ -47,21 +68,12 @@ final actor Storage {
             return
         }
 
-        let q = AsyncStream<Snapshot>.makeStream()
+        let q = AsyncStream.makeStream(of: Snapshot.self, bufferingPolicy: .unbounded)
         queueContinuation = q.continuation
 
-        loopTask = Task.detached {
-            await withDiscardingTaskGroup { group in
-                for await item in q.stream {
-                    group.addTask {
-                        if CSSearchableIndex.isIndexingAvailable() {
-                            let index = CSSearchableIndex.default()
-                            try? await index.deleteSearchableItems(withIdentifiers: Array(item.removedItems))
-                            try? await index.indexSearchableItems(item.items)
-                        }
-                        await Self.commitData(for: item)
-                    }
-                }
+        loopTask = Task {
+            for await item in q.stream {
+                await commitData(for: item)
             }
         }
     }
