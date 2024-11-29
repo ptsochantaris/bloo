@@ -242,7 +242,7 @@ final class BlooCore {
             task.expirationHandler = { [weak self] in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    try await shutdown(backgrounded: true)
+                    try await self.shutdown(backgrounded: true)
                 }
             }
 
