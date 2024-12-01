@@ -57,7 +57,7 @@ final actor Crawler {
 
     init(id: String, url: String) throws {
         self.id = id
-        bootupEntry = .pending(url: url, isSitemap: false, csIdentifier: nil)
+        bootupEntry = .pending(url: url, isSitemap: false)
 
         let path = domainPath(for: id)
         let file = path.appending(path: "crawler.sqlite3", directoryHint: .notDirectory)
@@ -257,11 +257,11 @@ final actor Crawler {
 
         if try counts().indexed == 0 {
             let url = "https://\(id)/sitemap.xml"
-            try appendPending(.pending(url: url, isSitemap: true, csIdentifier: nil))
+            try appendPending(.pending(url: url, isSitemap: true))
 
             if let providedSitemaps = robotCheck?.sitemaps {
                 let sitemapEntries = providedSitemaps
-                    .map { IndexEntry.pending(url: $0, isSitemap: true, csIdentifier: nil) }
+                    .map { IndexEntry.pending(url: $0, isSitemap: true) }
 
                 try appendPending(items: sitemapEntries)
             }
@@ -346,14 +346,14 @@ final actor Crawler {
 
     private func crawl(entry: IndexEntry) async throws -> Bool {
         let indexResult = switch entry {
-        case let .pending(url, isSitemap, csIdentifier):
+        case let .pending(url, isSitemap):
             if isSitemap {
                 await parseSitemap(at: url)
             } else {
-                try await index(page: url, lastModified: nil, lastEtag: nil, existingCsIdentifier: csIdentifier)
+                try await index(page: url, lastModified: nil, lastEtag: nil)
             }
-        case let .visited(url, lastModified, etag, csIdentifier):
-            try await index(page: url, lastModified: lastModified, lastEtag: etag, existingCsIdentifier: csIdentifier)
+        case let .visited(url, lastModified, etag):
+            try await index(page: url, lastModified: lastModified, lastEtag: etag)
         }
 
         switch indexResult {
@@ -400,7 +400,7 @@ final actor Crawler {
         botRejectionCache.addRejection(for: link)
     }
 
-    private func index(page link: String, lastModified: Date?, lastEtag: String?, existingCsIdentifier: String?) async throws -> IndexResponse {
+    private func index(page link: String, lastModified: Date?, lastEtag: String?) async throws -> IndexResponse {
         let indexStart = Date.now
         defer {
             let duration = 0 - indexStart.timeIntervalSinceNow
@@ -507,6 +507,17 @@ final actor Crawler {
         let sparseText = sparseTextRaw.removingHTMLEntities()
         if Task.isCancelled { return .cancelled }
 
+        let condensedTextRaw: String
+        do {
+            condensedTextRaw = try body.text(trimAndNormaliseWhitespace: true)
+            if Task.isCancelled { return .cancelled }
+        } catch {
+            Log.crawling(id, .error).log("Cannot parse text in \(link): \(error.localizedDescription)")
+            return .error
+        }
+        let condensedText = condensedTextRaw.removingHTMLEntities()
+        if Task.isCancelled { return .cancelled }
+
         var imageFileTask: Task<(URL?, URL), Never>?
         if let ogImage = header.metaPropertyContent(for: "og:image"),
            let thumbnailUrl = try? URL.create(from: ogImage, relativeTo: site, checkExtension: false),
@@ -537,9 +548,6 @@ final actor Crawler {
             }
         }
 
-        let _summary = header.metaPropertyContent(for: "og:description") ?? ""
-        let summaryContent = _summary.isEmpty ? sparseText : _summary
-
         let newUrls = try? htmlDoc.select("a[href]")
             .compactMap { try? $0.attr("href").trimmingCharacters(in: .whitespacesAndNewlines) }
             .compactMap { try? URL.create(from: $0, relativeTo: site, checkExtension: true) }
@@ -553,10 +561,10 @@ final actor Crawler {
                     return nil
                 }
                 guard let robotCheck else {
-                    return .pending(url: item, isSitemap: false, csIdentifier: nil)
+                    return .pending(url: item, isSitemap: false)
                 }
                 if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: item) {
-                    return .pending(url: item, isSitemap: false, csIdentifier: nil)
+                    return .pending(url: item, isSitemap: false)
                 } else {
                     reject(link: item)
                     return nil
@@ -593,7 +601,7 @@ final actor Crawler {
 
         if Task.isCancelled { return .cancelled }
 
-        let newEntry = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, csIdentifier: existingCsIdentifier)
+        let newEntry = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders)
 
         let attributes = CSSearchableItemAttributeSet(contentType: .text)
         attributes.contentType = UTType.text.identifier
@@ -601,9 +609,12 @@ final actor Crawler {
         attributes.htmlContentData = contentResult.0
         attributes.url = site
         attributes.keywords = keywords
-        attributes.contentDescription = summaryContent
+        attributes.contentDescription = condensedText
         attributes.contentModificationDate = lastModified
+        attributes.contentCreationDate = creationDate
         attributes.thumbnailURL = thumbnailUrl
+        attributes.containerIdentifier = id
+        attributes.containerTitle = id
         return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, Set(newUrls ?? []))
     }
 
@@ -666,12 +677,11 @@ final actor Crawler {
         let etag = res[DB.etagRow]
         let isSitemap = res[DB.isSitemapRow] ?? false
         let lastModified = res[DB.lastModifiedRow]
-        let csIdentifier = res[DB.csIdentifier]
 
         let result: IndexEntry = if etag != nil || lastModified != nil {
-            .visited(url: url, lastModified: lastModified, etag: etag, csIdentifier: csIdentifier)
+            .visited(url: url, lastModified: lastModified, etag: etag)
         } else {
-            .pending(url: url, isSitemap: isSitemap, csIdentifier: csIdentifier)
+            .pending(url: url, isSitemap: isSitemap)
         }
         return result
     }
@@ -694,7 +704,7 @@ final actor Crawler {
         }
 
         if var newSitemapEntries, newSitemapEntries.isPopulated {
-            let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false, csIdentifier: nil)
+            let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false)
             newSitemapEntries.remove(stubIndexEntry)
             try visited.subtract(from: &newSitemapEntries, in: db)
 

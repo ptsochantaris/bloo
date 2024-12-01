@@ -4,13 +4,11 @@ import SQLite
 extension SQLite.Expression: @retroactive @unchecked Sendable {}
 
 enum DB {
-    static let rowId = SQLite.Expression<Int64>("rowid")
     static let urlRow = SQLite.Expression<String>("url")
     static let isSitemapRow = SQLite.Expression<Bool?>("isSitemap")
     static let lastModifiedRow = SQLite.Expression<Date?>("lastModified")
     static let etagRow = SQLite.Expression<String?>("etag")
     static let thumbnailUrlRow = SQLite.Expression<String?>("thumbnailUrl")
-    static let csIdentifier = SQLite.Expression<String?>("csIdentifier")
 
     static let titleRow = SQLite.Expression<String?>("title")
     static let descriptionRow = SQLite.Expression<String?>("description")

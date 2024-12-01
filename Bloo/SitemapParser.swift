@@ -45,9 +45,9 @@ enum SitemapParser {
         var xmlUrls = Set<IndexEntry>()
         for try await url in parser.locationHose {
             if url.pathExtension.caseInsensitiveCompare("xml") == .orderedSame {
-                xmlUrls.insert(.pending(url: url.absoluteString, isSitemap: true, csIdentifier: nil))
+                xmlUrls.insert(.pending(url: url.absoluteString, isSitemap: true))
             } else {
-                siteLocations.insert(.pending(url: url.absoluteString, isSitemap: false, csIdentifier: nil))
+                siteLocations.insert(.pending(url: url.absoluteString, isSitemap: false))
             }
         }
         return (siteLocations, xmlUrls)

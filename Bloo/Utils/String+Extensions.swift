@@ -45,12 +45,45 @@ extension String {
         let firstMatch = matches.min(by: { $0.lowerBound < $1.lowerBound })
 
         if let firstMatch {
-            let lowerDistance = attributedString.characters.distance(from: attributedString.startIndex, to: firstMatch.lowerBound)
-            let newLowerBound = attributedString.index(firstMatch.lowerBound, offsetByCharacters: -(min(lowerDistance, 200)))
-            let upperDistance = attributedString.characters.distance(from: firstMatch.upperBound, to: attributedString.endIndex)
-            let newUpperBound = attributedString.index(firstMatch.upperBound, offsetByCharacters: (min(upperDistance, 200)))
-
-            attributedString = AttributedString(attributedString[newLowerBound ..< newUpperBound])
+            var count = 0
+            var L = firstMatch.lowerBound
+            var H = firstMatch.upperBound
+            var lowerSpaceFound = false
+            var upperSpaceFound = false
+            let maxCount = 300
+            let minCount = maxCount - 30
+            while count < maxCount {
+                let existingCount = count
+                if L != attributedString.startIndex, !lowerSpaceFound {
+                    if count > minCount, attributedString.characters[L] == " " {
+                        lowerSpaceFound = true
+                    } else {
+                        L = attributedString.index(beforeCharacter: L)
+                        count += 1
+                    }
+                }
+                if H != attributedString.endIndex, !upperSpaceFound {
+                    if count > minCount, attributedString.characters[H] == " " {
+                        upperSpaceFound = true
+                    } else {
+                        H = attributedString.index(afterCharacter: H)
+                        count += 1
+                    }
+                }
+                if count == existingCount {
+                    break
+                }
+            }
+            if lowerSpaceFound, L != attributedString.endIndex {
+                L = attributedString.index(afterCharacter: L)
+            }
+            attributedString = AttributedString(attributedString[L ..< H])
+            if L != attributedString.startIndex {
+                attributedString.insert(AttributedString("…"), at: attributedString.startIndex)
+            }
+            if H != attributedString.endIndex {
+                attributedString.append(AttributedString("…"))
+            }
         }
 
         return attributedString

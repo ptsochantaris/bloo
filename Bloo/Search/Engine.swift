@@ -153,7 +153,11 @@ extension Search {
 
             let context = CSUserQueryContext()
             context.maxResultCount = chunkSize
-            context.fetchAttributes = ["title", "contentURL", "contentCreationDate", "contentModificationDate", "thumbnailURL", "keywords", "contentDescription", "contentType"]
+            context.enableRankedResults = true
+            if #available(macOS 15.0, *) {
+                context.maxRankedResultCount = chunkSize
+            }
+            context.fetchAttributes = ["title", "contentCreationDate", "contentModificationDate", "thumbnailURL", "keywords", "contentDescription", "contentType"]
             let query = CSUserQuery(userQueryString: searchText, userQueryContext: context)
             let newQueryTask = Task {
                 _ = await previousTask?.value
