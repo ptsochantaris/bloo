@@ -18,15 +18,6 @@ enum IndexEntry: Hashable, Sendable {
         }
     }
 
-    func withCsIdentifier(_ csIdentifier: String) -> IndexEntry {
-        switch self {
-        case let .pending(url, isSitemap):
-            .pending(url: url, isSitemap: isSitemap)
-        case let .visited(url, lastModified, etag):
-            .visited(url: url, lastModified: lastModified, etag: etag)
-        }
-    }
-
     static func == (lhs: IndexEntry, rhs: IndexEntry) -> Bool {
         lhs.url == rhs.url
     }

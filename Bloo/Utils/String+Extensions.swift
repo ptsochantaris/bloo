@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import RegexBuilder
+import SwiftUI
 
 // Swift warning workaround
 extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute>: @retroactive @unchecked Sendable {}
@@ -8,8 +8,8 @@ extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttr
 extension AttributedString {
     func ranges(of text: String) -> [Range<AttributedString.Index>] {
         var ranges = [Range<AttributedString.Index>]()
-        var start = self.startIndex
-        let end = self.endIndex
+        var start = startIndex
+        let end = endIndex
         while let range = self[start ..< end].range(of: text, options: .caseInsensitive) {
             ranges.append(range)
             start = range.upperBound

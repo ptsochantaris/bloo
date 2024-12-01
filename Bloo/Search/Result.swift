@@ -13,14 +13,12 @@ extension Search {
         let thumbnailUrl: URL?
         let keywords: [String]
         let terms: [String]
-        let rowId: String
         let titleHashValueForResults: Int
         let bodyHashValueForResults: Int
 
         init(searchableItem: CSSearchableItem, terms: [String]) {
-            rowId = searchableItem.uniqueIdentifier
-            id = terms.joined(separator: ",") + String(rowId)
             url = searchableItem.uniqueIdentifier
+            id = terms.joined(separator: ",") + String(url)
 
             let attributes = searchableItem.attributeSet
 

@@ -1,3 +1,4 @@
+import Algorithms
 import CanProceed
 import CoreSpotlight
 import Foundation
@@ -8,7 +9,6 @@ import Semalot
 import SQLite
 @preconcurrency import SwiftSoup
 import SwiftUI
-import Algorithms
 
 final actor KeywordGenerator {
     static let shared = KeywordGenerator()
@@ -68,13 +68,8 @@ final actor Crawler {
         let c = try Connection(file.path)
         try c.run(DB.pragmas)
 
-        let tableId = id.replacingOccurrences(of: ".", with: "_")
-
-        let pendingTable = Table("pending_\(tableId)")
-        pending = try TableWrapper(table: pendingTable, in: c)
-
-        let visitedTable = Table("visited_\(tableId)")
-        visited = try TableWrapper(table: visitedTable, in: c)
+        pending = try TableWrapper(table: Table("pending"), in: c)
+        visited = try TableWrapper(table: Table("visited"), in: c)
 
         db = c
     }
@@ -369,16 +364,16 @@ final actor Crawler {
             return false
 
         case let .wasSitemap(newContentUrls, newSitemapUrls):
-            try await handleCrawlCompletion(item: entry, csIdentifier: nil, newEntries: newContentUrls, newSitemapEntries: newSitemapUrls)
+            try await handleCrawlCompletion(item: entry, newEntries: newContentUrls, newSitemapEntries: newSitemapUrls)
             return false
 
         case .noChange:
-            try await handleCrawlCompletion(item: entry, csIdentifier: nil, newEntries: nil, newSitemapEntries: nil)
+            try await handleCrawlCompletion(item: entry, newEntries: nil, newSitemapEntries: nil)
             return false
 
         case let .indexed(csEntry, createdItem, newPendingItems):
             spotlightQueue.append(csEntry)
-            try await handleCrawlCompletion(item: createdItem, csIdentifier: csEntry.uniqueIdentifier, newEntries: newPendingItems, newSitemapEntries: nil)
+            try await handleCrawlCompletion(item: createdItem, newEntries: newPendingItems, newSitemapEntries: nil)
             return true
         }
     }
@@ -624,7 +619,7 @@ final actor Crawler {
     }()
 
     private func generateDate(from text: String) async -> Date? {
-        return dateDetector.firstMatch(in: text, range: text.wholeNSRange)?.date
+        dateDetector.firstMatch(in: text, range: text.wholeNSRange)?.date
     }
 
     private static func imageDataPath(for id: String, sourceUrl: URL) throws -> URL {
@@ -686,22 +681,14 @@ final actor Crawler {
         return result
     }
 
-    private func handleCrawlCompletion(item: IndexEntry, csIdentifier: String?, newEntries: Set<IndexEntry>?, newSitemapEntries: Set<IndexEntry>?) async throws {
+    private func handleCrawlCompletion(item: IndexEntry, newEntries: Set<IndexEntry>?, newSitemapEntries: Set<IndexEntry>?) async throws {
         guard let db else { return }
 
         let itemUrl = item.url
 
         try pending.delete(url: itemUrl, in: db)
-
-        if let csIdentifier {
-            let updatedItem = item.withCsIdentifier(csIdentifier)
-            try visited.append(item: updatedItem, in: db)
-
-            Log.crawling(id, .info).log("Visited URL: \(itemUrl)")
-
-        } else {
-            try visited.append(item: item, in: db)
-        }
+        try visited.append(item: item, in: db)
+        Log.crawling(id, .info).log("Visited URL: \(itemUrl)")
 
         if var newSitemapEntries, newSitemapEntries.isPopulated {
             let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false)

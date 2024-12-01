@@ -1,7 +1,7 @@
+import CoreSpotlight
 import Foundation
 import PopTimer
 import SwiftUI
-import CoreSpotlight
 
 extension Search {
     @Observable
@@ -48,7 +48,7 @@ extension Search {
             }
         }
 
-         private var searchState: Search {
+        private var searchState: Search {
             get {
                 Search.windowIdToSearch[windowId] ?? .none
             }
@@ -153,10 +153,6 @@ extension Search {
 
             let context = CSUserQueryContext()
             context.maxResultCount = chunkSize
-            context.enableRankedResults = true
-            if #available(macOS 15.0, *) {
-                context.maxRankedResultCount = chunkSize
-            }
             context.fetchAttributes = ["title", "contentCreationDate", "contentModificationDate", "thumbnailURL", "keywords", "contentDescription", "contentType"]
             let query = CSUserQuery(userQueryString: searchText, userQueryContext: context)
             let newQueryTask = Task {
@@ -178,10 +174,10 @@ extension Search {
                 } catch {
                     Log.search(.error).log("Error querying index: \(error)")
                 }
-                
+
                 let count = query.foundItemCount
                 Log.search(.info).log("Total \(count) results")
-                
+
                 switch count {
                 case 0:
                     updateResultState(.noResults)
