@@ -10,7 +10,7 @@ enum DB {
     static let lastModifiedRow = SQLite.Expression<Date?>("lastModified")
     static let etagRow = SQLite.Expression<String?>("etag")
     static let thumbnailUrlRow = SQLite.Expression<String?>("thumbnailUrl")
-    static let textRowId = SQLite.Expression<Int64?>("textRowId")
+    static let csIdentifier = SQLite.Expression<String?>("csIdentifier")
 
     static let titleRow = SQLite.Expression<String?>("title")
     static let descriptionRow = SQLite.Expression<String?>("description")

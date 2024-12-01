@@ -2,21 +2,7 @@ import Foundation
 import SQLite
 
 enum IndexEntry: Hashable, Sendable {
-    struct Content {
-        let title: String?
-        let description: String?
-        let sparseContent: String?
-        let condensedContent: String?
-        let keywords: String?
-        let thumbnailUrl: String?
-        let lastModified: Date?
-
-        var hasItems: Bool {
-            title != nil || description != nil || condensedContent != nil || sparseContent != nil || keywords != nil
-        }
-    }
-
-    case pending(url: String, isSitemap: Bool, textRowId: Int64?), visited(url: String, lastModified: Date?, etag: String?, textRowId: Int64?)
+    case pending(url: String, isSitemap: Bool, csIdentifier: String?), visited(url: String, lastModified: Date?, etag: String?, csIdentifier: String?)
 
     func hash(into hasher: inout Hasher) {
         switch self {
@@ -32,19 +18,19 @@ enum IndexEntry: Hashable, Sendable {
         }
     }
 
-    var textRowId: Int64? {
+    var csIdentifier: String? {
         switch self {
-        case let .pending(_, _, textRowId), let .visited(_, _, _, textRowId):
-            textRowId
+        case let .pending(_, _, csIdentifier), let .visited(_, _, _, csIdentifier):
+            csIdentifier
         }
     }
 
-    func withTextRowId(_ newId: Int64?) -> IndexEntry {
+    func withCsIdentifier(_ csIdentifier: String) -> IndexEntry {
         switch self {
         case let .pending(url, isSitemap, _):
-            .pending(url: url, isSitemap: isSitemap, textRowId: newId)
+            .pending(url: url, isSitemap: isSitemap, csIdentifier: csIdentifier)
         case let .visited(url, lastModified, etag, _):
-            .visited(url: url, lastModified: lastModified, etag: etag, textRowId: newId)
+            .visited(url: url, lastModified: lastModified, etag: etag, csIdentifier: csIdentifier)
         }
     }
 

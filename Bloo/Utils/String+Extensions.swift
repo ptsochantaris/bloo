@@ -1,8 +1,22 @@
 import Foundation
 import SwiftUI
+import RegexBuilder
 
 // Swift warning workaround
 extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute>: @retroactive @unchecked Sendable {}
+
+extension AttributedString {
+    func ranges(of text: String) -> [Range<AttributedString.Index>] {
+        var ranges = [Range<AttributedString.Index>]()
+        var start = self.startIndex
+        let end = self.endIndex
+        while let range = self[start ..< end].range(of: text, options: .caseInsensitive) {
+            ranges.append(range)
+            start = range.upperBound
+        }
+        return ranges
+    }
+}
 
 extension String {
     var isSaneLink: Bool {
@@ -16,25 +30,27 @@ extension String {
             || hasSuffix("/feed"))
     }
 
-    private nonisolated(unsafe) static let regex = /\#\[BLU(.+?)ULB\]\#/.dotMatchesNewlines()
-
-    func highlightedAttributedString() -> AttributedString {
+    func highlightedAttributedString(terms: [String]) -> AttributedString {
         let text = String(unicodeScalars.filter { !$0.properties.isJoinControl })
         var attributedString = AttributedString(text)
 
-        for match in text.matches(of: Self.regex).reversed() {
-            let L = match.range.lowerBound
-            let plainStart = text.distance(from: text.startIndex, to: L)
+        var matches: [Range<AttributedString.Index>] = []
+        for term in terms {
+            for match in attributedString.ranges(of: term).reversed() {
+                matches.append(match)
+                attributedString[match].foregroundColor = .accent
+            }
+        }
 
-            let U = match.range.upperBound
-            let plainLength = text.distance(from: L, to: U)
+        let firstMatch = matches.min(by: { $0.lowerBound < $1.lowerBound })
 
-            let attributedStart = attributedString.index(attributedString.startIndex, offsetByCharacters: plainStart)
-            let attributedEnd = attributedString.index(attributedStart, offsetByCharacters: plainLength)
+        if let firstMatch {
+            let lowerDistance = attributedString.characters.distance(from: attributedString.startIndex, to: firstMatch.lowerBound)
+            let newLowerBound = attributedString.index(firstMatch.lowerBound, offsetByCharacters: -(min(lowerDistance, 200)))
+            let upperDistance = attributedString.characters.distance(from: firstMatch.upperBound, to: attributedString.endIndex)
+            let newUpperBound = attributedString.index(firstMatch.upperBound, offsetByCharacters: (min(upperDistance, 200)))
 
-            var replacement = AttributedString(match.output.1)
-            replacement.foregroundColor = .accent
-            attributedString.replaceSubrange(attributedStart ..< attributedEnd, with: replacement)
+            attributedString = AttributedString(attributedString[newLowerBound ..< newUpperBound])
         }
 
         return attributedString

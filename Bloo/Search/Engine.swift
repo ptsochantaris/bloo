@@ -1,6 +1,7 @@
 import Foundation
 import PopTimer
 import SwiftUI
+import CoreSpotlight
 
 extension Search {
     @Observable
@@ -47,7 +48,7 @@ extension Search {
             }
         }
 
-        private var searchState: Search {
+         private var searchState: Search {
             get {
                 Search.windowIdToSearch[windowId] ?? .none
             }
@@ -150,9 +151,11 @@ extension Search {
                 updateResultState(.updating(searchText, mode, array, count))
             }
 
-            runningQueryTask = Task.detached(priority: .userInitiated) { [weak self] in
-                guard let self else { return }
-
+            let context = CSUserQueryContext()
+            context.maxResultCount = chunkSize
+            context.fetchAttributes = ["title", "contentURL", "contentCreationDate", "contentModificationDate", "thumbnailURL", "keywords", "contentDescription", "contentType"]
+            let query = CSUserQuery(userQueryString: searchText, userQueryContext: context)
+            let newQueryTask = Task {
                 _ = await previousTask?.value
 
                 if Task.isCancelled {
@@ -160,35 +163,41 @@ extension Search {
                     return
                 }
 
-                let results = await (try? SearchDB.shared.searchQuery(searchText, limit: chunkSize))
-
-                if Task.isCancelled {
-                    Log.search(.info).log("Cancelled search, ignoring results")
-                    return
+                var results: [Search.Result] = []
+                do {
+                    let terms = searchText.split(separator: " ").map { String($0) }
+                    for try await result in query.results {
+                        let blooResult = Search.Result(searchableItem: result.item, terms: terms)
+                        results.append(blooResult)
+                        Log.search(.info).log("Received result - \(result.id)")
+                    }
+                } catch {
+                    Log.search(.error).log("Error querying index: \(error)")
                 }
-
-                guard let results else {
-                    await updateResultState(.noResults)
-                    return
-                }
-
-                Log.search(.info).log("Total \(results.count) results")
-
-                let count = results.count
+                
+                let count = query.foundItemCount
+                Log.search(.info).log("Total \(count) results")
+                
                 switch count {
                 case 0:
-                    await updateResultState(.noResults)
+                    updateResultState(.noResults)
                 case 1 ..< smallChunkSize:
-                    await updateResultState(.results(.limited, results, count))
+                    updateResultState(.results(.limited, results, count))
                 default:
                     switch newSearch {
                     case .none, .top:
-                        await updateResultState(.results(.top, results, count))
+                        updateResultState(.results(.top, results, count))
                     case .full:
-                        await updateResultState(.results(.all, results, count))
+                        updateResultState(.results(.all, results, count))
                     }
                 }
+
+                if !Task.isCancelled {
+                    runningQueryTask = nil
+                }
             }
+
+            runningQueryTask = newQueryTask
         }
     }
 }

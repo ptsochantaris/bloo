@@ -9,12 +9,11 @@ extension Search {
         let url: String
         let title: String
         let descriptionText: String
-        let contentText: String?
         let displayDate: Date?
         let thumbnailUrl: URL?
         let keywords: [String]
         let terms: [String]
-        let rowId: Int64
+        let rowId: String
         let titleHashValueForResults: Int
         let bodyHashValueForResults: Int
 
@@ -52,35 +51,31 @@ extension Search {
             return "\(prefix)\(text[excerptRange])\(suffix)"
         }
 
-        init(element: Row, terms: [String]) {
-            rowId = element[DB.rowId]
+        init(searchableItem: CSSearchableItem, terms: [String]) {
+            rowId = searchableItem.uniqueIdentifier
             id = terms.joined(separator: ",") + String(rowId)
-            url = element[DB.urlRow]
-            displayDate = element[DB.lastModifiedRow]
-            thumbnailUrl = URL(string: element[DB.thumbnailUrlRow] ?? "")
-            keywords = element[DB.keywordRow]?.split(separator: ", ").map { String($0) } ?? []
+
+            let attributes = searchableItem.attributeSet
+
+            url = attributes.contentURL?.absoluteString ?? ""
+            displayDate = attributes.contentCreationDate ?? attributes.contentModificationDate
+            thumbnailUrl = attributes.thumbnailURL
+            keywords = attributes.keywords ?? []
             self.terms = terms
 
-            let _contentText = element[DB.contentRow]
-            contentText = _contentText
-            bodyHashValueForResults = _contentText.hashValue
-
-            let _title = element[DB.titleRow]
+            let _title = attributes.title
             title = _title ?? ""
+            descriptionText = attributes.contentDescription ?? ""
+            bodyHashValueForResults = descriptionText.hashValue
             titleHashValueForResults = (_title?.hashValue) ?? bodyHashValueForResults
-
-            descriptionText = element[DB.descriptionRow] ?? ""
         }
 
         var attributedTitle: AttributedString {
-            title.highlightedAttributedString()
+            title.highlightedAttributedString(terms: terms)
         }
 
         var attributedDescription: AttributedString {
-            if let contentRes = contentText?.highlightedAttributedString() {
-                return contentRes
-            }
-            return descriptionText.highlightedAttributedString()
+            descriptionText.highlightedAttributedString(terms: terms)
         }
 
         var matchedKeywords: String? {
@@ -94,7 +89,7 @@ extension Search {
         }
 
         func matchesFilter(_ filter: String) -> Bool {
-            title.localizedCaseInsensitiveContains(filter) || descriptionText.localizedCaseInsensitiveContains(filter) || (contentText ?? "").localizedCaseInsensitiveContains(filter)
+            title.localizedCaseInsensitiveContains(filter) || descriptionText.localizedCaseInsensitiveContains(filter)
         }
     }
 }

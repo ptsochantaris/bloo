@@ -358,7 +358,7 @@ private struct FilterField: View {
     }
 }
 
-private struct DomainHeader: View {
+private struct DomainSectionHeader: View {
     let section: Domain.Section
     @Binding var filter: String
     @State private var actioning = false
@@ -375,7 +375,7 @@ private struct DomainHeader: View {
                 FilterField(filter: $filter)
             }
 
-            if !actioning {
+            Group {
                 if section.state.canStart {
                     Button {
                         actioning = true
@@ -408,6 +408,8 @@ private struct DomainHeader: View {
                     }
                 }
             }
+            .opacity(actioning ? 0.1 : 1)
+            .allowsHitTesting(!actioning)
         }
         .padding(.horizontal, titleInset)
     }
@@ -420,7 +422,7 @@ private struct DomainGrid: View {
     var body: some View {
         if section.domains.isPopulated {
             VStack(alignment: .leading) {
-                DomainHeader(section: section, filter: $filter.animation())
+                DomainSectionHeader(section: section, filter: $filter.animation())
                 LazyVGrid(columns: gridColumns) {
                     ForEach(section.domains.filter { $0.matchesFilter(filter) }) { domain in
                         DomainRow(domain: domain)

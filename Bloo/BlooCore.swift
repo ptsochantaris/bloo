@@ -115,14 +115,9 @@ final class BlooCore {
             return
         }
 
-        let restoring = runState == .backgrounded
-
         initialisedViaLaunch = true
         runState = .running
         await snapshotter.start()
-        if restoring {
-            try await SearchDB.shared.resume()
-        }
 
         for domain in domains where domain.state.shouldResume {
             try? await domain.crawler.start()
@@ -178,18 +173,7 @@ final class BlooCore {
 
         Log.app(.default).log("All domains are shut down")
 
-        try await withThrowingDiscardingTaskGroup { group in
-            group.addTask { [snapshotter] in
-                await snapshotter.shutdown()
-            }
-            group.addTask { [runState] in
-                if runState != .backgrounded {
-                    await SearchDB.shared.shutdown()
-                } else {
-                    await SearchDB.shared.pause()
-                }
-            }
-        }
+        await snapshotter.shutdown()
 
         try? await Task.sleep(for: .milliseconds(100))
 

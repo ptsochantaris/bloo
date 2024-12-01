@@ -27,16 +27,16 @@ final class TableWrapper: Equatable {
 
     private static func itemRowSetters(for item: IndexEntry) -> [Setter] {
         switch item {
-        case let .pending(url, isSitemap, textRowId):
+        case let .pending(url, isSitemap, csIdentifier):
             [DB.urlRow <- url,
              DB.isSitemapRow <- isSitemap,
-             DB.textRowId <- textRowId]
+             DB.csIdentifier <- csIdentifier]
 
-        case let .visited(url, lastModified, etag, textRowId):
+        case let .visited(url, lastModified, etag, csIdentifier):
             [DB.urlRow <- url,
              DB.lastModifiedRow <- lastModified,
              DB.etagRow <- etag,
-             DB.textRowId <- textRowId]
+             DB.csIdentifier <- csIdentifier]
         }
     }
 
@@ -72,7 +72,7 @@ final class TableWrapper: Equatable {
             $0.column(DB.isSitemapRow)
             $0.column(DB.lastModifiedRow)
             $0.column(DB.etagRow)
-            $0.column(DB.textRowId)
+            $0.column(DB.csIdentifier)
         })
         try db.run(table.createIndex(DB.urlRow, unique: true, ifNotExists: true))
     }
@@ -81,7 +81,7 @@ final class TableWrapper: Equatable {
         let array = items.map(\.url)
         if array.isPopulated {
             let itemsToSubtract = try db.prepare(table.select([DB.urlRow]).filter(array.contains(DB.urlRow)))
-                .map { IndexEntry.pending(url: $0[DB.urlRow], isSitemap: false, textRowId: nil) }
+                .map { IndexEntry.pending(url: $0[DB.urlRow], isSitemap: false, csIdentifier: nil) }
             items.subtract(itemsToSubtract)
         }
     }

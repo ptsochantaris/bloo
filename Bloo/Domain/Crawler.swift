@@ -8,6 +8,7 @@ import Semalot
 import SQLite
 @preconcurrency import SwiftSoup
 import SwiftUI
+import Algorithms
 
 final actor KeywordGenerator {
     static let shared = KeywordGenerator()
@@ -51,12 +52,12 @@ final actor Crawler {
     weak var crawlerDelegate: Domain!
 
     enum IndexResponse {
-        case noChange(viaServerCode: Bool), error, disallowed, cancelled, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>, IndexEntry.Content), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
+        case noChange(viaServerCode: Bool), error, disallowed, cancelled, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
     }
 
     init(id: String, url: String) throws {
         self.id = id
-        bootupEntry = .pending(url: url, isSitemap: false, textRowId: nil)
+        bootupEntry = .pending(url: url, isSitemap: false, csIdentifier: nil)
 
         let path = domainPath(for: id)
         let file = path.appending(path: "crawler.sqlite3", directoryHint: .notDirectory)
@@ -256,11 +257,11 @@ final actor Crawler {
 
         if try counts().indexed == 0 {
             let url = "https://\(id)/sitemap.xml"
-            try appendPending(.pending(url: url, isSitemap: true, textRowId: nil))
+            try appendPending(.pending(url: url, isSitemap: true, csIdentifier: nil))
 
             if let providedSitemaps = robotCheck?.sitemaps {
                 let sitemapEntries = providedSitemaps
-                    .map { IndexEntry.pending(url: $0, isSitemap: true, textRowId: nil) }
+                    .map { IndexEntry.pending(url: $0, isSitemap: true, csIdentifier: nil) }
 
                 try appendPending(items: sitemapEntries)
             }
@@ -345,14 +346,14 @@ final actor Crawler {
 
     private func crawl(entry: IndexEntry) async throws -> Bool {
         let indexResult = switch entry {
-        case let .pending(url, isSitemap, textRowId):
+        case let .pending(url, isSitemap, csIdentifier):
             if isSitemap {
                 await parseSitemap(at: url)
             } else {
-                try await index(page: url, lastModified: nil, lastEtag: nil, existingTextRowId: textRowId)
+                try await index(page: url, lastModified: nil, lastEtag: nil, existingCsIdentifier: csIdentifier)
             }
-        case let .visited(url, lastModified, etag, textRowId):
-            try await index(page: url, lastModified: lastModified, lastEtag: etag, existingTextRowId: textRowId)
+        case let .visited(url, lastModified, etag, csIdentifier):
+            try await index(page: url, lastModified: lastModified, lastEtag: etag, existingCsIdentifier: csIdentifier)
         }
 
         switch indexResult {
@@ -368,16 +369,16 @@ final actor Crawler {
             return false
 
         case let .wasSitemap(newContentUrls, newSitemapUrls):
-            try await handleCrawlCompletion(item: entry, content: nil, newEntries: newContentUrls, newSitemapEntries: newSitemapUrls)
+            try await handleCrawlCompletion(item: entry, csIdentifier: nil, newEntries: newContentUrls, newSitemapEntries: newSitemapUrls)
             return false
 
         case .noChange:
-            try await handleCrawlCompletion(item: entry, content: nil, newEntries: nil, newSitemapEntries: nil)
+            try await handleCrawlCompletion(item: entry, csIdentifier: nil, newEntries: nil, newSitemapEntries: nil)
             return false
 
-        case let .indexed(csEntry, createdItem, newPendingItems, content):
+        case let .indexed(csEntry, createdItem, newPendingItems):
             spotlightQueue.append(csEntry)
-            try await handleCrawlCompletion(item: createdItem, content: content, newEntries: newPendingItems, newSitemapEntries: nil)
+            try await handleCrawlCompletion(item: createdItem, csIdentifier: csEntry.uniqueIdentifier, newEntries: newPendingItems, newSitemapEntries: nil)
             return true
         }
     }
@@ -399,7 +400,7 @@ final actor Crawler {
         botRejectionCache.addRejection(for: link)
     }
 
-    private func index(page link: String, lastModified: Date?, lastEtag: String?, existingTextRowId: Int64?) async throws -> IndexResponse {
+    private func index(page link: String, lastModified: Date?, lastEtag: String?, existingCsIdentifier: String?) async throws -> IndexResponse {
         let indexStart = Date.now
         defer {
             let duration = 0 - indexStart.timeIntervalSinceNow
@@ -495,17 +496,6 @@ final actor Crawler {
 
         if Task.isCancelled { return .cancelled }
 
-        let condensedTextRaw: String
-        do {
-            condensedTextRaw = try body.text(trimAndNormaliseWhitespace: true)
-            if Task.isCancelled { return .cancelled }
-        } catch {
-            Log.crawling(id, .error).log("Cannot parse text in \(link): \(error.localizedDescription)")
-            return .error
-        }
-        let condensedText = condensedTextRaw.removingHTMLEntities()
-        if Task.isCancelled { return .cancelled }
-
         let sparseTextRaw: String
         do {
             sparseTextRaw = try body.text(trimAndNormaliseWhitespace: false)
@@ -547,7 +537,8 @@ final actor Crawler {
             }
         }
 
-        let summaryContent = header.metaPropertyContent(for: "og:description") ?? ""
+        let _summary = header.metaPropertyContent(for: "og:description") ?? ""
+        let summaryContent = _summary.isEmpty ? sparseText : _summary
 
         let newUrls = try? htmlDoc.select("a[href]")
             .compactMap { try? $0.attr("href").trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -562,10 +553,10 @@ final actor Crawler {
                     return nil
                 }
                 guard let robotCheck else {
-                    return .pending(url: item, isSitemap: false, textRowId: nil)
+                    return .pending(url: item, isSitemap: false, csIdentifier: nil)
                 }
                 if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: item) {
-                    return .pending(url: item, isSitemap: false, textRowId: nil)
+                    return .pending(url: item, isSitemap: false, csIdentifier: nil)
                 } else {
                     reject(link: item)
                     return nil
@@ -574,7 +565,7 @@ final actor Crawler {
 
         let createdDateString = header.metaPropertyContent(for: "og:article:published_time") ?? header.datePublished ?? ""
         let creationDate = Formatters.tryParsingCreatedDate(createdDateString)
-        let keywords = await KeywordGenerator.shared.generateKeywords(from: condensedText)
+        let keywords = await KeywordGenerator.shared.generateKeywords(from: sparseText)
 
 //        let keywords = header
 //            .metaNameContent(for: "keywords")?.split(separator: ",")
@@ -586,7 +577,7 @@ final actor Crawler {
         } else if let creationDate {
             creationDate
         } else {
-            await Embedding.generateDate(from: condensedText)
+            await generateDate(from: sparseText)
         }
 
         if Task.isCancelled { return .cancelled }
@@ -602,26 +593,27 @@ final actor Crawler {
 
         if Task.isCancelled { return .cancelled }
 
-        let newContent = IndexEntry.Content(title: title,
-                                            description: summaryContent,
-                                            sparseContent: sparseText,
-                                            condensedContent: condensedText,
-                                            keywords: keywords.joined(separator: ", "),
-                                            thumbnailUrl: thumbnailUrl?.absoluteString,
-                                            lastModified: lastModified)
-
-        let newEntry = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, textRowId: existingTextRowId)
+        let newEntry = IndexEntry.visited(url: link, lastModified: lastModified, etag: etagFromHeaders, csIdentifier: existingCsIdentifier)
 
         let attributes = CSSearchableItemAttributeSet(contentType: .text)
         attributes.contentType = UTType.text.identifier
-        attributes.title = newContent.title
-        attributes.textContent = newContent.condensedContent
+        attributes.title = title
+        attributes.htmlContentData = contentResult.0
         attributes.url = site
         attributes.keywords = keywords
-        attributes.contentDescription = newContent.description
-        attributes.contentModificationDate = newContent.lastModified
+        attributes.contentDescription = summaryContent
+        attributes.contentModificationDate = lastModified
         attributes.thumbnailURL = thumbnailUrl
-        return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, Set(newUrls ?? []), newContent)
+        return .indexed(CSSearchableItem(uniqueIdentifier: link, domainIdentifier: id, attributeSet: attributes), newEntry, Set(newUrls ?? []))
+    }
+
+    private let dateDetector: NSDataDetector = {
+        let types: NSTextCheckingResult.CheckingType = [.date]
+        return try! NSDataDetector(types: types.rawValue)
+    }()
+
+    private func generateDate(from text: String) async -> Date? {
+        return dateDetector.firstMatch(in: text, range: text.wholeNSRange)?.date
     }
 
     private static func imageDataPath(for id: String, sourceUrl: URL) throws -> URL {
@@ -664,7 +656,6 @@ final actor Crawler {
             try visited.clear(purge: purge, in: db)
             try pending.clear(purge: purge, in: db)
         }
-        try await SearchDB.shared.purgeDomain(id: id)
     }
 
     private func nextPending() throws -> IndexEntry? {
@@ -675,26 +666,25 @@ final actor Crawler {
         let etag = res[DB.etagRow]
         let isSitemap = res[DB.isSitemapRow] ?? false
         let lastModified = res[DB.lastModifiedRow]
-        let textRowId = res[DB.textRowId]
+        let csIdentifier = res[DB.csIdentifier]
 
         let result: IndexEntry = if etag != nil || lastModified != nil {
-            .visited(url: url, lastModified: lastModified, etag: etag, textRowId: textRowId)
+            .visited(url: url, lastModified: lastModified, etag: etag, csIdentifier: csIdentifier)
         } else {
-            .pending(url: url, isSitemap: isSitemap, textRowId: textRowId)
+            .pending(url: url, isSitemap: isSitemap, csIdentifier: csIdentifier)
         }
         return result
     }
 
-    private func handleCrawlCompletion(item: IndexEntry, content: IndexEntry.Content?, newEntries: Set<IndexEntry>?, newSitemapEntries: Set<IndexEntry>?) async throws {
+    private func handleCrawlCompletion(item: IndexEntry, csIdentifier: String?, newEntries: Set<IndexEntry>?, newSitemapEntries: Set<IndexEntry>?) async throws {
         guard let db else { return }
 
         let itemUrl = item.url
 
         try pending.delete(url: itemUrl, in: db)
 
-        if let content {
-            let textTableRowId = try await SearchDB.shared.insert(id: id, url: itemUrl, content: content, existingRowId: item.textRowId)
-            let updatedItem = item.withTextRowId(textTableRowId)
+        if let csIdentifier {
+            let updatedItem = item.withCsIdentifier(csIdentifier)
             try visited.append(item: updatedItem, in: db)
 
             Log.crawling(id, .info).log("Visited URL: \(itemUrl)")
@@ -704,7 +694,7 @@ final actor Crawler {
         }
 
         if var newSitemapEntries, newSitemapEntries.isPopulated {
-            let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false, textRowId: nil)
+            let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false, csIdentifier: nil)
             newSitemapEntries.remove(stubIndexEntry)
             try visited.subtract(from: &newSitemapEntries, in: db)
 

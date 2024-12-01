@@ -1,15 +1,6 @@
 {
-  "originHash" : "bc2014ea0a32d467dea2fecb9d6443b6070e6ce52622c620dacd1d4765306172",
+  "originHash" : "a9122d6b1ec933c61de928fe889a45d9a5112769c379134c4fa127efe7f13e10",
   "pins" : [
-    {
-      "identity" : "akashic-table",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ptsochantaris/akashic-table",
-      "state" : {
-        "branch" : "main",
-        "revision" : "53283f19bf30254ca94bca879ec810b54e292672"
-      }
-    },
     {
       "identity" : "can-proceed",
       "kind" : "remoteSourceControl",
