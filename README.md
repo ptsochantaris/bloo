@@ -3,7 +3,7 @@
 Bloo
 ====
 
-Bloo makes your computer the search engine. It crawls sites and adds the results the local Spotlight index, so you can search from Spotlight like you would with your favourite search engine, search directly from the UI.
+Bloo makes your computer the search engine. It crawls sites and adds the results the local Spotlight index, so you can search from Spotlight like you would with your favourite search engine, or search directly from the app UI.
 
 Works on macOS, iOS/iPadOS, and visionOS. On non-Mac systems it won't index sites when it is in the background, unless the device is plugged in and charged, e.g. overnight.
 
@@ -16,7 +16,6 @@ Bloo uses some of my own utility packages:
 - [Lista](https://github.com/ptsochantaris/lista)
 - [Maintini](https://github.com/ptsochantaris/maintini)
 - [PopTimer](https://github.com/ptsochantaris/pop-timer)
-- [Akashic Table](http://github.com/ptsochantaris/akashic-table)
 
 And the following (not my own but) brilliant packages:
 - [SwiftSoup](https://github.com/scinfu/SwiftSoup)
