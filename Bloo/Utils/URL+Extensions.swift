@@ -4,7 +4,7 @@ extension URL {
     static func create(from text: String, relativeTo: URL?, checkExtension: Bool) throws -> URL {
         guard text.isPopulated,
               text.isSaneLink,
-              let url = URL(string: text, relativeTo: relativeTo),
+              let url = URL(string: text, relativeTo: relativeTo)?.standardized.absoluteURL,
               url.scheme == "https",
               url.host?.contains(".") == true,
               !checkExtension || !url.hasMediaExtension
@@ -12,16 +12,7 @@ extension URL {
             throw Blooper.malformedUrl
         }
 
-        let result: URL
-        if relativeTo == nil {
-            result = url
-        } else if let resolved = URL(string: url.absoluteString.replacing("/../", with: "/")) {
-            result = resolved
-        } else {
-            throw Blooper.malformedUrl
-        }
-
-        return result.removingPathAfter("?").removingPathAfter("#")
+        return url.removingPathAfter("?").removingPathAfter("#")
     }
 
     func normalisedForResults() -> String {
