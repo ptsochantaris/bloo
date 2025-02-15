@@ -1,7 +1,6 @@
 import CoreSpotlight
 import Foundation
 import Lista
-import SQLite
 
 extension Search {
     struct Result: Identifiable {

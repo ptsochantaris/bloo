@@ -7,7 +7,7 @@ import Maintini
 import NaturalLanguage
 import Semalot
 import SQLite
-@preconcurrency import SwiftSoup
+import SwiftSoup
 import SwiftUI
 
 final actor KeywordGenerator {
@@ -604,7 +604,7 @@ final actor Crawler {
         attributes.htmlContentData = contentResult.0
         attributes.url = site
         attributes.keywords = keywords
-        attributes.contentDescription = condensedText
+        attributes.contentDescription = String(condensedText.prefix(16000)) // 16k limit on CS description
         attributes.contentModificationDate = lastModified
         attributes.contentCreationDate = creationDate
         attributes.thumbnailURL = thumbnailUrl
