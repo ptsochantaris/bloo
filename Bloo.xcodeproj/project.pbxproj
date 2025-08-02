@@ -518,6 +518,7 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "(c) 2023 Paul Tsochantaris";
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -526,6 +527,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Bloo",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				PRODUCT_BUNDLE_IDENTIFIER = build.bru.bloo.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -556,6 +558,7 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "(c) 2023 Paul Tsochantaris";
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -564,6 +567,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Bloo",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				PRODUCT_BUNDLE_IDENTIFIER = build.bru.bloo.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";

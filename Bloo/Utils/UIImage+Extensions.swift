@@ -4,12 +4,12 @@ import Foundation
     import UIKit
 
     extension Data {
-        var asImage: UIImage? {
+        nonisolated var asImage: UIImage? {
             UIImage(data: self)
         }
     }
 
-    extension UIImage {
+    nonisolated extension UIImage {
         var jpegData: Data? {
             jpegData(compressionQuality: 0.7)
         }
