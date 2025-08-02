@@ -7,7 +7,6 @@ import SwiftUI
     import BackgroundTasks
 #endif
 
-@MainActor
 @Observable
 final class BlooCore {
     enum State {
@@ -24,23 +23,23 @@ final class BlooCore {
         var disposableDomainPresent = false
         let allCases = Domain.State.allCases
 
-        var buckets = [Domain.State: Lista<Domain>](minimumCapacity: allCases.count)
+        var buckets = [Int: Lista<Domain>](minimumCapacity: allCases.count)
         for domain in domains {
             if domain.state == .deleting {
                 disposableDomainPresent = true
                 continue
             }
-            if let list = buckets[domain.state] {
+            if let list = buckets[domain.state.groupId] {
                 list.append(domain)
             } else {
-                buckets[domain.state] = Lista(value: domain)
+                buckets[domain.state.groupId] = Lista(value: domain)
             }
         }
         if disposableDomainPresent {
             domains.removeAll { $0.state == .deleting }
         }
         return Domain.State.allCases.compactMap {
-            if let list = buckets[$0], list.count > 0 {
+            if let list = buckets[$0.groupId], list.count > 0 {
                 switch $0 {
                 case .deleting, .indexing, .paused, .pausing, .starting:
                     Domain.Section(state: $0, domains: Array(list), sort: .typical)
@@ -226,7 +225,7 @@ final class BlooCore {
             task.expirationHandler = { [weak self] in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    try await self.shutdown(backgrounded: true)
+                    try await shutdown(backgrounded: true)
                 }
             }
 

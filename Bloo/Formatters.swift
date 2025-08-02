@@ -1,6 +1,6 @@
 import Foundation
 
-enum Formatters {
+nonisolated enum Formatters {
     private static let posixLocale = Locale(identifier: "en_US_POSIX")
 
     private static let relativeStyle = Date.RelativeFormatStyle(presentation: .named, unitsStyle: .wide, locale: .autoupdatingCurrent, calendar: .autoupdatingCurrent, capitalizationContext: .standalone)

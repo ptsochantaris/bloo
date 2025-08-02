@@ -1,9 +1,8 @@
 import Foundation
 import SwiftUI
 
-@MainActor
 @Observable
-final class Domain: Identifiable, Sendable {
+final class Domain: Identifiable {
     let id: String
     let crawler: Crawler
 

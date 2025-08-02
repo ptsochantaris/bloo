@@ -1,6 +1,6 @@
 import Foundation
 
-enum SortStyle: Int, CaseIterable, Identifiable {
+nonisolated enum SortStyle: Int, CaseIterable, Identifiable {
     case typical, newestFirst, oldestFirst
 
     var id: Int { rawValue }
@@ -18,7 +18,6 @@ enum SortStyle: Int, CaseIterable, Identifiable {
     }
 }
 
-@MainActor
 @Observable
 final class Settings {
     static let shared = Settings()

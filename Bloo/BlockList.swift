@@ -1,7 +1,7 @@
 import Foundation
 import OrderedCollections
 
-struct BlockList<T: Hashable> {
+nonisolated struct BlockList<T: Hashable> {
     private let length: Int
     private var cache: OrderedCollections.OrderedSet<T>
 

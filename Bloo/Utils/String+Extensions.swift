@@ -6,7 +6,7 @@ import SwiftUI
 extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute>: @retroactive @unchecked Sendable {}
 
 extension AttributedString {
-    func ranges(of text: String) -> [Range<AttributedString.Index>] {
+    nonisolated func ranges(of text: String) -> [Range<AttributedString.Index>] {
         var ranges = [Range<AttributedString.Index>]()
         var start = startIndex
         let end = endIndex
@@ -19,7 +19,7 @@ extension AttributedString {
 }
 
 extension String {
-    var isSaneLink: Bool {
+    nonisolated var isSaneLink: Bool {
         !(self == "/"
             || contains("/feed/")
             || contains("/feeds/")
@@ -30,7 +30,7 @@ extension String {
             || hasSuffix("/feed"))
     }
 
-    func highlightedAttributedString(terms: [String]) -> AttributedString {
+    nonisolated func highlightedAttributedString(terms: [String]) -> AttributedString {
         let text = String(unicodeScalars.filter { !$0.properties.isJoinControl })
         var attributedString = AttributedString(text)
 
@@ -38,11 +38,11 @@ extension String {
         for term in terms {
             for match in attributedString.ranges(of: term).reversed() {
                 matches.append(match)
-                attributedString[match].foregroundColor = .accent
+                attributedString[match].foregroundColor = .accentColor
             }
         }
 
-        let firstMatch = matches.min(by: { $0.lowerBound < $1.lowerBound })
+        let firstMatch = matches.min { $0.lowerBound < $1.lowerBound }
 
         if let firstMatch {
             var count = 0
@@ -89,11 +89,11 @@ extension String {
         return attributedString
     }
 
-    var sqlSafe: String {
+    nonisolated var sqlSafe: String {
         components(separatedBy: CharacterSet.alphanumerics.inverted).joined().trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var hashString: String {
+    nonisolated var hashString: String {
         var res = utf8.reduce(UInt64(5381)) { 127 * ($0 & 0x00FF_FFFF_FFFF_FFFF) + UInt64($1) }
 
         return withUnsafeBytes(of: &res) { pointer in
@@ -101,15 +101,15 @@ extension String {
         }
     }
 
-    var wholeRange: Range<String.Index> {
+    nonisolated var wholeRange: Range<String.Index> {
         startIndex ..< endIndex
     }
 
-    var wholeNSRange: NSRange {
+    nonisolated var wholeNSRange: NSRange {
         NSRange(wholeRange, in: self)
     }
 
-    func normalisedUrlForResults() -> String {
+    nonisolated func normalisedUrlForResults() -> String {
         if let url = URL(string: self) {
             return url.normalisedForResults()
         }

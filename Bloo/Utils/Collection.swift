@@ -1,7 +1,7 @@
 import Foundation
 
 extension Collection {
-    var isPopulated: Bool {
+    nonisolated var isPopulated: Bool {
         !isEmpty
     }
 }

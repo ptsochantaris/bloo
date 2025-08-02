@@ -5,7 +5,6 @@ private struct DimensionPreferenceKey: SwiftUI.PreferenceKey {
     static func reduce(value _: inout CGFloat, nextValue _: () -> CGFloat) {}
 }
 
-@MainActor
 private struct TrackingHeightModifier: ViewModifier {
     let coordinateSpace: CoordinateSpace
     @Binding var height: CGFloat
@@ -47,7 +46,6 @@ private struct TrackingHeightModifier: ViewModifier {
     }
 }
 
-@MainActor
 private struct TrackingWidthModifier: ViewModifier {
     let coordinateSpace: CoordinateSpace
     @Binding var width: CGFloat

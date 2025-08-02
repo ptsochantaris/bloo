@@ -482,7 +482,6 @@ private struct SearchSection: View {
 
     @State private var filter = ""
 
-    @MainActor
     init(searcher: Search.Engine) {
         self.searcher = searcher
 
@@ -732,7 +731,6 @@ private struct ModelStateFeedback: View {
     }
 }
 
-@MainActor
 private struct Admin: View {
     private let model: BlooCore
     @Bindable private var searcher: Search.Engine
@@ -797,7 +795,6 @@ private struct Admin: View {
     }
 }
 
-@MainActor
 struct ContentView: View {
     @Environment(\.windowId) private var windowId
 

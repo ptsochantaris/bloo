@@ -1,7 +1,7 @@
 import Foundation
 
 extension URL {
-    static func create(from text: String, relativeTo: URL?, checkExtension: Bool) throws -> URL {
+    nonisolated static func create(from text: String, relativeTo: URL?, checkExtension: Bool) throws -> URL {
         guard text.isPopulated,
               text.isSaneLink,
               let url = URL(string: text, relativeTo: relativeTo)?.standardized.absoluteURL,
@@ -15,7 +15,7 @@ extension URL {
         return url.removingPathAfter("?").removingPathAfter("#")
     }
 
-    func normalisedForResults() -> String {
+    nonisolated func normalisedForResults() -> String {
         var host = host() ?? ""
         if host.hasPrefix("www.") {
             host = String(host.dropFirst(4))
@@ -23,7 +23,7 @@ extension URL {
         return host + path
     }
 
-    private func removingPathAfter(_ string: String) -> URL {
+    private nonisolated func removingPathAfter(_ string: String) -> URL {
         let segments = absoluteString.split(separator: string)
         if segments.count > 1, let first = segments.first, let resolved = URL(string: String(first)) {
             return resolved
@@ -31,7 +31,7 @@ extension URL {
         return self
     }
 
-    var hasMediaExtension: Bool {
+    nonisolated var hasMediaExtension: Bool {
         switch pathExtension {
         case "7z", "aac", "avi", "bmp", "dmg", "doc", "exe", "gif", "gz", "jpeg", "jpg", "js", "json", "mid", "mp3", "mp4", "mpg", "pdf", "pkg", "png", "raw", "rss", "sig", "svg", "txt", "wav", "webp", "xhtml", "xls", "xml", "zip":
             true
@@ -42,7 +42,7 @@ extension URL {
 }
 
 extension URLResponse {
-    var guessedEncoding: String.Encoding {
+    nonisolated var guessedEncoding: String.Encoding {
         if let encodingName = textEncodingName {
             let cfEncoding = CFStringConvertIANACharSetNameToEncoding(encodingName as CFString)
             if cfEncoding == kCFStringEncodingInvalidId {

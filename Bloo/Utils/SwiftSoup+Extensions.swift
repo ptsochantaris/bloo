@@ -1,7 +1,7 @@
 import Foundation
 import SwiftSoup
 
-extension Element {
+nonisolated extension Element {
     private func meta(for tag: String, attribute: String) -> String? {
         if let metaTags = try? select("meta[\(attribute)=\"\(tag)\"]") {
             for node in metaTags {

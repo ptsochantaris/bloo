@@ -5,7 +5,6 @@ import SwiftUI
 
 extension Search {
     @Observable
-    @MainActor
     final class Engine {
         private var lastSearchKey = ""
         private var queryTimer: PopTimer!

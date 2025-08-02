@@ -2,13 +2,13 @@
     import AppKit
 
     extension Data {
-        var asImage: NSImage? {
+        nonisolated var asImage: NSImage? {
             NSImage(data: self)
         }
     }
 
     extension NSImage {
-        var jpegData: Data? {
+        nonisolated var jpegData: Data? {
             guard let cg = cgImage(forProposedRect: nil, context: nil, hints: nil) else {
                 return nil
             }
@@ -23,7 +23,7 @@
             return image
         }
 
-        func limited(to targetSize: CGSize, limitTo: CGFloat = 1.0) -> NSImage {
+        nonisolated func limited(to targetSize: CGSize, limitTo: CGFloat = 1.0) -> NSImage {
             let mySizePixelWidth = size.width
             let mySizePixelHeight = size.height
 

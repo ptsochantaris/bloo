@@ -3,7 +3,7 @@ import Foundation
 import Lista
 
 extension Search {
-    struct Result: Identifiable {
+    nonisolated struct Result: Identifiable {
         let id: String
         let url: String
         let title: String

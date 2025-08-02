@@ -6,33 +6,33 @@ extension Domain {
         case none, start, resumeIfNeeded
     }
 
-    enum State: CaseIterable, Codable, Hashable, Identifiable {
-        var id: Int {
+    nonisolated enum State: CaseIterable, Codable, Hashable {
+        case starting(Int, Int), pausing(Int, Int, Bool), paused(Int, Int, Bool), indexing(Int, Int, String), done(Int, Date?), deleting
+
+        var groupId: Int {
             switch self {
-            case .deleting:
-                1
-            case .done:
-                2
-            case .indexing:
-                3
-            case .pausing:
-                4
-            case .starting:
-                5
-            case .paused:
-                6
+            case .starting: 1
+            case .pausing: 2
+            case .paused: 3
+            case .indexing: 4
+            case .done: 5
+            case .deleting: 6
             }
         }
 
-        static func == (lhs: Self, rhs: Self) -> Bool {
-            lhs.title == rhs.title
-        }
+        var progress: Double {
+            switch self {
+            case let .indexing(indexed, pending, _),
+                 let .paused(indexed, pending, _),
+                 let .pausing(indexed, pending, _),
+                 let .starting(indexed, pending):
+                let linear = Double(indexed) / max(1, Double(pending + indexed))
+                return linear * linear
 
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(title)
+            case .deleting, .done:
+                return 0
+            }
         }
-
-        case starting(Int, Int), pausing(Int, Int, Bool), paused(Int, Int, Bool), indexing(Int, Int, String), done(Int, Date?), deleting
 
         static var allCases: [Self] {
             [.starting(0, 0), .indexing(0, 0, ""), .pausing(0, 0, false), defaultState, .done(0, .distantPast)]
@@ -139,7 +139,6 @@ extension Domain {
             }
         }
 
-        @MainActor
         var logText: String {
             switch self {
             case let .done(count, date):

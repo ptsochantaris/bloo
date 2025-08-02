@@ -10,10 +10,8 @@ enum Search: Equatable, Codable, Sendable {
         }
     }
 
-    @MainActor
     private static var _windowIdToSearch: [UUID: Search]?
 
-    @MainActor
     static var windowIdToSearch: [UUID: Search] {
         get {
             if let _windowIdToSearch {

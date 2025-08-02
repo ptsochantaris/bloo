@@ -1,7 +1,6 @@
 import Foundation
 
 extension Domain {
-    @MainActor
     struct Section: Identifiable {
         let id: String
         let state: State

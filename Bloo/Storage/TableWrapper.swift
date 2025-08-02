@@ -1,8 +1,7 @@
 import Foundation
 import SQLite
 
-final class TableWrapper: Equatable {
-    private let id = UUID()
+final nonisolated class TableWrapper {
     private let table: Table
 
     var cachedCount: Int?
@@ -93,10 +92,6 @@ final class TableWrapper: Equatable {
                 cachedCount = nil
             }
         }
-    }
-
-    nonisolated static func == (lhs: TableWrapper, rhs: TableWrapper) -> Bool {
-        lhs.id == rhs.id
     }
 
     func clear(purge: Bool, in db: Connection) throws {

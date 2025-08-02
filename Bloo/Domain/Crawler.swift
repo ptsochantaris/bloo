@@ -97,7 +97,7 @@ final actor Crawler {
     @MainActor
     private func signalState(_ state: Domain.State, onlyIfActive: Bool = false) {
         if !onlyIfActive || crawlerDelegate.state.isStartingOrIndexing {
-            if crawlerDelegate.state != state {
+            if crawlerDelegate.state.groupId != state.groupId {
                 // category change, animate
                 withAnimation {
                     crawlerDelegate.state = state
