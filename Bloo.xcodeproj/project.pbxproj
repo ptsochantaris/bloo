@@ -37,6 +37,25 @@
 		16B67CF42AD4229400366266 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B67CF32AD4229400366266 /* Settings.swift */; };
 		16B67CF62AD422D900366266 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B67CF52AD422D900366266 /* Log.swift */; };
 		16B67CF82AD422F300366266 /* Collection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B67CF72AD422F300366266 /* Collection.swift */; };
+		16BCEBDD2E3FE46F00E21E4B /* Admin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBDC2E3FE46F00E21E4B /* Admin.swift */; };
+		16BCEBE12E3FE4A000E21E4B /* ModelStateFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBE02E3FE4A000E21E4B /* ModelStateFeedback.swift */; };
+		16BCEBE32E3FE4B200E21E4B /* OverlayMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBE22E3FE4B200E21E4B /* OverlayMessage.swift */; };
+		16BCEBE52E3FE4C900E21E4B /* AdditionSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBE42E3FE4C900E21E4B /* AdditionSection.swift */; };
+		16BCEBE72E3FE4DE00E21E4B /* StatusIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBE62E3FE4DE00E21E4B /* StatusIcon.swift */; };
+		16BCEBE92E3FE4F500E21E4B /* SearchSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBE82E3FE4F500E21E4B /* SearchSection.swift */; };
+		16BCEBEB2E3FE50A00E21E4B /* SearchResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBEA2E3FE50A00E21E4B /* SearchResults.swift */; };
+		16BCEBED2E3FE51E00E21E4B /* DomainGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBEC2E3FE51E00E21E4B /* DomainGrid.swift */; };
+		16BCEBEF2E3FE53300E21E4B /* DomainSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBEE2E3FE53300E21E4B /* DomainSectionHeader.swift */; };
+		16BCEBF12E3FE54E00E21E4B /* FilterField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBF02E3FE54E00E21E4B /* FilterField.swift */; };
+		16BCEBF32E3FE56200E21E4B /* AdditionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBF22E3FE56200E21E4B /* AdditionRow.swift */; };
+		16BCEBF52E3FE57800E21E4B /* ResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBF42E3FE57800E21E4B /* ResultRow.swift */; };
+		16BCEBF72E3FE58E00E21E4B /* DomainRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBF62E3FE58E00E21E4B /* DomainRow.swift */; };
+		16BCEBF92E3FE5A200E21E4B /* Counter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBF82E3FE5A200E21E4B /* Counter.swift */; };
+		16BCEBFB2E3FE5B700E21E4B /* DomainContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBFA2E3FE5B700E21E4B /* DomainContextMenu.swift */; };
+		16BCEBFD2E3FE5CA00E21E4B /* DomainTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBFC2E3FE5CA00E21E4B /* DomainTitle.swift */; };
+		16BCEBFF2E3FE5DD00E21E4B /* FooterText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEBFE2E3FE5DD00E21E4B /* FooterText.swift */; };
+		16BCEC012E3FE65A00E21E4B /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEC002E3FE65A00E21E4B /* Constants.swift */; };
+		16BCEC032E3FE7E700E21E4B /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEC022E3FE7E700E21E4B /* LogView.swift */; };
 		16BD524C2B27F87800529462 /* Lista in Frameworks */ = {isa = PBXBuildFile; productRef = 16BD524B2B27F87800529462 /* Lista */; };
 		16BD524F2B27F89000529462 /* Semalot in Frameworks */ = {isa = PBXBuildFile; productRef = 16BD524E2B27F89000529462 /* Semalot */; };
 		16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */; };
@@ -81,6 +100,25 @@
 		16B67CF32AD4229400366266 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		16B67CF52AD422D900366266 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		16B67CF72AD422F300366266 /* Collection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Collection.swift; sourceTree = "<group>"; };
+		16BCEBDC2E3FE46F00E21E4B /* Admin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Admin.swift; sourceTree = "<group>"; };
+		16BCEBE02E3FE4A000E21E4B /* ModelStateFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStateFeedback.swift; sourceTree = "<group>"; };
+		16BCEBE22E3FE4B200E21E4B /* OverlayMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayMessage.swift; sourceTree = "<group>"; };
+		16BCEBE42E3FE4C900E21E4B /* AdditionSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdditionSection.swift; sourceTree = "<group>"; };
+		16BCEBE62E3FE4DE00E21E4B /* StatusIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIcon.swift; sourceTree = "<group>"; };
+		16BCEBE82E3FE4F500E21E4B /* SearchSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSection.swift; sourceTree = "<group>"; };
+		16BCEBEA2E3FE50A00E21E4B /* SearchResults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResults.swift; sourceTree = "<group>"; };
+		16BCEBEC2E3FE51E00E21E4B /* DomainGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainGrid.swift; sourceTree = "<group>"; };
+		16BCEBEE2E3FE53300E21E4B /* DomainSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainSectionHeader.swift; sourceTree = "<group>"; };
+		16BCEBF02E3FE54E00E21E4B /* FilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterField.swift; sourceTree = "<group>"; };
+		16BCEBF22E3FE56200E21E4B /* AdditionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdditionRow.swift; sourceTree = "<group>"; };
+		16BCEBF42E3FE57800E21E4B /* ResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultRow.swift; sourceTree = "<group>"; };
+		16BCEBF62E3FE58E00E21E4B /* DomainRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRow.swift; sourceTree = "<group>"; };
+		16BCEBF82E3FE5A200E21E4B /* Counter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Counter.swift; sourceTree = "<group>"; };
+		16BCEBFA2E3FE5B700E21E4B /* DomainContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainContextMenu.swift; sourceTree = "<group>"; };
+		16BCEBFC2E3FE5CA00E21E4B /* DomainTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainTitle.swift; sourceTree = "<group>"; };
+		16BCEBFE2E3FE5DD00E21E4B /* FooterText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FooterText.swift; sourceTree = "<group>"; };
+		16BCEC002E3FE65A00E21E4B /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		16BCEC022E3FE7E700E21E4B /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTP.swift; sourceTree = "<group>"; };
 		16E8A0E42AC1F96500CCB10D /* Bloo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bloo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16E8A0E72AC1F96500CCB10D /* BlooApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlooApp.swift; sourceTree = "<group>"; };
@@ -174,6 +212,33 @@
 			path = Utils;
 			sourceTree = "<group>";
 		};
+		16BCEBDB2E3FE45A00E21E4B /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				16BCEC022E3FE7E700E21E4B /* LogView.swift */,
+				16BCEBF22E3FE56200E21E4B /* AdditionRow.swift */,
+				16BCEBE42E3FE4C900E21E4B /* AdditionSection.swift */,
+				16BCEBDC2E3FE46F00E21E4B /* Admin.swift */,
+				16BCEC002E3FE65A00E21E4B /* Constants.swift */,
+				16E8A0E92AC1F96500CCB10D /* ContentView.swift */,
+				16BCEBF82E3FE5A200E21E4B /* Counter.swift */,
+				16BCEBFA2E3FE5B700E21E4B /* DomainContextMenu.swift */,
+				16BCEBEC2E3FE51E00E21E4B /* DomainGrid.swift */,
+				16BCEBF62E3FE58E00E21E4B /* DomainRow.swift */,
+				16BCEBEE2E3FE53300E21E4B /* DomainSectionHeader.swift */,
+				16BCEBFC2E3FE5CA00E21E4B /* DomainTitle.swift */,
+				16BCEBF02E3FE54E00E21E4B /* FilterField.swift */,
+				16BCEBFE2E3FE5DD00E21E4B /* FooterText.swift */,
+				16BCEBE02E3FE4A000E21E4B /* ModelStateFeedback.swift */,
+				16BCEBE22E3FE4B200E21E4B /* OverlayMessage.swift */,
+				16BCEBF42E3FE57800E21E4B /* ResultRow.swift */,
+				16BCEBEA2E3FE50A00E21E4B /* SearchResults.swift */,
+				16BCEBE82E3FE4F500E21E4B /* SearchSection.swift */,
+				16BCEBE62E3FE4DE00E21E4B /* StatusIcon.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
 		16E8A0DB2AC1F96500CCB10D = {
 			isa = PBXGroup;
 			children = (
@@ -196,12 +261,12 @@
 		16E8A0E62AC1F96500CCB10D /* Bloo */ = {
 			isa = PBXGroup;
 			children = (
+				16BCEBDB2E3FE45A00E21E4B /* UI */,
 				165091112C7113DE0003BFAB /* RobotEditor.swift */,
 				16E8A0F02AC1F96600CCB10D /* Bloo.entitlements */,
 				16E8A0F92AC2161000CCB10D /* Info.plist */,
 				16E8A0E72AC1F96500CCB10D /* BlooApp.swift */,
 				1634CF9C2AC367760022A8F6 /* BlooCore.swift */,
-				16E8A0E92AC1F96500CCB10D /* ContentView.swift */,
 				165F10C12AC8802400442892 /* IndexEntry.swift */,
 				16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */,
 				165F10BF2AC87C4600442892 /* SitemapParser.swift */,
@@ -312,36 +377,55 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				16BCEBF92E3FE5A200E21E4B /* Counter.swift in Sources */,
 				16FD233E2AC5CD3600751A85 /* URL+Extensions.swift in Sources */,
 				16FD233C2AC5CD1600751A85 /* String+Extensions.swift in Sources */,
 				16B43D2E2AC8D8ED00EB4815 /* DomainState.swift in Sources */,
+				16BCEBFB2E3FE5B700E21E4B /* DomainContextMenu.swift in Sources */,
 				16B67CF22AD4227800366266 /* UserDefault.swift in Sources */,
+				16BCEBDD2E3FE46F00E21E4B /* Admin.swift in Sources */,
 				163C45F42ACF610C00103BEA /* Engine.swift in Sources */,
+				16BCEBE32E3FE4B200E21E4B /* OverlayMessage.swift in Sources */,
+				16BCEBE12E3FE4A000E21E4B /* ModelStateFeedback.swift in Sources */,
+				16BCEBF32E3FE56200E21E4B /* AdditionRow.swift in Sources */,
+				16BCEBEF2E3FE53300E21E4B /* DomainSectionHeader.swift in Sources */,
 				165F10C42AC8803C00442892 /* Result.swift in Sources */,
 				165F10C82AC8810D00442892 /* EngineState.swift in Sources */,
 				16ACD37E2AF979BF00993099 /* Crawler.swift in Sources */,
+				16BCEBE92E3FE4F500E21E4B /* SearchSection.swift in Sources */,
 				16B67CF62AD422D900366266 /* Log.swift in Sources */,
 				165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */,
 				16FD233A2AC4867D00751A85 /* NSImage+Extensions.swift in Sources */,
 				16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */,
+				16BCEBED2E3FE51E00E21E4B /* DomainGrid.swift in Sources */,
 				165091122C7113E40003BFAB /* RobotEditor.swift in Sources */,
+				16BCEBF52E3FE57800E21E4B /* ResultRow.swift in Sources */,
 				1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */,
 				163AE30C2CD6D85A00AE6DA9 /* TrackingHeightModifier.swift in Sources */,
 				16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */,
 				161992662B038066006D911F /* Formatters.swift in Sources */,
 				16B67CEC2AD41FA400366266 /* Search.swift in Sources */,
+				16BCEBEB2E3FE50A00E21E4B /* SearchResults.swift in Sources */,
 				165F10C62AC880DC00442892 /* DomainSection.swift in Sources */,
 				1634CF972AC365D90022A8F6 /* Domain.swift in Sources */,
 				1634CF9B2AC366D90022A8F6 /* Globals.swift in Sources */,
+				16BCEBF72E3FE58E00E21E4B /* DomainRow.swift in Sources */,
+				16BCEC032E3FE7E700E21E4B /* LogView.swift in Sources */,
+				16BCEBE72E3FE4DE00E21E4B /* StatusIcon.swift in Sources */,
+				16BCEBF12E3FE54E00E21E4B /* FilterField.swift in Sources */,
+				16BCEC012E3FE65A00E21E4B /* Constants.swift in Sources */,
 				16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */,
 				16B67CF82AD422F300366266 /* Collection.swift in Sources */,
 				16B67CF42AD4229400366266 /* Settings.swift in Sources */,
+				16BCEBE52E3FE4C900E21E4B /* AdditionSection.swift in Sources */,
 				16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */,
 				1657AACA2AE4298500503669 /* DB.swift in Sources */,
 				16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */,
+				16BCEBFD2E3FE5CA00E21E4B /* DomainTitle.swift in Sources */,
 				161992682B03DB97006D911F /* BlockList.swift in Sources */,
 				1634CF952AC365800022A8F6 /* Storage.swift in Sources */,
 				16FDB0FF2ADB450B003A4BBD /* TableWrapper.swift in Sources */,
+				16BCEBFF2E3FE5DD00E21E4B /* FooterText.swift in Sources */,
 				165F10C22AC8802400442892 /* IndexEntry.swift in Sources */,
 				1634CF9D2AC367760022A8F6 /* BlooCore.swift in Sources */,
 			);

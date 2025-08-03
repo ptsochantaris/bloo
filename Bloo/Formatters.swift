@@ -1,12 +1,18 @@
 import Foundation
+import SwiftUI
 
 nonisolated enum Formatters {
     private static let posixLocale = Locale(identifier: "en_US_POSIX")
 
     private static let relativeStyle = Date.RelativeFormatStyle(presentation: .named, unitsStyle: .wide, locale: .autoupdatingCurrent, calendar: .autoupdatingCurrent, capitalizationContext: .standalone)
-    private static let httpModifiedSinceStyle = Date.VerbatimFormatStyle(format: "\(weekday: .abbreviated), \(day: .twoDigits) \(month: .abbreviated) \(year: .defaultDigits) \(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits) GMT", locale: posixLocale, timeZone: .gmt, calendar: .autoupdatingCurrent)
 
-    private static let httpHeaderParseStrategy = httpModifiedSinceStyle.parseStrategy
+    private static let httpModifiedSinceStyle1 = Date.VerbatimFormatStyle(format: "\(weekday: .abbreviated), \(day: .twoDigits) \(month: .abbreviated) \(year: .defaultDigits) \(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits) GMT", locale: posixLocale, timeZone: .gmt, calendar: .autoupdatingCurrent)
+
+    private static let httpHeaderParseStrategy1 = httpModifiedSinceStyle1.parseStrategy
+
+    private static let httpModifiedSinceStyle2 = Date.VerbatimFormatStyle(format: "\(weekday: .abbreviated) \(month: .abbreviated) \(day: .twoDigits) \(year: .defaultDigits) \(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits) GMT", locale: posixLocale, timeZone: .gmt, calendar: .autoupdatingCurrent)
+
+    private static let httpHeaderParseStrategy2 = httpModifiedSinceStyle2.parseStrategy
 
     private static let isoParseStrategy1 = Date.ISO8601FormatStyle()
     private static let isoParseStrategy4 = Date.VerbatimFormatStyle(format: "\(year: .defaultDigits)", locale: posixLocale, timeZone: .autoupdatingCurrent, calendar: .autoupdatingCurrent).parseStrategy
@@ -19,12 +25,22 @@ nonisolated enum Formatters {
     }
 
     static func httpModifiedSinceString(from date: Date) -> String {
-        httpModifiedSinceStyle.format(date)
+        httpModifiedSinceStyle1.format(date)
     }
 
     static func httpHeaderDate(from dateString: String) -> Date? {
+        if dateString.isEmpty {
+            return nil
+        }
+
         do {
-            return try Date(dateString, strategy: httpHeaderParseStrategy)
+            return try Date(dateString, strategy: httpHeaderParseStrategy1)
+        } catch {
+            // try next strategy
+        }
+
+        do {
+            return try Date(dateString, strategy: httpHeaderParseStrategy2)
         } catch {
             Log.app(.error).log("Warning, header date parsing failed: \(dateString), count: \(dateString.count), error: \(error)")
             return nil
