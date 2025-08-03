@@ -206,7 +206,7 @@ final actor Crawler {
 
     var localRobotText: String? {
         get {
-            if let text = try? String(contentsOf: localRobotDataUrl).trimmingCharacters(in: .whitespacesAndNewlines) {
+            if let text = try? String(contentsOf: localRobotDataUrl, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) {
                 return text + "\n"
             }
             return nil

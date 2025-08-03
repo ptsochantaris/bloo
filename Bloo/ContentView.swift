@@ -735,6 +735,7 @@ private struct Admin: View {
     private let model: BlooCore
     @Bindable private var searcher: Search.Engine
 
+    @State private var showLog = false
     @State private var searchFocused = false
     @FocusState private var additionFocused: Bool
 
@@ -744,54 +745,66 @@ private struct Admin: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                if model.showAddition {
-                    AdditionSection(model: model)
-                        .focused($additionFocused)
-                }
+        VStack {
+            ScrollView {
+                VStack(spacing: 18) {
+                    if model.showAddition {
+                        AdditionSection(model: model)
+                            .focused($additionFocused)
+                    }
 
-                if case .noSearch = searcher.state {
-                    EmptyView()
-                } else {
-                    SearchSection(searcher: searcher)
-                }
+                    if case .noSearch = searcher.state {
+                        EmptyView()
+                    } else {
+                        SearchSection(searcher: searcher)
+                    }
 
-                ForEach(model.domainSections) {
-                    DomainGrid(section: $0)
+                    ForEach(model.domainSections) {
+                        DomainGrid(section: $0)
+                    }
                 }
+                .padding()
+                .frame(maxWidth: .infinity)
             }
-            .padding()
-            .frame(maxWidth: .infinity)
-        }
-        .onChange(of: model.clearSearches) { _, _ in
-            searcher.searchQuery = ""
+            .onChange(of: model.clearSearches) { _, _ in
+                searcher.searchQuery = ""
+            }
+
+            if showLog {
+                LogView(store: logStorage)
+            }
         }
         .navigationTitle(searcher.title)
-        .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, prompt: "Search for keyword(s)")
         .toolbar {
-            ToolbarItem {
-                Button {
-                    withAnimation {
-                        if model.showAddition {
-                            additionFocused = false
-                            #if os(macOS)
-                                searchFocused = true
-                            #endif
-                        }
-                        model.showAddition.toggle()
-                        if model.showAddition {
-                            additionFocused = true
-                            #if os(macOS)
-                                searchFocused = false
-                            #endif
-                        }
-                    }
-                } label: {
-                    Image(systemName: model.showAddition ? "arrow.down.and.line.horizontal.and.arrow.up" : "plus")
+            Button {
+                withAnimation {
+                    showLog.toggle()
                 }
+            } label: {
+                Image(systemName: showLog ? "clipboard.fill" : "pencil.and.list.clipboard")
+            }
+
+            Button {
+                withAnimation {
+                    if model.showAddition {
+                        additionFocused = false
+                        #if os(macOS)
+                            searchFocused = true
+                        #endif
+                    }
+                    model.showAddition.toggle()
+                    if model.showAddition {
+                        additionFocused = true
+                        #if os(macOS)
+                            searchFocused = false
+                        #endif
+                    }
+                }
+            } label: {
+                Image(systemName: model.showAddition ? "arrow.down.and.line.horizontal.and.arrow.up" : "plus")
             }
         }
+        .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, placement: .toolbar, prompt: "Search for keyword(s)")
     }
 }
 

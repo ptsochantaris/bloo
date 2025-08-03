@@ -8,7 +8,7 @@ final class Domain: Identifiable {
 
     var state = State.defaultState {
         didSet {
-            if oldValue != state { // only report base enum changes
+            if oldValue.groupId != state.groupId { // only report base enum changes
                 Log.crawling(id, .default).log("Domain \(id) state is now \(state.logText)")
             }
         }
