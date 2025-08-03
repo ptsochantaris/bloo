@@ -745,7 +745,7 @@ private struct Admin: View {
     }
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 18) {
                     if model.showAddition {
