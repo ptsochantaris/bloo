@@ -58,23 +58,47 @@ nonisolated struct LogMessage: Identifiable, Equatable {
 
 @Observable
 final class LogStorage {
-    var messages = [LogMessage]()
+    var filteredMessages = [LogMessage]()
+
+    var filter = "" {
+        didSet {
+            applyFilter()
+        }
+    }
+
+    private var allMessages = [LogMessage]()
 
     func append(message: LogMessage) {
         message.systemLog()
 
-        messages.insert(message, at: 0)
-        if messages.count > 1000 {
-            messages = messages.dropLast(100)
+        allMessages.insert(message, at: 0)
+        if allMessages.count > 10000 {
+            allMessages = allMessages.dropLast(100)
+        }
+
+        if filter.isEmpty {
+            filteredMessages = allMessages
+
+        } else if message.displayText.localizedCaseInsensitiveContains(filter) {
+            filteredMessages.insert(message, at: 0)
+
+            if filteredMessages.count > 10000 {
+                filteredMessages = filteredMessages.dropLast(100)
+            }
+        }
+    }
+
+    private func applyFilter() {
+        if filter.isEmpty {
+            filteredMessages = allMessages
+        } else {
+            filteredMessages = allMessages.filter { $0.displayText.localizedCaseInsensitiveContains(filter) }
         }
     }
 }
 
 struct LogView: View {
-    let store: LogStorage
-
-    @State private var messages = [LogMessage]()
-    @State private var filter = ""
+    @Bindable var store: LogStorage
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -82,13 +106,13 @@ struct LogView: View {
                 .frame(height: 1)
                 .foregroundStyle(.tertiary)
 
-            TextField("Filter log", text: $filter)
+            TextField("Filter log", text: $store.filter)
                 .focusable(false)
                 .padding(.horizontal)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(messages) { message in
+                    ForEach(store.filteredMessages) { message in
                         VStack(alignment: .leading, spacing: 0) {
                             HStack(alignment: .firstTextBaseline) {
                                 message.icon
@@ -111,21 +135,5 @@ struct LogView: View {
             .padding(.horizontal)
         }
         .background(.quinary)
-        .onChange(of: store.messages) { _, newMessages in
-            applyFilter(filter, to: newMessages)
-        }
-        .onChange(of: filter) { _, newFilter in
-            applyFilter(newFilter, to: store.messages)
-        }
-    }
-
-    private func applyFilter(_ filter: String, to messageList: [LogMessage]) {
-        Task {
-            messages = await Task.detached {
-                filter.isEmpty
-                    ? messageList
-                    : messageList.filter { $0.displayText.localizedCaseInsensitiveContains(filter) }
-            }.value
-        }
     }
 }
