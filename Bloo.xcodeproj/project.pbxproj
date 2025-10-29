@@ -58,6 +58,7 @@
 		16BCEC032E3FE7E700E21E4B /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BCEC022E3FE7E700E21E4B /* LogView.swift */; };
 		16BD524C2B27F87800529462 /* Lista in Frameworks */ = {isa = PBXBuildFile; productRef = 16BD524B2B27F87800529462 /* Lista */; };
 		16BD524F2B27F89000529462 /* Semalot in Frameworks */ = {isa = PBXBuildFile; productRef = 16BD524E2B27F89000529462 /* Semalot */; };
+		16E25B682EB29E3300884813 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 16E25B672EB29E3300884813 /* AppIcon.icon */; };
 		16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */; };
 		16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E72AC1F96500CCB10D /* BlooApp.swift */; };
 		16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8A0E92AC1F96500CCB10D /* ContentView.swift */; };
@@ -119,6 +120,7 @@
 		16BCEBFE2E3FE5DD00E21E4B /* FooterText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FooterText.swift; sourceTree = "<group>"; };
 		16BCEC002E3FE65A00E21E4B /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		16BCEC022E3FE7E700E21E4B /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
+		16E25B672EB29E3300884813 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTP.swift; sourceTree = "<group>"; };
 		16E8A0E42AC1F96500CCB10D /* Bloo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bloo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16E8A0E72AC1F96500CCB10D /* BlooApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlooApp.swift; sourceTree = "<group>"; };
@@ -270,6 +272,7 @@
 				165F10C12AC8802400442892 /* IndexEntry.swift */,
 				16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */,
 				165F10BF2AC87C4600442892 /* SitemapParser.swift */,
+				16E25B672EB29E3300884813 /* AppIcon.icon */,
 				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
 				16B67CEF2AD4224900366266 /* Domain */,
 				16B67CEE2AD4212300366266 /* Search */,
@@ -365,6 +368,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				16B43D262AC7B05D00EB4815 /* LICENSE in Resources */,
+				16E25B682EB29E3300884813 /* AppIcon.icon in Resources */,
 				16B43D252AC7B05D00EB4815 /* README.md in Resources */,
 				16E8A0EC2AC1F96600CCB10D /* Assets.xcassets in Resources */,
 			);
