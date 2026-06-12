@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		160659452FDCC3DC00F9FD1F /* CrawlItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160659442FDCC3DC00F9FD1F /* CrawlItem.swift */; };
 		161992662B038066006D911F /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992652B038066006D911F /* Formatters.swift */; };
 		161992682B03DB97006D911F /* BlockList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992672B03DB97006D911F /* BlockList.swift */; };
 		1634CF952AC365800022A8F6 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF942AC365800022A8F6 /* Storage.swift */; };
@@ -15,12 +16,10 @@
 		1634CF9D2AC367760022A8F6 /* BlooCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF9C2AC367760022A8F6 /* BlooCore.swift */; };
 		163AE30C2CD6D85A00AE6DA9 /* TrackingHeightModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163AE30B2CD6D85800AE6DA9 /* TrackingHeightModifier.swift */; };
 		163C45F42ACF610C00103BEA /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163C45F32ACF610C00103BEA /* Engine.swift */; };
-		1644180E2C752A2F00183EE1 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 1644180D2C752A2F00183EE1 /* SQLite */; };
 		164418142C752A6700183EE1 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 164418132C752A6700183EE1 /* Collections */; };
 		164418172C752A8100183EE1 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 164418162C752A8100183EE1 /* Algorithms */; };
 		165091102C71132B0003BFAB /* CanProceed in Frameworks */ = {isa = PBXBuildFile; productRef = 1650910F2C71132B0003BFAB /* CanProceed */; };
 		165091122C7113E40003BFAB /* RobotEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165091112C7113DE0003BFAB /* RobotEditor.swift */; };
-		1657AACA2AE4298500503669 /* DB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1657AAC92AE4298500503669 /* DB.swift */; };
 		165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10BF2AC87C4600442892 /* SitemapParser.swift */; };
 		165F10C22AC8802400442892 /* IndexEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C12AC8802400442892 /* IndexEntry.swift */; };
 		165F10C42AC8803C00442892 /* Result.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C32AC8803C00442892 /* Result.swift */; };
@@ -75,6 +74,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		160659442FDCC3DC00F9FD1F /* CrawlItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrawlItem.swift; sourceTree = "<group>"; };
 		161992652B038066006D911F /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 		161992672B03DB97006D911F /* BlockList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockList.swift; sourceTree = "<group>"; };
 		1634CF942AC365800022A8F6 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
@@ -84,7 +84,6 @@
 		163AE30B2CD6D85800AE6DA9 /* TrackingHeightModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingHeightModifier.swift; sourceTree = "<group>"; };
 		163C45F32ACF610C00103BEA /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engine.swift; sourceTree = "<group>"; };
 		165091112C7113DE0003BFAB /* RobotEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotEditor.swift; sourceTree = "<group>"; };
-		1657AAC92AE4298500503669 /* DB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DB.swift; sourceTree = "<group>"; };
 		165F10BF2AC87C4600442892 /* SitemapParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitemapParser.swift; sourceTree = "<group>"; };
 		165F10C12AC8802400442892 /* IndexEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexEntry.swift; sourceTree = "<group>"; };
 		165F10C32AC8803C00442892 /* Result.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Result.swift; sourceTree = "<group>"; };
@@ -147,7 +146,6 @@
 				16FD23352AC3A5A600751A85 /* Maintini in Frameworks */,
 				16BD524F2B27F89000529462 /* Semalot in Frameworks */,
 				164418172C752A8100183EE1 /* Algorithms in Frameworks */,
-				1644180E2C752A2F00183EE1 /* SQLite in Frameworks */,
 				16F8D1D92AE92E530005A01D /* HTMLString in Frameworks */,
 				16E8A0F82AC1F9B500CCB10D /* SwiftSoup in Frameworks */,
 			);
@@ -167,9 +165,9 @@
 			isa = PBXGroup;
 			children = (
 				16FDB0FE2ADB450B003A4BBD /* TableWrapper.swift */,
-				1657AAC92AE4298500503669 /* DB.swift */,
 				1697539E2ACA350B00C2281D /* Snapshot.swift */,
 				1634CF942AC365800022A8F6 /* Storage.swift */,
+				160659442FDCC3DC00F9FD1F /* CrawlItem.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -308,7 +306,6 @@
 				16BD524B2B27F87800529462 /* Lista */,
 				16BD524E2B27F89000529462 /* Semalot */,
 				1650910F2C71132B0003BFAB /* CanProceed */,
-				1644180D2C752A2F00183EE1 /* SQLite */,
 				164418132C752A6700183EE1 /* Collections */,
 				164418162C752A8100183EE1 /* Algorithms */,
 			);
@@ -349,7 +346,6 @@
 				16BD524A2B27F87800529462 /* XCRemoteSwiftPackageReference "lista" */,
 				16BD524D2B27F89000529462 /* XCRemoteSwiftPackageReference "semalot" */,
 				1650910E2C71132B0003BFAB /* XCRemoteSwiftPackageReference "can-proceed" */,
-				1644180C2C752A2F00183EE1 /* XCRemoteSwiftPackageReference "SQLite" */,
 				164418122C752A6700183EE1 /* XCRemoteSwiftPackageReference "swift-collections" */,
 				164418152C752A8100183EE1 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 			);
@@ -399,6 +395,7 @@
 				16BCEBE92E3FE4F500E21E4B /* SearchSection.swift in Sources */,
 				16B67CF62AD422D900366266 /* Log.swift in Sources */,
 				165F10C02AC87C4600442892 /* SitemapParser.swift in Sources */,
+				160659452FDCC3DC00F9FD1F /* CrawlItem.swift in Sources */,
 				16FD233A2AC4867D00751A85 /* NSImage+Extensions.swift in Sources */,
 				16FD23402AC5CD9600751A85 /* SwiftSoup+Extensions.swift in Sources */,
 				16BCEBED2E3FE51E00E21E4B /* DomainGrid.swift in Sources */,
@@ -423,7 +420,6 @@
 				16B67CF42AD4229400366266 /* Settings.swift in Sources */,
 				16BCEBE52E3FE4C900E21E4B /* AdditionSection.swift in Sources */,
 				16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */,
-				1657AACA2AE4298500503669 /* DB.swift in Sources */,
 				16B43D2C2AC8548200EB4815 /* UIImage+Extensions.swift in Sources */,
 				16BCEBFD2E3FE5CA00E21E4B /* DomainTitle.swift in Sources */,
 				161992682B03DB97006D911F /* BlockList.swift in Sources */,
@@ -615,7 +611,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Bloo",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = build.bru.bloo.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -655,7 +651,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Bloo",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = build.bru.bloo.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -689,14 +685,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		1644180C2C752A2F00183EE1 /* XCRemoteSwiftPackageReference "SQLite" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/stephencelis/SQLite.swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.15.0;
-			};
-		};
 		164418122C752A6700183EE1 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-collections.git";
@@ -772,11 +760,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		1644180D2C752A2F00183EE1 /* SQLite */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1644180C2C752A2F00183EE1 /* XCRemoteSwiftPackageReference "SQLite" */;
-			productName = SQLite;
-		};
 		164418132C752A6700183EE1 /* Collections */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 164418122C752A6700183EE1 /* XCRemoteSwiftPackageReference "swift-collections" */;

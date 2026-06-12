@@ -6,7 +6,7 @@ import HTMLString
 import Maintini
 import NaturalLanguage
 import Semalot
-import SQLite
+import SwiftData
 import SwiftSoup
 import SwiftUI
 
@@ -43,10 +43,11 @@ final actor Crawler {
     private var thumbnailFailureCache = BlockList<URL>(length: 400)
     private static let requestLock = Semalot(tickets: 1)
 
-    private var db: Connection?
+    private var modelContainer: ModelContainer?
+    private var modelContext: ModelContext?
 
-    private var pending: TableWrapper
-    private var visited: TableWrapper
+    private let pending: TableWrapper
+    private let visited: TableWrapper
 
     @MainActor
     weak var crawlerDelegate: Domain!
@@ -60,18 +61,18 @@ final actor Crawler {
         bootupEntry = .pending(url: url, isSitemap: false)
 
         let path = domainPath(for: id)
-        let file = path.appending(path: "crawler.sqlite3", directoryHint: .notDirectory)
+        let file = path.appending(path: "crawler.store", directoryHint: .notDirectory)
         let fm = FileManager.default
         if !fm.fileExists(atPath: path.path) {
             try fm.createDirectory(atPath: path.path, withIntermediateDirectories: true)
         }
-        let c = try Connection(file.path)
-        try c.run(DB.pragmas)
+        let container = try ModelContainer(for: CrawlItem.self, configurations: ModelConfiguration(url: file))
 
-        pending = try TableWrapper(table: Table("pending"), in: c)
-        visited = try TableWrapper(table: Table("visited"), in: c)
+        pending = TableWrapper(kind: .pending)
+        visited = TableWrapper(kind: .visited)
 
-        db = c
+        modelContainer = container
+        modelContext = ModelContext(container)
     }
 
     deinit {
@@ -153,9 +154,9 @@ final actor Crawler {
             try await removeAll(purge: false)
             await BlooCore.shared.clearDomainSpotlight(for: id)
         } else {
-            if let db {
-                try pending.clear(purge: true, in: db)
-                try visited.cloneAndClear(as: pending, in: db)
+            if let modelContext {
+                try pending.clear(purge: true, in: modelContext)
+                try visited.cloneAndClear(as: pending, in: modelContext)
             }
         }
         try await start()
@@ -164,7 +165,8 @@ final actor Crawler {
 
     func remove() async throws {
         try await removeAll(purge: true)
-        db = nil
+        modelContext = nil
+        modelContainer = nil
         await signalState(.deleting)
         await snapshot()
     }
@@ -264,13 +266,15 @@ final actor Crawler {
             try appendPending(bootupEntry)
         }
 
-        if let db {
-            try pending.subtract(visited, in: db)
+        if let modelContext {
+            try pending.subtract(visited, in: modelContext)
         }
 
         if try counts().pending == 0 {
             try appendPending(bootupEntry)
         }
+
+        try flushPendingWrites()
 
         if signalStateChange {
             let counts = try counts()
@@ -286,6 +290,7 @@ final actor Crawler {
                     Log.crawling(id, .default).log("Restarting crawler for \(id) because of priority change")
                     startGoTask(priority: setPriority, signalStateChange: false)
                 }
+                try flushPendingWrites()
                 return
             }
 
@@ -308,6 +313,7 @@ final actor Crawler {
                 operationCount += 1
                 if operationCount > 59 {
                     operationCount = 0
+                    try flushPendingWrites()
                     await snapshot()
                 }
                 if willThrottle {
@@ -325,6 +331,7 @@ final actor Crawler {
                     await signalState(.paused(x, y, resumeOnLaunch))
                 }
                 Log.crawling(id, .default).log("Stopping crawl because of app action")
+                try flushPendingWrites()
                 await snapshot()
                 if willThrottle {
                     Self.requestLock.returnTicket()
@@ -336,6 +343,7 @@ final actor Crawler {
         Log.crawling(id, .default).log("Stopping crawl because of completion")
         let counts = try counts()
         await signalState(.done(counts.indexed, Date()))
+        try flushPendingWrites()
         await snapshot()
     }
 
@@ -358,8 +366,8 @@ final actor Crawler {
 
         case .disallowed, .error:
             spotlightInvalidationQueue.insert(entry.url)
-            if let db {
-                try pending.delete(url: entry.url, in: db)
+            if let modelContext {
+                try pending.delete(url: entry.url, in: modelContext)
             }
             return false
 
@@ -642,58 +650,52 @@ final actor Crawler {
     }
 
     private func count(table: TableWrapper) throws -> Int {
-        if let cachedCount = table.cachedCount {
-            return cachedCount
-        } else if let db {
-            let result = try db.scalar(table.count)
-            table.setCachedCount(result)
-            return result
-        } else {
+        guard let modelContext else {
             return 0
         }
+        return try table.count(in: modelContext)
     }
 
     private func counts() throws -> (indexed: Int, pending: Int) {
         try (count(table: visited), count(table: pending))
     }
 
+    // Persists the accumulated queue mutations. Crawl writes are intentionally batched and only
+    // flushed at checkpoints and loop exits: losing the last few pages on a crash is harmless
+    // since they are simply re-crawled on resume.
+    private func flushPendingWrites() throws {
+        if let modelContext, modelContext.hasChanges {
+            try modelContext.save()
+        }
+    }
+
     private func removeAll(purge: Bool) async throws {
-        if let db {
-            try visited.clear(purge: purge, in: db)
-            try pending.clear(purge: purge, in: db)
+        if let modelContext {
+            try visited.clear(purge: purge, in: modelContext)
+            try pending.clear(purge: purge, in: modelContext)
         }
     }
 
     private func nextPending() throws -> IndexEntry? {
-        guard let db, let res = try pending.next(in: db) else {
+        guard let modelContext, let res = try pending.next(in: modelContext) else {
             return nil
         }
-        let url = res[DB.urlRow]
-        let etag = res[DB.etagRow]
-        let isSitemap = res[DB.isSitemapRow] ?? false
-        let lastModified = res[DB.lastModifiedRow]
-
-        let result: IndexEntry = if etag != nil || lastModified != nil {
-            .visited(url: url, lastModified: lastModified, etag: etag)
-        } else {
-            .pending(url: url, isSitemap: isSitemap)
-        }
-        return result
+        return res.asIndexEntry
     }
 
     private func handleCrawlCompletion(item: IndexEntry, newEntries: Set<IndexEntry>?, newSitemapEntries: Set<IndexEntry>?) async throws {
-        guard let db else { return }
+        guard let modelContext else { return }
 
         let itemUrl = item.url
 
-        try pending.delete(url: itemUrl, in: db)
-        try visited.append(item: item, in: db)
+        try pending.delete(url: itemUrl, in: modelContext)
+        try visited.append(item: item, in: modelContext)
         Log.crawling(id, .info).log("Visited URL: \(itemUrl)")
 
         if var newSitemapEntries, newSitemapEntries.isPopulated {
             let stubIndexEntry = IndexEntry.pending(url: itemUrl, isSitemap: false)
             newSitemapEntries.remove(stubIndexEntry)
-            try visited.subtract(from: &newSitemapEntries, in: db)
+            try visited.subtract(from: &newSitemapEntries, in: modelContext)
 
             if newSitemapEntries.isPopulated {
                 Log.crawling(id, .default).log("Adding \(newSitemapEntries.count) unindexed URLs from sitemap")
@@ -701,30 +703,26 @@ final actor Crawler {
             }
         }
 
-        guard var newEntries, newEntries.isPopulated else {
-            return
+        if var newEntries, newEntries.isPopulated {
+            try visited.subtract(from: &newEntries, in: modelContext)
+
+            if newEntries.isPopulated {
+                Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
+                try appendPending(items: newEntries)
+            }
         }
-
-        try visited.subtract(from: &newEntries, in: db)
-
-        guard newEntries.isPopulated else {
-            return
-        }
-
-        Log.crawling(id, .default).log("Adding \(newEntries.count) unindexed URLs to pending")
-        try appendPending(items: newEntries)
     }
 
     private func appendPending(_ item: IndexEntry) throws {
-        guard let db else { return }
-        try pending.append(item: item, in: db)
-        try visited.delete(url: item.url, in: db)
+        guard let modelContext else { return }
+        try pending.append(item: item, in: modelContext)
+        try visited.delete(url: item.url, in: modelContext)
     }
 
     private func appendPending(items: any Collection<IndexEntry>) throws {
-        guard let db, items.isPopulated else {
+        guard let modelContext, items.isPopulated else {
             return
         }
-        try pending.append(items: Array(items), in: db)
+        try pending.append(items: Array(items), in: modelContext)
     }
 }

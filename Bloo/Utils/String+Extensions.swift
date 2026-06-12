@@ -2,9 +2,6 @@ import Foundation
 import RegexBuilder
 import SwiftUI
 
-// Swift warning workaround
-extension KeyPath<AttributeScopes.SwiftUIAttributes, AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute>: @retroactive @unchecked Sendable {}
-
 extension AttributedString {
     nonisolated func ranges(of text: String) -> [Range<AttributedString.Index>] {
         var ranges = [Range<AttributedString.Index>]()
