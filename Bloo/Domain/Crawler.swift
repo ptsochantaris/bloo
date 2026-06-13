@@ -609,7 +609,7 @@ final actor Crawler {
         let attributes = CSSearchableItemAttributeSet(contentType: .text)
         attributes.contentType = UTType.text.identifier
         attributes.title = title
-        attributes.htmlContentData = contentResult.0
+        attributes.textContent = sparseText
         attributes.url = site
         attributes.keywords = keywords
         attributes.contentDescription = String(condensedText.prefix(16000)) // 16k limit on CS description
@@ -660,9 +660,10 @@ final actor Crawler {
         try (count(table: visited), count(table: pending))
     }
 
-    // Persists the accumulated queue mutations. Crawl writes are intentionally batched and only
-    // flushed at checkpoints and loop exits: losing the last few pages on a crash is harmless
-    // since they are simply re-crawled on resume.
+    // Persists the accumulated queue mutations at checkpoints and loop exits, alongside the
+    // CoreSpotlight snapshot. nextPending() also flushes before each queue lookup so the pending
+    // fetch always sees a consistent store; losing the last few pages on a crash is harmless since
+    // they are simply re-crawled on resume.
     private func flushPendingWrites() throws {
         if let modelContext, modelContext.hasChanges {
             try modelContext.save()
@@ -677,7 +678,18 @@ final actor Crawler {
     }
 
     private func nextPending() throws -> IndexEntry? {
-        guard let modelContext, let res = try pending.next(in: modelContext) else {
+        guard let modelContext else {
+            return nil
+        }
+        // pending.next fetches with a fetchLimit of 1. SwiftData applies that limit in the store
+        // query *before* excluding unsaved deletions in memory, so a just-crawled row that was
+        // deleted but not yet flushed can occupy the single result slot and make the rest of the
+        // queue look empty — ending the crawl while pending URLs remain. Flush first so the limited
+        // lookup sees a clean store.
+        if modelContext.hasChanges {
+            try modelContext.save()
+        }
+        guard let res = try pending.next(in: modelContext) else {
             return nil
         }
         return res.asIndexEntry

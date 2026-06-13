@@ -152,6 +152,7 @@ extension Search {
 
             let context = CSUserQueryContext()
             context.maxResultCount = chunkSize
+            context.maxRankedResultCount = chunkSize
             context.fetchAttributes = ["title", "contentCreationDate", "contentModificationDate", "thumbnailURL", "keywords", "contentDescription", "contentType"]
             let query = CSUserQuery(userQueryString: searchText, userQueryContext: context)
             let newQueryTask = Task {
@@ -163,18 +164,28 @@ extension Search {
                 }
 
                 var results: [Search.Result] = []
+                var skipped = 0
                 do {
                     let terms = searchText.split(separator: " ").map { String($0) }
                     for try await result in query.results {
-                        let blooResult = Search.Result(searchableItem: result.item, terms: terms)
+                        // CSUserQuery can synthesise content-less echo items for the query phrase, keyed by a
+                        // volatile numeric id; genuine crawled pages are always keyed by their http(s) URL.
+                        let item = result.item
+                        let identifier = item.uniqueIdentifier
+                        guard let scheme = URL(string: identifier)?.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+                            Log.search(.info).log("Skipping non-page item - \(identifier)")
+                            skipped += 1
+                            continue
+                        }
+                        let blooResult = Search.Result(searchableItem: item, terms: terms)
                         results.append(blooResult)
-                        Log.search(.info).log("Received result - \(result.id)")
+                        Log.search(.info).log("Received item - \(blooResult.id)")
                     }
                 } catch {
                     Log.search(.error).log("Error querying index: \(error)")
                 }
 
-                let count = query.foundItemCount
+                let count = max(results.count, query.foundItemCount - skipped)
                 Log.search(.info).log("Total \(count) results")
 
                 switch count {
