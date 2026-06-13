@@ -5,6 +5,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>build.bru.bloo.background</string>
+		<string>build.bru.bloo.app.indexing.*</string>
 	</array>
 	<key>CoreSpotlightContinuation</key>
 	<true/>

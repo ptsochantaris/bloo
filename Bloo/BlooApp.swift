@@ -53,7 +53,33 @@ struct BlooApp: App {
                 BGTaskScheduler.shared.register(forTaskWithIdentifier: "build.bru.bloo.background", using: DispatchQueue.main) { task in
                     BlooCore.shared.backgroundTask(task as! BGProcessingTask)
                 }
+                BackgroundIndexActivity.register()
                 return true
+            }
+
+            // Closing the app's window discards the scene rather than simply backgrounding it, and the
+            // scenePhase `.background` transition can be cut short before the shutdown's deferred storage
+            // checkpoints are written. This is the documented hook for a user-initiated close, so request
+            // background time and run the same shutdown here as a best-effort flush. iOS grants limited
+            // runtime for a deliberate close, so completion isn't guaranteed.
+            func application(_: UIApplication, didDiscardSceneSessions _: Set<UISceneSession>) {
+                // Closing the window submitted (via willResignActive) and started a continued-processing
+                // task; the app is now being torn down, so dismiss its Live Activity ourselves before
+                // the system cancels it and leaves a stuck "task failed" indicator.
+                BackgroundIndexActivity.finishImmediately()
+
+                guard BlooCore.shared.runState == .running else {
+                    return
+                }
+                Maintini.startMaintaining()
+                Task {
+                    defer { Maintini.endMaintaining() }
+                    do {
+                        try await BlooCore.shared.shutdown(backgrounded: true)
+                    } catch {
+                        Log.app(.error).log("Error shutting down on scene discard: \(error.localizedDescription)")
+                    }
+                }
             }
         }
 
@@ -179,13 +205,27 @@ struct BlooApp: App {
                 }
 
             case .background:
-                Maintini.startMaintaining()
-                Task {
-                    defer { Maintini.endMaintaining() }
-                    do {
-                        try await model.shutdown(backgrounded: true)
-                    } catch {
-                        Log.app(.error).log("Error shutting down for background: \(error.localizedDescription)")
+                #if os(iOS)
+                    let continuedTaskActive = BackgroundIndexActivity.isActive
+                #else
+                    let continuedTaskActive = false
+                #endif
+
+                if continuedTaskActive {
+                    // A continued-processing task is keeping the crawl alive in the background with
+                    // its own system progress UI. Don't pause/shut down here — let it own the
+                    // background lifetime. It pauses, persists, and schedules a headless resume of
+                    // its own accord when it ends, is cancelled, or the system expires it.
+                    Log.app(.default).log("Deferring background shutdown to active continued-processing task")
+                } else {
+                    Maintini.startMaintaining()
+                    Task {
+                        defer { Maintini.endMaintaining() }
+                        do {
+                            try await model.shutdown(backgrounded: true)
+                        } catch {
+                            Log.app(.error).log("Error shutting down for background: \(error.localizedDescription)")
+                        }
                     }
                 }
 

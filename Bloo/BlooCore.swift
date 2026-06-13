@@ -127,6 +127,24 @@ final class BlooCore {
         runState == .running && domainSections.contains(where: \.state.isNotIdle)
     }
 
+    /// Aggregate crawl progress across all actively indexing/starting domains, used to drive the
+    /// continued-processing background task's system progress UI.
+    var indexingProgress: (indexed: Int, total: Int) {
+        var indexed = 0
+        var total = 0
+        for domain in domains {
+            switch domain.state {
+            case let .indexing(i, p, _),
+                 let .starting(i, p):
+                indexed += i
+                total += i + p
+            case .deleting, .done, .paused, .pausing:
+                break
+            }
+        }
+        return (indexed, total)
+    }
+
     func waitForIndexingToEnd() async {
         while isRunningAndBusy {
             try? await Task.sleep(for: .seconds(1.0))
