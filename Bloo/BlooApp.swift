@@ -64,11 +64,11 @@ struct BlooApp: App {
                 return true
             }
 
-            // Closing the app's window discards the scene rather than simply backgrounding it, and the
-            // scenePhase `.background` transition can be cut short before the shutdown's deferred storage
-            // checkpoints are written. This is the documented hook for a user-initiated close, so request
-            // background time and run the same shutdown here as a best-effort flush. iOS grants limited
-            // runtime for a deliberate close, so completion isn't guaranteed.
+            /// Closing the app's window discards the scene rather than simply backgrounding it, and the
+            /// scenePhase `.background` transition can be cut short before the shutdown's deferred storage
+            /// checkpoints are written. This is the documented hook for a user-initiated close, so request
+            /// background time and run the same shutdown here as a best-effort flush. iOS grants limited
+            /// runtime for a deliberate close, so completion isn't guaranteed.
             func application(_: UIApplication, didDiscardSceneSessions _: Set<UISceneSession>) {
                 // Closing the window submitted (via willResignActive) and started a continued-processing
                 // task; the app is now being torn down, so dismiss its Live Activity ourselves before

@@ -18,27 +18,27 @@
     /// Note: the system cancels these tasks when the user deliberately *closes* the app, so this does
     /// not help the close-shutdown case — it only extends the *minimised* (backgrounded) crawl.
     enum BackgroundIndexActivity {
-        // Continued-processing identifier rules:
-        // - The `Info.plist` `BGTaskSchedulerPermittedIdentifiers` entry is the WILDCARD form
-        //   `build.bru.bloo.app.indexing.*`; that only *permits submission* of ids under the prefix.
-        // - The prefix MUST begin with the app's bundle id (build.bru.bloo.app) — unlike a regular
-        //   BGProcessingTask identifier, continued-processing rejects a prefix without the bundle id
-        //   ("invalid identifier form").
-        // - `register(...)` and `submit(...)` must both use the SAME CONCRETE id: the system looks up
-        //   launch handlers by exact identifier, so registering the wildcard crashes on relaunch with
-        //   "No launch handler registered for task with identifier …". We submit one logical job at a
-        //   time, so a single fixed concrete id is sufficient.
+        /// Continued-processing identifier rules:
+        /// - The `Info.plist` `BGTaskSchedulerPermittedIdentifiers` entry is the WILDCARD form
+        ///   `build.bru.bloo.app.indexing.*`; that only *permits submission* of ids under the prefix.
+        /// - The prefix MUST begin with the app's bundle id (build.bru.bloo.app) — unlike a regular
+        ///   BGProcessingTask identifier, continued-processing rejects a prefix without the bundle id
+        ///   ("invalid identifier form").
+        /// - `register(...)` and `submit(...)` must both use the SAME CONCRETE id: the system looks up
+        ///   launch handlers by exact identifier, so registering the wildcard crashes on relaunch with
+        ///   "No launch handler registered for task with identifier …". We submit one logical job at a
+        ///   time, so a single fixed concrete id is sufficient.
         private static let taskIdentifier = "build.bru.bloo.app.indexing.crawl"
 
-        // Shared mutable state, touched from the launch handler, the foreground/background
-        // notifications, and the monitor loop. A simple unchecked-Sendable box keeps every site in
-        // agreement without actor ceremony for these flags.
+        /// Shared mutable state, touched from the launch handler, the foreground/background
+        /// notifications, and the monitor loop. A simple unchecked-Sendable box keeps every site in
+        /// agreement without actor ceremony for these flags.
         private final class State: @unchecked Sendable {
             var submitted = false
             var running = false
             var cancelled = false
-            // The app starts in the foreground; the monitor loop dismisses its Live Activity whenever
-            // this is true, so a task only stays alive while the app is backgrounded.
+            /// The app starts in the foreground; the monitor loop dismisses its Live Activity whenever
+            /// this is true, so a task only stays alive while the app is backgrounded.
             var foreground = true
             // The live task and a one-shot completion guard, so the monitor loop and an external
             // close can't both call setTaskCompleted (and so we can dismiss promptly on close).

@@ -108,7 +108,6 @@ struct LocalRulesEditor: View {
         #endif
     }
 
-    @ViewBuilder
     private var ruleRows: some View {
         ForEach($rows) { $row in
             HStack(spacing: 8) {
