@@ -666,10 +666,10 @@ final actor Crawler {
         try (count(table: visited), count(table: pending))
     }
 
-    // Persists the accumulated queue mutations at checkpoints and loop exits, alongside the
-    // CoreSpotlight snapshot. nextPending() also flushes before each queue lookup so the pending
-    // fetch always sees a consistent store; losing the last few pages on a crash is harmless since
-    // they are simply re-crawled on resume.
+    /// Persists the accumulated queue mutations at checkpoints and loop exits, alongside the
+    /// CoreSpotlight snapshot. nextPending() also flushes before each queue lookup so the pending
+    /// fetch always sees a consistent store; losing the last few pages on a crash is harmless since
+    /// they are simply re-crawled on resume.
     private func flushPendingWrites() throws {
         if let modelContext, modelContext.hasChanges {
             try modelContext.save()

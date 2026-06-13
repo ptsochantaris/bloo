@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum IndexEntry: Hashable, Sendable {
+nonisolated enum IndexEntry: Hashable {
     case pending(url: String, isSitemap: Bool), visited(url: String, lastModified: Date?, etag: String?)
 
     func hash(into hasher: inout Hasher) {

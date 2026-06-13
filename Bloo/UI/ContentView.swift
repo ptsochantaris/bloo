@@ -23,7 +23,7 @@ struct ContentView: View {
         }
         .errorReportingAlert()
         #if os(iOS)
-        .preferredColorScheme(.dark)
+            .preferredColorScheme(.dark)
         #endif
     }
 }

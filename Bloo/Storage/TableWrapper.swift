@@ -36,7 +36,7 @@ final nonisolated class TableWrapper {
         return try context.fetch(descriptor).first
     }
 
-    // Does not save; the caller flushes once it has finished a batch of mutations.
+    /// Does not save; the caller flushes once it has finished a batch of mutations.
     func append(item: IndexEntry, in context: ModelContext) throws {
         let k = kindRaw
         let url = item.url
@@ -51,7 +51,7 @@ final nonisolated class TableWrapper {
         }
     }
 
-    // Does not save; the caller flushes once it has finished a batch of mutations.
+    /// Does not save; the caller flushes once it has finished a batch of mutations.
     func append(items: [IndexEntry], in context: ModelContext) throws {
         guard items.isPopulated else {
             return
@@ -74,7 +74,7 @@ final nonisolated class TableWrapper {
         }
     }
 
-    // Does not save; the caller flushes once it has finished a batch of mutations.
+    /// Does not save; the caller flushes once it has finished a batch of mutations.
     func delete(url: String, in context: ModelContext) throws {
         let k = kindRaw
         let matches = try context.fetch(FetchDescriptor<CrawlItem>(predicate: #Predicate<CrawlItem> { $0.kindRaw == k && $0.url == url }))

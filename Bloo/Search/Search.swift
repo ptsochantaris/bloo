@@ -1,6 +1,6 @@
 import Foundation
 
-enum Search: Equatable, Codable, Sendable {
+enum Search: Equatable, Codable {
     case none, top(String), full(String)
 
     var trimmedText: String {

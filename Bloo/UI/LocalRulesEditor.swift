@@ -116,10 +116,12 @@ enum RobotDirective: String, CaseIterable, Identifiable, Hashable {
     case sitemap = "Sitemap"
     case host = "Host"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
-    // User-agent is intentionally absent: the local file always belongs to one fixed agent, so its
-    // header is written automatically on save and never exposed as an editable row.
+    /// User-agent is intentionally absent: the local file always belongs to one fixed agent, so its
+    /// header is written automatically on save and never exposed as an editable row.
     init?(field: String) {
         switch field.trimmingCharacters(in: .whitespaces).lowercased() {
         case "allow": self = .allow

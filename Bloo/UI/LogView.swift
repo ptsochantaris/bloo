@@ -39,8 +39,7 @@ struct LogView: View {
                 }
                 .onEnded { _ in
                     originalHeight = nil
-                }
-            )
+                })
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {

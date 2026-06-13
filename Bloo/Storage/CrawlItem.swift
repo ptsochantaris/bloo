@@ -2,15 +2,15 @@ import Foundation
 import SwiftData
 
 @Model
-nonisolated final class CrawlItem {
+final nonisolated class CrawlItem {
     enum Kind: Int, Codable {
         case pending = 0, visited = 1
     }
 
     #Index<CrawlItem>([\.kindRaw], [\.url], [\.kindRaw, \.url])
 
-    var url: String = ""
-    var isSitemap: Bool = false
+    var url = ""
+    var isSitemap = false
     var lastModified: Date?
     var etag: String?
     var kindRaw: Int = Kind.pending.rawValue

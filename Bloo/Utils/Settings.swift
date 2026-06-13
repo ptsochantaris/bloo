@@ -3,7 +3,9 @@ import Foundation
 nonisolated enum SortStyle: Int, CaseIterable, Identifiable {
     case typical, newestFirst, oldestFirst
 
-    var id: Int { rawValue }
+    var id: Int {
+        rawValue
+    }
 
     var title: String {
         switch self {
