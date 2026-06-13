@@ -268,22 +268,22 @@
 		16E8A0E62AC1F96500CCB10D /* Bloo */ = {
 			isa = PBXGroup;
 			children = (
-				16BCEBDB2E3FE45A00E21E4B /* UI */,
 				16E8A0F02AC1F96600CCB10D /* Bloo.entitlements */,
+				16E25B672EB29E3300884813 /* AppIcon.icon */,
 				16E8A0F92AC2161000CCB10D /* Info.plist */,
+				161992672B03DB97006D911F /* BlockList.swift */,
 				16E8A0E72AC1F96500CCB10D /* BlooApp.swift */,
 				1634CF9C2AC367760022A8F6 /* BlooCore.swift */,
-				165F10C12AC8802400442892 /* IndexEntry.swift */,
+				161992652B038066006D911F /* Formatters.swift */,
 				16E3EF5A2AD0881D00CF9B80 /* HTTP.swift */,
+				165F10C12AC8802400442892 /* IndexEntry.swift */,
 				165F10BF2AC87C4600442892 /* SitemapParser.swift */,
-				16E25B672EB29E3300884813 /* AppIcon.icon */,
 				16E8A0EB2AC1F96600CCB10D /* Assets.xcassets */,
 				16B67CEF2AD4224900366266 /* Domain */,
 				16B67CEE2AD4212300366266 /* Search */,
 				16B67CED2AD4210900366266 /* Storage */,
+				16BCEBDB2E3FE45A00E21E4B /* UI */,
 				16B67CF02AD4226200366266 /* Utils */,
-				161992652B038066006D911F /* Formatters.swift */,
-				161992672B03DB97006D911F /* BlockList.swift */,
 			);
 			path = Bloo;
 			sourceTree = "<group>";
