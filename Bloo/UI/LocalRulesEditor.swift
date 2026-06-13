@@ -77,14 +77,19 @@ struct LocalRulesEditor: View {
                             ruleRows
                         }
                     }
-
-                    addRuleButton
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
 
                 HStack {
+                    Button {
+                        rows.append(RuleRow(directive: .disallow, value: ""))
+                    } label: {
+                        Label("Add Rule", systemImage: "plus")
+                    }
+                    .disabled(!loaded)
+
                     if let validationError {
                         Text(validationError)
                             .font(.caption)
@@ -129,16 +134,6 @@ struct LocalRulesEditor: View {
                 .help("Delete this rule")
             }
         }
-    }
-
-    private var addRuleButton: some View {
-        Button {
-            rows.append(RuleRow(directive: .disallow, value: ""))
-        } label: {
-            Label("Add Rule", systemImage: "plus")
-        }
-        .buttonStyle(.borderless)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func load() async {

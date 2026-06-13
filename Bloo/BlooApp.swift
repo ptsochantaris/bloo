@@ -19,7 +19,14 @@ struct BlooApp: App {
             func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
                 if BlooCore.shared.runState == .running {
                     Task {
-                        try await BlooCore.shared.shutdown(backgrounded: false)
+                        do {
+                            try await BlooCore.shared.shutdown(backgrounded: false)
+                        } catch {
+                            // Surface the failure and keep the app open rather than force-quitting and
+                            // potentially losing data; the user can quit again or address it.
+                            ErrorReporter.shared.report(error)
+                            return
+                        }
                         try? await Task.sleep(for: .milliseconds(100))
                         NSApp.terminate(nil)
                     }
