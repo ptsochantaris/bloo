@@ -33,6 +33,8 @@ final actor KeywordGenerator {
 }
 
 final actor Crawler {
+    static let localAgentName = "_bloo_local_domain_agent"
+
     private let id: String
     private let bootupEntry: IndexEntry
     private var robotCheck: CanProceed?
@@ -185,7 +187,7 @@ final actor Crawler {
             var newContentUrls = Set<IndexEntry>()
             if let robotCheck {
                 for entry in contentUrls {
-                    if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: entry.url) {
+                    if robotCheck.all(agentsNamed: ["Bloo", Crawler.localAgentName], canProceedTo: entry.url) {
                         newContentUrls.insert(entry)
                     } else {
                         reject(link: entry.url)
@@ -218,6 +220,10 @@ final actor Crawler {
                 try? clean.write(to: localRobotDataUrl, atomically: true, encoding: .utf8)
             }
         }
+    }
+
+    func updateLocalRobotText(_ text: String) {
+        localRobotText = text
     }
 
     private func go(signalStateChange: Bool) async throws {
@@ -415,7 +421,7 @@ final actor Crawler {
             return .error
         }
 
-        if let robotCheck, !robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: link) {
+        if let robotCheck, !robotCheck.all(agentsNamed: ["Bloo", Crawler.localAgentName], canProceedTo: link) {
             reject(link: link)
             return .disallowed
         }
@@ -566,7 +572,7 @@ final actor Crawler {
                 guard let robotCheck else {
                     return .pending(url: item, isSitemap: false)
                 }
-                if robotCheck.all(agentsNamed: ["Bloo", "_bloo_local_domain_agent"], canProceedTo: item) {
+                if robotCheck.all(agentsNamed: ["Bloo", Crawler.localAgentName], canProceedTo: item) {
                     return .pending(url: item, isSitemap: false)
                 } else {
                     reject(link: item)

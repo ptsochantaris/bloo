@@ -4,6 +4,8 @@ import SwiftUI
 struct DomainRow: View {
     let domain: Domain
 
+    @State private var editingRules = false
+
     var body: some View {
         VStack(alignment: .leading) {
             switch domain.state {
@@ -77,7 +79,10 @@ struct DomainRow: View {
         .background(.fill.tertiary)
         .cornerRadius(Constants.narrowCorner)
         .contextMenu {
-            DomainContextMenu(domain: domain)
+            DomainContextMenu(domain: domain, editingRules: $editingRules)
+        }
+        .sheet(isPresented: $editingRules) {
+            LocalRulesEditor(domain: domain)
         }
     }
 }

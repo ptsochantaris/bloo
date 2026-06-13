@@ -3,6 +3,7 @@ import SwiftUI
 
 struct DomainContextMenu: View {
     let domain: Domain
+    @Binding var editingRules: Bool
 
     @Environment(\.openURL) private var openURL
 
@@ -50,6 +51,12 @@ struct DomainContextMenu: View {
                 Text("Remove")
             }
         }
+        Button {
+            editingRules = true
+        } label: {
+            Text("Edit Crawling Rules…")
+        }
+
         Button { [weak domain] in
             Task { [weak domain] in
                 if let domain, let url = URL(string: "https://\(domain.id)") {

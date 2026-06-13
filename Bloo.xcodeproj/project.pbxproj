@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		160659452FDCC3DC00F9FD1F /* CrawlItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160659442FDCC3DC00F9FD1F /* CrawlItem.swift */; };
+		160659472FDCE91A00F9FD1F /* LocalRulesEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160659462FDCE91A00F9FD1F /* LocalRulesEditor.swift */; };
 		161992662B038066006D911F /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992652B038066006D911F /* Formatters.swift */; };
 		161992682B03DB97006D911F /* BlockList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992672B03DB97006D911F /* BlockList.swift */; };
 		1634CF952AC365800022A8F6 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634CF942AC365800022A8F6 /* Storage.swift */; };
@@ -75,6 +76,7 @@
 
 /* Begin PBXFileReference section */
 		160659442FDCC3DC00F9FD1F /* CrawlItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrawlItem.swift; sourceTree = "<group>"; };
+		160659462FDCE91A00F9FD1F /* LocalRulesEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalRulesEditor.swift; sourceTree = "<group>"; };
 		161992652B038066006D911F /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 		161992672B03DB97006D911F /* BlockList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockList.swift; sourceTree = "<group>"; };
 		1634CF942AC365800022A8F6 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
@@ -235,6 +237,7 @@
 				16BCEBEA2E3FE50A00E21E4B /* SearchResults.swift */,
 				16BCEBE82E3FE4F500E21E4B /* SearchSection.swift */,
 				16BCEBE62E3FE4DE00E21E4B /* StatusIcon.swift */,
+				160659462FDCE91A00F9FD1F /* LocalRulesEditor.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -403,6 +406,7 @@
 				16BCEBF52E3FE57800E21E4B /* ResultRow.swift in Sources */,
 				1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */,
 				163AE30C2CD6D85A00AE6DA9 /* TrackingHeightModifier.swift in Sources */,
+				160659472FDCE91A00F9FD1F /* LocalRulesEditor.swift in Sources */,
 				16E3EF5B2AD0881D00CF9B80 /* HTTP.swift in Sources */,
 				161992662B038066006D911F /* Formatters.swift in Sources */,
 				16B67CEC2AD41FA400366266 /* Search.swift in Sources */,
