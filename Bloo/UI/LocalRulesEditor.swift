@@ -10,74 +10,135 @@ struct LocalRulesEditor: View {
     @State private var validationError: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Crawling Rules")
-                    .font(.title2)
-                    .bold()
-                Text("These rules are appended to \(domain.id)'s own robots.txt and let you include or exclude specific paths. Changes apply the next time crawling starts.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        #if os(iOS)
+            NavigationStack {
+                Group {
+                    if loaded {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("These rules are appended to \(domain.id)'s own robots.txt and let you include or exclude specific paths. Changes apply the next time crawling starts.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.bottom, 8)
 
-            if loaded {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach($rows) { $row in
-                            HStack(spacing: 8) {
-                                Picker("", selection: $row.directive) {
-                                    ForEach(RobotDirective.allCases) { directive in
-                                        Text(directive.rawValue).tag(directive)
-                                    }
-                                }
-                                .labelsHidden()
-                                .frame(width: 130)
-
-                                TextField(row.directive.placeholder, text: $row.value)
-                                    .textFieldStyle(.roundedBorder)
-                                    .onChange(of: row.value) { validationError = nil }
-
-                                Button {
-                                    rows.removeAll { $0.id == row.id }
-                                    validationError = nil
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .buttonStyle(.borderless)
-                                .help("Delete this rule")
+                                ruleRows
                             }
+                            .padding()
                         }
+                    } else {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
+                .navigationTitle("Crawling Rules")
+                .navigationSubtitle(domain.id)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", role: .cancel) { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") { save() }
+                            .disabled(!loaded)
+                    }
+                    ToolbarSpacer(placement: .bottomBar)
+                    ToolbarItem(placement: .bottomBar) {
+                        Button {
+                            rows.append(RuleRow(directive: .disallow, value: ""))
+                        } label: {
+                            Label("Add Rule", systemImage: "plus")
+                        }
+                        .disabled(!loaded)
+                    }
+                }
+                .alert("Incomplete Rules", isPresented: Binding { validationError != nil } set: { if !$0 { validationError = nil } }) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(validationError ?? "")
+                }
+            }
+            .task { await load() }
+        #else
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Crawling Rules")
+                        .font(.title2)
+                        .bold()
+                    Text("These rules are appended to \(domain.id)'s own robots.txt and let you include or exclude specific paths. Changes apply the next time crawling starts.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if loaded {
+                    ScrollView {
+                        VStack(spacing: 8) {
+                            ruleRows
+                        }
+                    }
+
+                    addRuleButton
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
+                HStack {
+                    if let validationError {
+                        Text(validationError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    Spacer()
+                    Button("Cancel", role: .cancel) { dismiss() }
+                    Button("Save") { save() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!loaded)
+                }
+            }
+            .padding()
+            .frame(minWidth: 460, minHeight: 360)
+            .task { await load() }
+        #endif
+    }
+
+    @ViewBuilder
+    private var ruleRows: some View {
+        ForEach($rows) { $row in
+            HStack(spacing: 8) {
+                Picker("", selection: $row.directive) {
+                    ForEach(RobotDirective.allCases) { directive in
+                        Text(directive.rawValue).tag(directive)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 150)
+
+                TextField(row.directive.placeholder, text: $row.value)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: row.value) { validationError = nil }
 
                 Button {
-                    rows.append(RuleRow(directive: .disallow, value: ""))
+                    rows.removeAll { $0.id == row.id }
+                    validationError = nil
                 } label: {
-                    Label("Add Rule", systemImage: "plus")
+                    Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-
-            HStack {
-                if let validationError {
-                    Text(validationError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                Button("Save") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!loaded)
+                .help("Delete this rule")
             }
         }
-        .padding()
-        .frame(minWidth: 460, minHeight: 360)
-        .task { await load() }
+    }
+
+    private var addRuleButton: some View {
+        Button {
+            rows.append(RuleRow(directive: .disallow, value: ""))
+        } label: {
+            Label("Add Rule", systemImage: "plus")
+        }
+        .buttonStyle(.borderless)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func load() async {
