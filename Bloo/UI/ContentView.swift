@@ -21,6 +21,7 @@ struct ContentView: View {
         .overlay {
             ModelStateFeedback(model: model)
         }
+        .errorReportingAlert()
         #if os(iOS)
         .preferredColorScheme(.dark)
         #endif

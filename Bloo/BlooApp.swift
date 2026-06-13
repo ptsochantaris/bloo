@@ -155,14 +155,14 @@ struct BlooApp: App {
                 Menu("All Items…") {
                     Menu("Clear all data") {
                         Button("Confirm: Clear Everything!") {
-                            Task {
+                            runReportingErrors {
                                 try await model.removeAll()
                             }
                         }
                     }
                     Menu("Wipe and Reindex All Domains") {
                         Button("Confirm: Reset All Domains!") {
-                            Task {
+                            runReportingErrors {
                                 try await model.resetAll()
                             }
                         }
@@ -181,8 +181,12 @@ struct BlooApp: App {
             case .background:
                 Maintini.startMaintaining()
                 Task {
-                    try await model.shutdown(backgrounded: true)
-                    Maintini.endMaintaining()
+                    defer { Maintini.endMaintaining() }
+                    do {
+                        try await model.shutdown(backgrounded: true)
+                    } catch {
+                        Log.app(.error).log("Error shutting down for background: \(error.localizedDescription)")
+                    }
                 }
 
             case .inactive:

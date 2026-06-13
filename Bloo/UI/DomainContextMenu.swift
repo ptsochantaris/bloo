@@ -10,7 +10,7 @@ struct DomainContextMenu: View {
     var body: some View {
         if domain.state.canStart {
             Button { [weak domain] in
-                Task { [weak domain] in
+                runReportingErrors { [weak domain] in
                     try await domain?.crawler.start()
                 }
             } label: {
@@ -18,7 +18,7 @@ struct DomainContextMenu: View {
             }
 
             Button { [weak domain] in
-                Task { [weak domain] in
+                runReportingErrors { [weak domain] in
                     try await domain?.crawler.remove()
                 }
             } label: {
@@ -27,7 +27,7 @@ struct DomainContextMenu: View {
 
         } else if domain.state.canStop {
             Button { [weak domain] in
-                Task { [weak domain] in
+                runReportingErrors { [weak domain] in
                     try await domain?.crawler.pause(resumable: false)
                 }
             } label: {
@@ -36,7 +36,7 @@ struct DomainContextMenu: View {
 
         } else if domain.state.canRestart {
             Button { [weak domain] in
-                Task { [weak domain] in
+                runReportingErrors { [weak domain] in
                     try await domain?.crawler.restart(wipingExistingData: false)
                 }
             } label: {
@@ -44,7 +44,7 @@ struct DomainContextMenu: View {
             }
 
             Button { [weak domain] in
-                Task { [weak domain] in
+                runReportingErrors { [weak domain] in
                     try await domain?.crawler.remove()
                 }
             } label: {

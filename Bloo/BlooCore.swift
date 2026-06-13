@@ -225,7 +225,11 @@ final class BlooCore {
             task.expirationHandler = { [weak self] in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    try await shutdown(backgrounded: true)
+                    do {
+                        try await shutdown(backgrounded: true)
+                    } catch {
+                        Log.app(.error).log("Error shutting down on background task expiry: \(error.localizedDescription)")
+                    }
                 }
             }
 
