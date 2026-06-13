@@ -6,15 +6,31 @@ struct DomainSectionHeader: View {
     @Binding var filter: String
     @State private var actioning = false
 
+    private let settings = Settings.shared
+
     var body: some View {
+        let collapsed = settings.isSectionCollapsed(section.id)
+
         HStack(alignment: .top) {
-            Text(section.state.title)
+            Button {
+                withAnimation {
+                    settings.toggleSection(section.id)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .rotationEffect(.degrees(collapsed ? 0 : 90))
+                    Text(section.state.title)
+                }
                 .font(.blooTitle)
                 .foregroundStyle(.secondary)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
 
             Spacer(minLength: 0)
 
-            if section.domains.count > 1 {
+            if !collapsed, section.domains.count > 1 {
                 FilterField(filter: $filter)
             }
 
@@ -23,8 +39,12 @@ struct DomainSectionHeader: View {
                     Button {
                         actioning = true
                         Task {
-                            try await section.startAll(matchingFilter: filter)
-                            actioning = false
+                            defer { actioning = false }
+                            do {
+                                try await section.startAll(matchingFilter: filter)
+                            } catch {
+                                ErrorReporter.shared.report(error)
+                            }
                         }
                     } label: {
                         Text(filter.isEmpty ? "Start All" : "Start")
@@ -33,8 +53,12 @@ struct DomainSectionHeader: View {
                     Button {
                         actioning = true
                         Task {
-                            try await section.pauseAll(resumable: false, matchingFilter: filter)
-                            actioning = false
+                            defer { actioning = false }
+                            do {
+                                try await section.pauseAll(resumable: false, matchingFilter: filter)
+                            } catch {
+                                ErrorReporter.shared.report(error)
+                            }
                         }
                     } label: {
                         Text(filter.isEmpty ? "Pause All" : "Pause")
@@ -43,8 +67,12 @@ struct DomainSectionHeader: View {
                     Button {
                         actioning = true
                         Task {
-                            try await section.restartAll(wipingExistingData: false, matchingFilter: filter)
-                            actioning = false
+                            defer { actioning = false }
+                            do {
+                                try await section.restartAll(wipingExistingData: false, matchingFilter: filter)
+                            } catch {
+                                ErrorReporter.shared.report(error)
+                            }
                         }
                     } label: {
                         Text(filter.isEmpty ? "Refresh All" : "Refresh")

@@ -52,6 +52,27 @@ final class Settings {
         }
     }
 
+    var collapsedSections = Set(Settings.collapsedSectionsRaw) {
+        didSet {
+            Settings.collapsedSectionsRaw = Array(collapsedSections)
+        }
+    }
+
+    func isSectionCollapsed(_ id: String) -> Bool {
+        collapsedSections.contains(id)
+    }
+
+    func toggleSection(_ id: String) {
+        if collapsedSections.contains(id) {
+            collapsedSections.remove(id)
+        } else {
+            collapsedSections.insert(id)
+        }
+    }
+
+    @UserDefault(key: "collapsedSections", defaultValue: [])
+    private static var collapsedSectionsRaw: [String]
+
     @UserDefault(key: "sortDoneStyle", defaultValue: 0)
     private static var sortDoneStyle: Int
 
