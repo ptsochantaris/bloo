@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		160081DE2FDD9C23005C0F93 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160081DD2FDD9C23005C0F93 /* SettingsSheet.swift */; };
 		160659452FDCC3DC00F9FD1F /* CrawlItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160659442FDCC3DC00F9FD1F /* CrawlItem.swift */; };
 		160659472FDCE91A00F9FD1F /* LocalRulesEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160659462FDCE91A00F9FD1F /* LocalRulesEditor.swift */; };
 		161992662B038066006D911F /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161992652B038066006D911F /* Formatters.swift */; };
@@ -76,6 +77,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		160081DD2FDD9C23005C0F93 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
 		160659442FDCC3DC00F9FD1F /* CrawlItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrawlItem.swift; sourceTree = "<group>"; };
 		160659462FDCE91A00F9FD1F /* LocalRulesEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalRulesEditor.swift; sourceTree = "<group>"; };
 		161992652B038066006D911F /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
@@ -242,6 +244,7 @@
 				16BCEBE82E3FE4F500E21E4B /* SearchSection.swift */,
 				16BCEBE62E3FE4DE00E21E4B /* StatusIcon.swift */,
 				160659462FDCE91A00F9FD1F /* LocalRulesEditor.swift */,
+				160081DD2FDD9C23005C0F93 /* SettingsSheet.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -425,6 +428,7 @@
 				16BCEC012E3FE65A00E21E4B /* Constants.swift in Sources */,
 				16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */,
 				16B67CF82AD422F300366266 /* Collection.swift in Sources */,
+				160081DE2FDD9C23005C0F93 /* SettingsSheet.swift in Sources */,
 				16B67CF42AD4229400366266 /* Settings.swift in Sources */,
 				16BCEBE52E3FE4C900E21E4B /* AdditionSection.swift in Sources */,
 				16E8A0E82AC1F96500CCB10D /* BlooApp.swift in Sources */,

@@ -96,18 +96,8 @@ struct BlooApp: App {
     #endif
 
     private let model = BlooCore.shared
-    private let settings = Settings.shared
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
-
-    private struct DelayEntry: Identifiable {
-        let id = UUID()
-        let value: Double
-
-        func label(prefix: String) -> String {
-            String(format: "%@ %.1f sec", prefix, value)
-        }
-    }
 
     var body: some Scene {
         WindowGroup("Bloo", id: "search", for: UUID.self) { $uuid in
@@ -134,74 +124,6 @@ struct BlooApp: App {
             #endif
         } defaultValue: {
             UUID()
-        }
-        .commands {
-            CommandGroup(after: .appInfo) {
-                Menu("Throttling…") {
-                    let range = Array(stride(from: 0.1, through: 10, by: 0.1)).map {
-                        DelayEntry(value: $0)
-                    }
-
-                    Menu("Minimum rate for new pages…") {
-                        ForEach(range) { item in
-                            Toggle(item.label(prefix: "Minimum"), isOn: Binding<Bool> {
-                                settings.indexingDelay == item.value
-                            } set: { _ in
-                                settings.indexingDelay = item.value
-                            })
-                        }
-                    }
-
-                    Menu("Minimum rate for checking existing pages…") {
-                        ForEach(range) { item in
-                            Toggle(item.label(prefix: "Delay"), isOn: Binding<Bool> {
-                                settings.indexingScanDelay == item.value
-                            } set: { _ in
-                                settings.indexingScanDelay = item.value
-                            })
-                        }
-                    }
-
-                    Toggle("Only Use Efficiency CPU Cores", isOn: Binding<Bool> {
-                        settings.indexingTaskPriority == .background
-                    } set: { newValue in
-                        settings.indexingTaskPriority = newValue ? .background : .medium
-                    })
-
-                    Toggle("Minimise Network Usage", isOn: Binding<Bool> {
-                        settings.maxConcurrentIndexingOperations == 1
-                    } set: { newValue in
-                        settings.maxConcurrentIndexingOperations = newValue ? 1 : 0
-                    })
-                }
-
-                Menu("Sort \"Done\" Section…") {
-                    ForEach(SortStyle.allCases) { style in
-                        Toggle(style.title, isOn: Binding<Bool> {
-                            settings.sortDoneStyle == style
-                        } set: { _ in
-                            settings.sortDoneStyle = style
-                        })
-                    }
-                }
-
-                Menu("All Items…") {
-                    Menu("Clear all data") {
-                        Button("Confirm: Clear Everything!") {
-                            runReportingErrors {
-                                try await model.removeAll()
-                            }
-                        }
-                    }
-                    Menu("Wipe and Reindex All Domains") {
-                        Button("Confirm: Reset All Domains!") {
-                            runReportingErrors {
-                                try await model.resetAll()
-                            }
-                        }
-                    }
-                }
-            }
         }
         #if canImport(UIKit)
         .onChange(of: scenePhase) { _, new in

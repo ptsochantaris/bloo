@@ -6,6 +6,7 @@ struct Admin: View {
     @Bindable private var searcher: Search.Engine
 
     @State private var showLog = false
+    @State private var showSettings = false
     @State private var searchFocused = false
     @State private var logHeight: CGFloat = 300
     @FocusState private var additionFocused: Bool
@@ -48,6 +49,17 @@ struct Admin: View {
         }
         .navigationTitle(searcher.title)
         .toolbar {
+            #if os(iOS)
+                ToolbarItem(placement: .topBarLeading) {
+                    settingsButton
+                }
+            #else
+                ToolbarItem(placement: .navigation) {
+                    settingsButton
+                }
+            #endif
+        }
+        .toolbar {
             Button {
                 withAnimation {
                     showLog.toggle()
@@ -77,5 +89,16 @@ struct Admin: View {
             }
         }
         .searchable(text: $searcher.searchQuery, isPresented: $searchFocused, placement: .toolbar, prompt: "Search for keyword(s)")
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet(model: model)
+        }
+    }
+
+    private var settingsButton: some View {
+        Button {
+            showSettings = true
+        } label: {
+            Image(systemName: "gearshape")
+        }
     }
 }
