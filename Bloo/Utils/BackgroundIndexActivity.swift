@@ -93,12 +93,18 @@
             // Submit as the app leaves the foreground (still a valid foreground moment) so the Live
             // Activity only shows once no window is visible; mark foreground again — which dismisses
             // the activity — as soon as the app becomes active.
+            // queue: .main guarantees these run on the main thread, so it's safe to assert main-actor
+            // isolation — keeping submission synchronous within the foreground willResignActive window.
             NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { _ in
-                state.foreground = false
-                submitIfNeeded()
+                MainActor.assumeIsolated {
+                    state.foreground = false
+                    submitIfNeeded()
+                }
             }
             NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-                state.foreground = true
+                MainActor.assumeIsolated {
+                    state.foreground = true
+                }
             }
         }
 
