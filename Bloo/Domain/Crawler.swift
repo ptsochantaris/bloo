@@ -43,7 +43,6 @@ final actor Crawler {
     private var goTask: Task<Void, Error>?
     private var botRejectionCache = BlockList<String>(length: 400)
     private var thumbnailFailureCache = BlockList<URL>(length: 400)
-    private static let requestLock = Semalot(tickets: 1)
 
     private var modelContainer: ModelContainer?
     private var modelContext: ModelContext?
@@ -99,7 +98,7 @@ final actor Crawler {
 
     @MainActor
     private func signalState(_ state: Domain.State, onlyIfActive: Bool = false) {
-        if !onlyIfActive || crawlerDelegate.state.isStartingOrIndexing {
+        if !onlyIfActive || crawlerDelegate?.state.isStartingOrIndexing == true {
             if crawlerDelegate?.state.groupId != state.groupId {
                 // category change, animate
                 withAnimation {
@@ -300,10 +299,8 @@ final actor Crawler {
                 return
             }
 
-            let willThrottle = await Settings.shared.maxConcurrentIndexingOperations == 1
-            if willThrottle {
-                await Self.requestLock.takeTicket()
-            }
+            let requestLock = await RequestGate.shared.lock(for: Settings.shared.maxSimultaneousCalls)
+            await requestLock?.takeTicket()
 
             let start = Date()
             let longPause = try await crawl(entry: next)
@@ -322,9 +319,7 @@ final actor Crawler {
                     try flushPendingWrites()
                     await snapshot()
                 }
-                if willThrottle {
-                    Self.requestLock.returnTicket()
-                }
+                requestLock?.returnTicket()
 
                 let maxWait = longPause ? await Settings.shared.indexingDelay : await Settings.shared.indexingScanDelay
                 let duration = max(0, maxWait + start.timeIntervalSinceNow)
@@ -339,9 +334,7 @@ final actor Crawler {
                 Log.crawling(id, .default).log("Stopping crawl because of app action")
                 try flushPendingWrites()
                 await snapshot()
-                if willThrottle {
-                    Self.requestLock.returnTicket()
-                }
+                requestLock?.returnTicket()
                 return
             }
         }

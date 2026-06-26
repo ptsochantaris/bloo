@@ -24,15 +24,20 @@ nonisolated enum SortStyle: Int, CaseIterable, Identifiable {
 final class Settings {
     static let shared = Settings()
 
+    /// The selectable values for the "Simultaneous calls" setting. A value of `0` means unlimited.
+    static let simultaneousCallOptions: [UInt] = [1, 2, 4, 8, 16, 0]
+
     var indexingTaskPriority = TaskPriority(rawValue: Settings.indexingTaskPriorityRaw) {
         didSet {
             Settings.indexingTaskPriorityRaw = indexingTaskPriority.rawValue
         }
     }
 
-    var maxConcurrentIndexingOperations: UInt = Settings.maxConcurrentIndexingOperationsRaw {
+    /// The maximum number of HTTP calls that may be in flight across all crawlers at once. A value
+    /// of `0` means unlimited. Drives the ticket pool of the shared `RequestGate`.
+    var maxSimultaneousCalls: UInt = Settings.maxSimultaneousCallsRaw {
         didSet {
-            Settings.maxConcurrentIndexingOperationsRaw = maxConcurrentIndexingOperations
+            Settings.maxSimultaneousCallsRaw = maxSimultaneousCalls
         }
     }
 
@@ -87,6 +92,8 @@ final class Settings {
     @UserDefault(key: "indexingTaskPriorityRaw", defaultValue: TaskPriority.medium.rawValue)
     private static var indexingTaskPriorityRaw: UInt8
 
+    // Key retained from the previous "Minimise Network Usage" setting so existing preferences carry
+    // over: a stored value of 1 now reads as a single simultaneous call, 0 as unlimited.
     @UserDefault(key: "maxConcurrentIndexingOperations", defaultValue: 0)
-    private static var maxConcurrentIndexingOperationsRaw: UInt
+    private static var maxSimultaneousCallsRaw: UInt
 }

@@ -25,6 +25,24 @@ struct SettingsSheet: View {
         }
     }
 
+    /// The human-readable value for the current "Simultaneous calls" setting.
+    private var simultaneousCallsLabel: String {
+        let value = settings.maxSimultaneousCalls
+        return value == 0 ? "Unlimited" : "\(value)"
+    }
+
+    /// Maps the discrete `simultaneousCallOptions` to a continuous slider position so the slider can
+    /// step through 1, 2, 4, 8, 16 and Unlimited.
+    private var simultaneousCallsBinding: Binding<Double> {
+        Binding {
+            let index = Settings.simultaneousCallOptions.firstIndex(of: settings.maxSimultaneousCalls) ?? Settings.simultaneousCallOptions.count - 1
+            return Double(index)
+        } set: { newValue in
+            let index = min(max(Int(newValue.rounded()), 0), Settings.simultaneousCallOptions.count - 1)
+            settings.maxSimultaneousCalls = Settings.simultaneousCallOptions[index]
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -45,11 +63,10 @@ struct SettingsSheet: View {
                         settings.indexingTaskPriority = newValue ? .background : .medium
                     })
 
-                    Toggle("Minimise Network Usage", isOn: Binding<Bool> {
-                        settings.maxConcurrentIndexingOperations == 1
-                    } set: { newValue in
-                        settings.maxConcurrentIndexingOperations = newValue ? 1 : 0
-                    })
+                    VStack(alignment: .leading) {
+                        Text("Simultaneous calls: \(simultaneousCallsLabel)")
+                        Slider(value: simultaneousCallsBinding, in: 0 ... Double(Settings.simultaneousCallOptions.count - 1), step: 1)
+                    }
                 }
 
                 Section("Sort \"Done\" Section") {

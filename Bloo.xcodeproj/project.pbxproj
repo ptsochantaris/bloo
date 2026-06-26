@@ -26,6 +26,7 @@
 		165F10C42AC8803C00442892 /* Result.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C32AC8803C00442892 /* Result.swift */; };
 		165F10C62AC880DC00442892 /* DomainSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C52AC880DC00442892 /* DomainSection.swift */; };
 		165F10C82AC8810D00442892 /* EngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165F10C72AC8810D00442892 /* EngineState.swift */; };
+		1660B48A2FEEFDC3000DAE41 /* RequestGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1660B4892FEEFDC3000DAE41 /* RequestGate.swift */; };
 		1697539F2ACA350B00C2281D /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1697539E2ACA350B00C2281D /* Snapshot.swift */; };
 		16AB1E1C2FDD4C0500F0B360 /* ErrorReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16AB1E1B2FDD4C0500F0B360 /* ErrorReporter.swift */; };
 		16AB1E1E2FDD5C2900F0B360 /* BackgroundIndexActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16AB1E1D2FDD5C2900F0B360 /* BackgroundIndexActivity.swift */; };
@@ -93,6 +94,7 @@
 		165F10C32AC8803C00442892 /* Result.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Result.swift; sourceTree = "<group>"; };
 		165F10C52AC880DC00442892 /* DomainSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainSection.swift; sourceTree = "<group>"; };
 		165F10C72AC8810D00442892 /* EngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineState.swift; sourceTree = "<group>"; };
+		1660B4892FEEFDC3000DAE41 /* RequestGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestGate.swift; sourceTree = "<group>"; };
 		1697539E2ACA350B00C2281D /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
 		16AB1E1B2FDD4C0500F0B360 /* ErrorReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorReporter.swift; sourceTree = "<group>"; };
 		16AB1E1D2FDD5C2900F0B360 /* BackgroundIndexActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundIndexActivity.swift; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 				165F10C52AC880DC00442892 /* DomainSection.swift */,
 				16B43D2D2AC8D8ED00EB4815 /* DomainState.swift */,
 				16ACD37D2AF979BF00993099 /* Crawler.swift */,
+				1660B4892FEEFDC3000DAE41 /* RequestGate.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -424,6 +427,7 @@
 				16BCEBF72E3FE58E00E21E4B /* DomainRow.swift in Sources */,
 				16BCEC032E3FE7E700E21E4B /* LogView.swift in Sources */,
 				16BCEBE72E3FE4DE00E21E4B /* StatusIcon.swift in Sources */,
+				1660B48A2FEEFDC3000DAE41 /* RequestGate.swift in Sources */,
 				16BCEBF12E3FE54E00E21E4B /* FilterField.swift in Sources */,
 				16BCEC012E3FE65A00E21E4B /* Constants.swift in Sources */,
 				16E8A0EA2AC1F96500CCB10D /* ContentView.swift in Sources */,
@@ -502,9 +506,9 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -573,10 +577,10 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LLVM_LTO = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				MERGED_BINARY_TYPE = automatic;
 				MTL_ENABLE_DEBUG_INFO = NO;
