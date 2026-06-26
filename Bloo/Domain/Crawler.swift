@@ -52,7 +52,7 @@ final actor Crawler {
     private let visited: TableWrapper
 
     @MainActor
-    weak var crawlerDelegate: Domain!
+    weak var crawlerDelegate: Domain?
 
     enum IndexResponse {
         case noChange(viaServerCode: Bool), error, disallowed, cancelled, indexed(CSSearchableItem, IndexEntry, Set<IndexEntry>), wasSitemap(newContentUrls: Set<IndexEntry>, newSitemapUrls: Set<IndexEntry>)
@@ -100,20 +100,20 @@ final actor Crawler {
     @MainActor
     private func signalState(_ state: Domain.State, onlyIfActive: Bool = false) {
         if !onlyIfActive || crawlerDelegate.state.isStartingOrIndexing {
-            if crawlerDelegate.state.groupId != state.groupId {
+            if crawlerDelegate?.state.groupId != state.groupId {
                 // category change, animate
                 withAnimation {
-                    crawlerDelegate.state = state
+                    crawlerDelegate?.state = state
                 }
             } else {
-                crawlerDelegate.state = state
+                crawlerDelegate?.state = state
             }
         }
     }
 
     @MainActor
     private var currentState: Domain.State {
-        crawlerDelegate.state
+        crawlerDelegate?.state ?? .defaultState
     }
 
     func start() async throws {
