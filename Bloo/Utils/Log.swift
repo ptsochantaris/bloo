@@ -68,6 +68,11 @@ final class LogStorage {
 
     private var allMessages = [LogMessage]()
 
+    func clear() {
+        allMessages.removeAll()
+        filteredMessages.removeAll()
+    }
+
     func append(message: LogMessage) {
         message.systemLog()
 

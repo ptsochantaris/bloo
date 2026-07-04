@@ -17,6 +17,12 @@ struct Admin: View {
     }
 
     var body: some View {
+        GeometryReader { proxy in
+            adminBody(availableHeight: proxy.size.height)
+        }
+    }
+
+    private func adminBody(availableHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 18) {
@@ -43,8 +49,10 @@ struct Admin: View {
             }
 
             if showLog {
-                LogView(store: logStorage, showLog: $showLog, logHeight: $logHeight)
-                    .frame(height: logHeight)
+                // Keep some space for the content above, however tall the window is
+                let maxLogHeight = availableHeight * 0.90
+                LogView(store: logStorage, showLog: $showLog, logHeight: $logHeight, maxHeight: maxLogHeight)
+                    .frame(height: max(LogView.minHeight, min(logHeight, maxLogHeight)))
             }
         }
         .navigationTitle(searcher.title)
@@ -92,6 +100,7 @@ struct Admin: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet(model: model)
         }
+        .focusedSceneValue(\.showSettings, $showSettings)
     }
 
     private var settingsButton: some View {
@@ -100,5 +109,20 @@ struct Admin: View {
         } label: {
             Image(systemName: "gearshape")
         }
+        // On macOS the Settings… menu item carries ⌘, — defining it here too would conflict
+        #if !os(macOS)
+        .keyboardShortcut(",", modifiers: .command)
+        #endif
+    }
+}
+
+private struct ShowSettingsKey: FocusedValueKey {
+    typealias Value = Binding<Bool>
+}
+
+extension FocusedValues {
+    var showSettings: Binding<Bool>? {
+        get { self[ShowSettingsKey.self] }
+        set { self[ShowSettingsKey.self] = newValue }
     }
 }

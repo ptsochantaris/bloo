@@ -5,6 +5,20 @@ import SwiftUI
     import BackgroundTasks
 #endif
 
+#if os(macOS)
+    private struct SettingsMenuCommand: View {
+        @FocusedBinding(\.showSettings) private var showSettings
+
+        var body: some View {
+            Button("Settings…") {
+                showSettings = true
+            }
+            .keyboardShortcut(",", modifiers: .command)
+            .disabled(showSettings == nil)
+        }
+    }
+#endif
+
 @main
 struct BlooApp: App {
     #if canImport(AppKit)
@@ -125,6 +139,13 @@ struct BlooApp: App {
         } defaultValue: {
             UUID()
         }
+        #if os(macOS)
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                SettingsMenuCommand()
+            }
+        }
+        #endif
         #if canImport(UIKit)
         .onChange(of: scenePhase) { _, new in
             switch new {
