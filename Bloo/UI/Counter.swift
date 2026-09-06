@@ -11,6 +11,8 @@ struct Counter: View {
         HStack(spacing: 4) {
             Text(pending, format: .number)
                 .foregroundColor(.secondary)
+                .contentTransition(.numericText(countsDown: true))
+                .animation(.default, value: pending)
 
             Image(systemName: "arrowtriangle.forward.fill")
                 .imageScale(.small)
@@ -19,9 +21,11 @@ struct Counter: View {
                 .opacity(0.8)
 
             Text(indexed, format: .number)
+                .contentTransition(.numericText())
+                .animation(.default, value: indexed)
                 .frame(minWidth: minIndexedWidth)
                 .trackingWidth(to: $minIndexedWidth)
         }
-        .font(.blooBody.bold())
+        .font(.blooBody.bold().monospacedDigit())
     }
 }

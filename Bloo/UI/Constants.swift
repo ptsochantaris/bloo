@@ -5,6 +5,7 @@ enum Constants {
     static let wideCorner: CGFloat = 15
     static let narrowCorner: CGFloat = 10
     static let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 640))]
+    static let sectionTotalsMinimumWidth: CGFloat = 600
 }
 
 #if canImport(AppKit)

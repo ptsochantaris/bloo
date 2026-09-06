@@ -2,6 +2,16 @@ import Foundation
 
 extension Domain {
     struct Section: Identifiable {
+        /// Combined indexed and pending counts for every domain in a section
+        struct Totals {
+            let indexed: Int
+            let pending: Int
+
+            var progress: Double {
+                Double(indexed) / max(1, Double(pending + indexed))
+            }
+        }
+
         let id: String
         let state: State
         let domains: [Domain]
@@ -17,6 +27,17 @@ extension Domain {
             case .typical:
                 domains.sorted { $0.id < $1.id }
             }
+        }
+
+        var totals: Totals {
+            var indexed = 0
+            var pending = 0
+            for domain in domains {
+                let counts = domain.state.counts
+                indexed += counts.indexed
+                pending += counts.pending
+            }
+            return Totals(indexed: indexed, pending: pending)
         }
 
         private func allDomains(matchingFilter: String, _ block: @escaping @Sendable (Domain) async throws -> Void) async throws {

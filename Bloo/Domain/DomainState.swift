@@ -34,6 +34,22 @@ extension Domain {
             }
         }
 
+        var counts: (indexed: Int, pending: Int) {
+            switch self {
+            case let .indexing(indexed, pending, _),
+                 let .paused(indexed, pending, _),
+                 let .pausing(indexed, pending, _),
+                 let .starting(indexed, pending):
+                (indexed, pending)
+
+            case let .done(indexed, _):
+                (indexed, 0)
+
+            case .deleting:
+                (0, 0)
+            }
+        }
+
         static var allCases: [Self] {
             [.starting(0, 0), .indexing(0, 0, ""), .pausing(0, 0, false), defaultState, .done(0, .distantPast)]
         }
